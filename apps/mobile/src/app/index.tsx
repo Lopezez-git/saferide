@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Text, View } from "react-native";
 import {
   Page,
@@ -16,6 +16,10 @@ import { useResource } from "../lib/useResource";
 import { api, Report, message, when } from "../lib/client";
 import { useSession } from "../lib/session";
 import { nearRoute } from "../lib/spatial";
+import { locate, DevicePosition } from "../lib/location";
+
+const inPilot = (p: MapPoint) => p.latitude >= -24.1 && p.latitude <= -23.3 && p.longitude >= -46.9 && p.longitude <= -46.3;
+
 const categories = {
   OBRA: "Obras",
   PAVIMENTO: "Pavimento",
@@ -57,6 +61,41 @@ export default function MapScreen() {
   const [busy, setBusy] = useState(false);
   const [simulation, setSimulation] = useState(false);
   const [minimized, setMinimized] = useState(false);
+  const [position, setPosition] = useState<DevicePosition | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState("");
+  const [locationFocus, setLocationFocus] = useState(0);
+  const locationRequest = useRef(0);
+  useEffect(() => () => { locationRequest.current++; }, []);
+  async function findMe() {
+    const id = ++locationRequest.current;
+    setLocating(true);
+    setLocationError("");
+    try {
+      const p = await locate();
+      if (id !== locationRequest.current) return;
+      if (!Number.isFinite(p.latitude) || !Number.isFinite(p.longitude) || Math.abs(p.latitude) > 90 || Math.abs(p.longitude) > 180) {
+        throw new Error("O dispositivo retornou uma posição inválida. Tente novamente.");
+      }
+      setPosition(p);
+      setLocationFocus((value) => value + 1);
+    } catch (e) {
+      if (id === locationRequest.current) setLocationError(message(e));
+    } finally {
+      if (id === locationRequest.current) setLocating(false);
+    }
+  }
+  function usePositionAsOrigin() {
+    if (!position || !inPilot(position)) return;
+    request.current++;
+    setRouting(false);
+    setRoute(null);
+    setSimulation(false);
+    setError("");
+    setOrigin({ latitude: position.latitude, longitude: position.longitude });
+    setMode("destination");
+    setLocationFocus((value) => value + 1);
+  }
   function pick(p: MapPoint) {
     if (
       p.latitude < -24.1 ||
@@ -145,6 +184,17 @@ export default function MapScreen() {
       title="Conheça o caminho."
       subtitle="Consulte o trajeto e os relatos antes de fazer sua escolha."
     >
+      <Button title={locating ? "Localizando…" : "Minha localização"} onPress={findMe} disabled={locating} />
+      <Feedback error={locationError} />
+      {position ? <>
+        <Text style={styles.subtitle}>
+          Ponto azul: posição obtida às {new Date(position.timestamp).toLocaleTimeString("pt-BR")}.
+          {position.accuracy !== null ? ` Precisão aproximada: ${Math.round(position.accuracy)} m.` : " Precisão não informada."}
+          {locationError ? " A última posição foi mantida; ela pode estar desatualizada." : " Toque em Minha localização para atualizar."}
+        </Text>
+        {inPilot(position) ? <Button title="Usar minha posição como origem" secondary onPress={usePositionAsOrigin} /> :
+          <Text style={styles.subtitle}>Você está fora da região piloto. Sua posição aparece no mapa; trajetos e novos relatos continuam limitados à área de São Paulo.</Text>}
+      </> : <Text style={styles.subtitle}>Permita a localização para ver sua posição no mapa.</Text>}
       <View style={styles.row}>
         <Chip
           label="Marcar origem"
@@ -174,6 +224,8 @@ export default function MapScreen() {
       <MapCanvas
         data={{
           reports: shown,
+          position,
+          locationFocus,
           origin,
           destination,
           selected: point,

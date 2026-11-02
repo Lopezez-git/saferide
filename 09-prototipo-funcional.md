@@ -24,3 +24,7 @@ TypeScript e ESLint verificam a interface; exportação Android valida o bundle,
 Conta e publicações de apresentação são fictícias. O relato aprovado tem DEMONSTRAÇÃO no título e explicita que não representa uma ocorrência real. Esses dados ficam apenas no banco local, não são seeds de produção nem exportados com credenciais para o Git. Notícias preservam origem e datas e não se confundem com exemplos fictícios da apresentação.
 
 A revisão visual identificou RSS regional desatualizado. O coletor foi substituído por Agência Brasil e busca RSS do Google Notícias com veículos permitidos. NewsDateTest cobre rejeição de data antiga, futura e desconhecida. Notícias salvas fora da janela de sete dias são excluídas também na leitura.
+
+## Atualização: localização do dispositivo
+
+Adicionados consulta de localização mediante permissão, ponto azul, círculo de precisão, centralização e uso como origem dentro da região piloto. TypeScript e ESLint passaram. Verificação isolada do adaptador web cobriu retorno de coordenadas, navegador sem suporte, permissão recusada e timeout; script Leaflet passou pela validação de sintaxe. A prévia integrada não retornou coordenadas reais durante a verificação; não houve validação do GPS em aparelho Android/iOS. Nenhuma posição fictícia foi usada para representar a posição do usuário.

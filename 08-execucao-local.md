@@ -96,3 +96,15 @@ A exportação Android produz bundle JavaScript/Hermes, não um APK. Instalaçã
 ## Fontes técnicas
 
 [Expo SDK 58](https://docs.expo.dev/versions/v58.0.0/), [WebView](https://docs.expo.dev/versions/v58.0.0/sdk/webview/), [SecureStore](https://docs.expo.dev/versions/v58.0.0/sdk/securestore/), [Leaflet](https://leafletjs.com/), [política de tiles OSM](https://operations.osmfoundation.org/policies/tiles/) e [OSRM](https://github.com/Project-OSRM/osrm-backend/wiki/Demo-server). Atribuição OSM permanece visível; sem pré-carregamento ou download em massa.
+
+## Localização do dispositivo
+
+No mapa, toque em **Minha localização** e permita o acesso. O app centraliza na posição obtida, mostra um ponto azul e o círculo de precisão informado pelo dispositivo. A consulta é pontual: toque novamente para atualizar; não acompanha deslocamentos em segundo plano. O horário da leitura fica visível.
+
+**Usar minha posição como origem** substitui a origem, limpa o trajeto anterior e permite selecionar o destino. Fora dos limites da região piloto, a localização continua visível, mas não pode ser usada nos endpoints de trajetos/relatos, que permanecem restritos à área de São Paulo.
+
+No navegador usamos Geolocation API (localhost ou HTTPS). Em computador, a posição pode ser aproximada, sem sensor GPS. No Android/iOS usamos expo-location com permissão de uso em primeiro plano; a nova dependência exige reconstruir o development build. Se o navegador integrado não responder, abra localhost:8081 no Chrome/Edge, permita a localização e verifique também a configuração do sistema operacional. Recusa, indisponibilidade e timeout exibem erro, sem substituir por coordenadas fictícias.
+
+A posição fica em memória; não criamos histórico de GPS no banco. O mapa carrega tiles externos da área visualizada. Ao consultar um trajeto, as coordenadas de origem/destino são enviadas à API local e ao OSRM, como no fluxo manual. O envio de relato continua sendo uma ação separada do usuário.
+
+Referência: [Expo Location SDK 58](https://docs.expo.dev/versions/v58.0.0/sdk/location/).
