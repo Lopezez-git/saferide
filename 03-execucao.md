@@ -18,7 +18,7 @@ P0 é necessário para a demonstração completa. P1 é necessário para o pilot
 
 | ID | Prioridade | Tarefa | Dependência | Critério de aceite |
 | --- | --- | --- | --- | --- |
-| SR-01 | P0 | Fechar decisões iniciais | — | Modelo independente/integrado/híbrido decidido pelo grupo, cidade, versões e ferramentas para React Native e Spring Boot, integrantes e prazo registrados |
+| SR-01 | P0 | Fechar decisões iniciais | — | Detalhes da caixinha, simulador, cidade, versões e ferramentas para React Native e Spring Boot, integrantes e prazo registrados |
 | SR-02 | P0 | Desenhar telas e estados | SR-01 | Jornada de consulta, envio e revisão navegável |
 | SR-03 | P0 | Preparar frontend React Native e backend Spring Boot | SR-01 | Outro integrante inicia o app em celular/emulador e o backend seguindo README; URL da API configurada por ambiente, chamada React Native → Spring Boot funciona, sem segredos no Git |
 | SR-04 | P0 | Preparar base demonstrativa | SR-01 | Exemplos recentes, antigos, sem dados e contraditórios, todos fictícios |
@@ -97,7 +97,7 @@ Uma tarefa está concluída quando atende ao critério de aceite, passou por rev
 
 ## Roteiro de demonstração
 
-Roteiro-base de consulta manual, sujeito à escolha do modelo em SR-01. Se o grupo optar pela proposta integrada, revisar telas e tarefas para incluir oferta fictícia → consulta de contexto → aviso na oferta. Não implementar simulador nem prometer conexão real antes dessa definição; a base de API, notícias e comunidade permanece aproveitável.
+Roteiro principal: oferta fictícia → consulta de contexto → caixinha flutuante sobre o app de teste. Demonstrar mover/minimizar/fechar, troca rápida de oferta, falha de consulta e notícia antiga de assalto sem alegar incidente em andamento. O roteiro manual abaixo complementa a demonstração. Não há conexão real com plataformas.
 
 1. Mostrar uma consulta de origem e destino dentro da área piloto.
 2. Abrir o percurso e um registro de pavimento com fonte e data.
@@ -124,3 +124,17 @@ Roteiro-base de consulta manual, sujeito à escolha do modelo em SR-01. Se o gru
 ## Verificação da entrega mobile
 
 Antes da apresentação, verificar build e abertura no dispositivo escolhido, acesso à API no computador, permissões de localização negadas e concedidas, teclado virtual, leitor de tela, navegação de voltar e retorno do app após ir para segundo plano. Executar o fluxo de feed, comentários e consulta de mapa no dispositivo. Simular perda de conexão com a API separadamente da falha de uma fonte de notícias. O protótipo não exige publicação em loja.
+
+## Entregas de caixinha e alertas
+
+Conforme [documento 07](07-caixinha-alertas.md), incluir no MVP local:
+
+| ID | Tarefa | Dependências | Critério de aceite |
+| --- | --- | --- | --- |
+| SR-30 | Prova de conceito de overlay Android com Kotlin | SR-03 | Janela aparece sobre app de teste, permite fechar/mover/minimizar e trata permissão negada/revogada |
+| SR-31 | Simulador e eventos de ofertas fictícias | SR-30 | Criar, substituir e encerrar oferta identificada, sem conexão com terceiros |
+| SR-32 | Contexto vinculado à oferta | SR-07, SR-17, SR-31 | IDs e versão correlacionados, timeout, cobertura parcial e descarte de respostas antigas |
+| SR-33 | Revisão e apresentação de categorias de alerta | SR-10, SR-16 | Fonte, data, precisão, privacidade e prazo; notícia de assalto não aparece como crime em andamento |
+| SR-34 | Verificação integrada do overlay | SR-32, SR-33 | Casos de aceite do documento 07 executados no dispositivo de apresentação |
+
+SR-34 complementa SR-11, SR-18 e SR-29 na entrega integrada. Validar viabilidade do módulo nativo cedo e revisar prazo/responsáveis, sem chamar cartão dentro da mesma tela de sobreposição entre apps.

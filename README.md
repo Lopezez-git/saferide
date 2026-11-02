@@ -10,9 +10,13 @@ Uma solução de contexto territorial, com protótipo mobile e uma comunidade de
 
 O SafeRide complementa a avaliação de valor, distância e tempo. Não garante segurança, não determina quais corridas ou entregas aceitar e não classifica bairros como seguros ou perigosos.
 
-## Modelo do produto: decisão em aberto
+## Modelo do produto e caixinha flutuante
 
-O grupo ainda decidirá entre aplicativo independente, serviço integrado a plataformas como Uber/99/iFood ou modelo híbrido. Nenhuma dessas alternativas está aprovada como formato definitivo. React Native permanece como interface do protótipo acadêmico e Spring Boot como backend. Uma proposta integrada pode ser demonstrada com ofertas fictícias; isso não representa conexão real ou parceria com as empresas. Consulte a [decisão pendente](04-decisoes.md) para comparar os caminhos.
+A proposta escolhida é fornecer contexto junto de ofertas de plataformas como Uber, 99 e iFood por uma caixinha flutuante do SafeRide sobre o aplicativo utilizado. O cartão pode ser movido, minimizado ou fechado, sem bloquear aceitar/recusar. Comunidade e detalhes ficam no app SafeRide.
+
+Para a faculdade, demonstrar integração autorizada simulada com ofertas fictícias, React Native, módulo Android em Kotlin para sobreposição e Spring Boot. Sobrepor uma janela não significa parceria oficial nem acesso automático aos dados da corrida. Não há conexão real implementada com as plataformas. O [plano de caixinha e alertas](07-caixinha-alertas.md) define fluxo, estados, dados e critérios de aceite.
+
+Os alertas incluem obras, pavimento, alagamentos, obstáculos, acesso e ocorrências de assalto registradas em notícias ou relatos revisados. Exibir fonte, data e precisão. Notícia de assalto passado não significa crime em andamento, e ausência de registros não significa segurança.
 
 ## Para quem é o SafeRide
 
@@ -34,7 +38,7 @@ O levantamento inicial de 14 respostas foi realizado com motoristas. A ampliaç�
 
 ## Notícias e informações locais
 
-O SafeRide buscará automaticamente notícias e comunicados sobre obras, interdições e alagamentos em fontes RSS/API selecionadas para a região. A busca faz parte da primeira versão e não exige cadastro manual de links. Notícias elegíveis aparecem na lista regional; a associação a ocorrências no mapa exige localização suficiente e revisão.
+O SafeRide buscará automaticamente notícias e comunicados sobre obras, interdições, alagamentos e ocorrências de segurança, incluindo assaltos, em fontes RSS/API selecionadas para a região. A busca faz parte da primeira versão e não exige cadastro manual de links. Notícias elegíveis aparecem na lista regional; a associação a ocorrências no mapa exige localização suficiente e revisão.
 
 Cada ocorrência poderá reunir várias notícias como evidências, evitando marcadores duplicados. No mapa e no painel, o usuário verá resumo, localização com sua precisão, fonte, data do acontecimento e última verificação. Informação desatualizada será sinalizada; o vencimento de um prazo não confirma que o problema terminou.
 
@@ -42,7 +46,7 @@ O Spring Boot cuidará da coleta, organização, revisão, permissões e consult
 
 ## Execução local e fallback
 
-O foco é um protótipo funcional para apresentação, com React Native, Spring Boot e banco local. O app roda em celular Android ou emulador, com backend e banco no computador da apresentação. Android é o alvo inicial proposto; iOS e uso de Expo ainda serão definidos. Publicação em lojas fica para uma etapa posterior. Não é necessário contratar hospedagem para essa entrega. Buscar notícias novas exige internet; os custos e limites de fontes e mapas precisam ser verificados antes da escolha.
+O foco é um protótipo funcional para apresentação, com React Native, Spring Boot e banco local. O app roda em celular Android ou emulador, com backend e banco no computador da apresentação. Android é o alvo da prova de conceito de sobreposição; a ferramenta de build ainda será definida. Não se presume o mesmo mecanismo no iOS. Publicação em lojas fica para uma etapa posterior. Não é necessário contratar hospedagem para essa entrega. Buscar notícias novas exige internet; os custos e limites de fontes e mapas precisam ser verificados antes da escolha.
 
 Em caso de falha, o sistema tenta fontes alternativas com limite de tempo e tentativas. Se todas falharem, mostra as últimas notícias salvas localmente, indicando a data e a indisponibilidade da atualização. Sem dados salvos, oferece ativação explícita de um modo de demonstração com exemplos identificados e separados dos dados reais.
 
@@ -61,17 +65,18 @@ Planejamento inicial em 2 de novembro de 2026. Este repositório contém documen
 5. [Como colaborar](CONTRIBUTING.md): rotina de branches, revisão e entregas.
 6. [Integração de notícias](05-integracao-noticias.md): busca automática, fontes alternativas, dados locais, demonstração e ocorrências no mapa.
 7. [Comunidade e perfis](06-comunidade-perfis.md): perfis, feed, conversas gerais, dicas, dúvidas, comentários e moderação.
+8. [Caixinha flutuante e alertas](07-caixinha-alertas.md): ofertas simuladas, sobreposição Android, notícias, assaltos e situações do trajeto.
 
 ## Primeiro objetivo
 
-Demonstrar uma jornada completa em uma área piloto: selecionar origem e destino, visualizar um trajeto, consultar informações com fonte e data e enviar um relato que passe por revisão antes de aparecer no mapa.
+Demonstrar uma oferta fictícia recebida, consulta de contexto e caixinha flutuante com informações revisadas, fonte e datas; trocar de oferta sem reaproveitar resposta antiga. Complementar com mapa, envio/revisão de relato e participação na comunidade.
 
 Dados fictícios devem ser identificados como demonstração. A aplicação só será apresentada como piloto com dados reais depois da validação das fontes e do fluxo de moderação.
 
 ## Organização prevista
 
 ```text
-01-*.md a 06-*.md    Planejamento, notícias e comunidade
+01-*.md a 07-*.md    Planejamento, notícias e comunidade
 .github/              Modelos de tarefas e revisão
 apps/mobile/             Frontend React Native, quando implementado
 services/api/         Backend Java com Spring Boot

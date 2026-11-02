@@ -150,3 +150,7 @@ O React Native apresenta carregamento, lista vazia, falha com nova tentativa e c
 ### Fora do escopo inicial
 
 Fotos, curtidas ou reação “Foi útil”, seguidores, chat privado, respostas aninhadas, notificações em tempo real, ranking e filtros por plataforma ficam para evolução posterior. O feed e os comentários fazem parte do planejamento do MVP; ainda não foram implementados.
+
+## Relação com a caixinha
+
+Comunidade e detalhes permanecem no app SafeRide. A [caixinha flutuante](07-caixinha-alertas.md) mostra contexto revisado associado à oferta. Posts, comentários e plataformas do perfil não confirmam alertas. Relato de assalto precisa do fluxo territorial e de revisão específica antes da exibição; não publicar acusações ou dados pessoais.

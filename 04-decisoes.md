@@ -22,30 +22,26 @@
 
 | Tema | Ponto de partida | O que pode mudar |
 | --- | --- | --- |
-| Modelo do produto | Em aberto: independente, integrado ou híbrido | Decisão conjunta do grupo antes de fechar o fluxo principal |
+| Modelo do produto | Proposta integrada com caixinha flutuante | Contrato com parceiro real e obtenção dos dados ainda não definidos |
 | Protótipo | React Native + Spring Boot | Android como alvo inicial proposto; suporte a iOS a definir |
 | Cobertura | Uma cidade ou área piloto | Região escolhida pelo grupo |
-| Repositório | Nome saferide, privado inicialmente | Preferência do proprietário e necessidades de entrega |
+| Repositório | saferide, público por enquanto por solicitação do proprietário | Visibilidade futura e licença a definir |
 | Consulta | Sem autenticação | Regras de acesso ao piloto |
 | Relatos | Login e revisão antes de publicar | Operação e capacidade de moderação |
 | Fontes públicas | Importação revisada | Fonte e periodicidade após validação |
 | Atualidade | Validade inicial de 30 dias para relatos | Ajustes por categoria e testes |
 
-## Decisão pendente: independente ou integrado?
+## Decisão adotada: proposta integrada com caixinha flutuante
 
-Status: **em aberto, para discussão com o grupo**. Não assumir integração real nem aplicativo independente como escolha definitiva.
+O proprietário definiu a proposta integrada à experiência de Uber/99/iFood e escolheu a caixinha flutuante sobre o app, em vez de cartão incorporado à interface da plataforma. O [plano de alertas](07-caixinha-alertas.md) substitui a discussão anterior em aberto.
 
-| Alternativa | Benefício esperado | Ponto a resolver |
-| --- | --- | --- |
-| App independente | Autonomia e comunidade entre plataformas | Como consultar sem atrapalhar a decisão diante de uma oferta em outro app |
-| Serviço integrado | Contexto junto da oferta de corrida ou entrega | Acesso autorizado aos dados e interface controlada pela plataforma; demonstração acadêmica pode ser simulada |
-| Híbrido | Comunidade própria e possibilidade de integração | Escopo e esforço compatíveis com prazo e equipe |
+A apresentação acadêmica simula uma integração autorizada e ofertas fictícias. Não existe parceria ou acesso real autorizado às empresas. A sobreposição é um recurso do Android e não fornece, sozinha, os dados da oferta. React Native e Spring Boot permanecem; um módulo Kotlin e um app de ofertas de teste são propostos para demonstrar o overlay real. Comunidade e detalhes ficam no SafeRide.
 
-O grupo deve escolher qual experiência pretende demonstrar, onde a comunidade fica, como origem e destino chegam ao serviço e quais partes serão simuladas. Registrar a escolha, participantes e justificativa antes de fechar telas, contratos específicos e tarefas de integração. O protótipo continua em React Native e Spring Boot em qualquer alternativa; uma plataforma real poderia consumir a API com sua própria tecnologia de interface.
+Notícias e relatos revisados podem informar situações do trajeto e assaltos registrados, com fonte, data e precisão; não há detecção de crimes em tempo real nem classificação de segurança de bairros.
 
 ## Pendências que afetam o desenvolvimento
 
-Definir versões, uso ou não de Expo, emulador/dispositivo de apresentação e suporte a iOS. Android é o alvo inicial proposto. Publicação em lojas não faz parte da entrega local.
+Definir versões, ferramenta de build e emulador/dispositivo de apresentação. Android é o alvo da prova de conceito de sobreposição; iOS fica fora dessa demonstração. Publicação em lojas não faz parte da entrega local.
 
 1. Qual é o prazo da entrega e existem exigências adicionais de versões, ferramentas ou banco, além de React Native e Spring Boot?
 2. Quem compõe o grupo, quais são os usuários do GitHub e quantas horas cada pessoa pode dedicar?
@@ -55,7 +51,8 @@ Definir versões, uso ou não de Expo, emulador/dispositivo de apresentação e 
 6. Qual fonte pública concreta atende à área piloto e pode ser reutilizada?
 7. Quem revisará os relatos e com qual frequência?
 8. Onde estão o questionário e os resultados anonimizados da pesquisa?
-9. O repositório será mantido privado ou poderá ser publicado depois? Qual licença será adotada se for aberto?
+9. Qual licença será adotada? O repositório está público por enquanto.
+10. Quais janelas temporais e prioridades serão usadas para alertas, quem revisará ocorrências de segurança e qual versão Android será usada para o overlay?
 
 ## Registro de mudanças
 
@@ -72,3 +69,5 @@ Para cada decisão relevante, adicionar data, contexto, decisão, responsável e
 | 2026-11-02 | Adotar protótipo mobile em React Native com backend Spring Boot, substituindo a proposta de site responsivo | Formato independente inicialmente proposto; reaberto na decisão abaixo |
 | 2026-11-02 | Deixar o modelo independente, integrado ou híbrido em aberto para decisão do grupo | Solicitação do proprietário; mantém a stack do protótipo, sem aprovar integração ou simulador |
 | 2026-11-02 | Planejar busca automática RSS/API e fallback já na primeira versão local; cadastro manual torna-se apenas auxiliar | Requisito atualizado do proprietário; substitui o planejamento inicial de coleta manual em 05-integracao-noticias.md |
+| 2026-11-02 | Adotar proposta integrada com caixinha flutuante, ofertas simuladas e alertas revisados de notícias, assaltos e condições do trajeto; substitui a decisão em aberto | Definição do proprietário |
+| 2026-11-02 | Tornar repositório público por enquanto | Solicitação do proprietário, já aplicada no GitHub |

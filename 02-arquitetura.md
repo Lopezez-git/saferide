@@ -15,7 +15,7 @@ flowchart TD
     PUB[Importação revisada de fontes públicas] --> DB
 ```
 
-React Native na interface do protótipo acadêmico e Java com Spring Boot no backend são requisitos confirmados. O formato final (independente, integrado ou híbrido) está pendente de decisão do grupo. Banco, hospedagem, fornecedores, versões e ferramentas de build ainda serão definidos. Essas escolhas devem considerar familiaridade do grupo, exigências da disciplina, cobertura da cidade piloto, limites, custo e direitos de uso. Não criar dependência de contas da Advanced.
+React Native na interface do protótipo acadêmico e Java com Spring Boot no backend são requisitos confirmados. A proposta integrada com caixinha flutuante foi escolhida; integração real não está implementada. Banco, hospedagem, fornecedores, versões e ferramentas de build ainda serão definidos. Essas escolhas devem considerar familiaridade do grupo, exigências da disciplina, cobertura da cidade piloto, limites, custo e direitos de uso. Não criar dependência de contas da Advanced.
 
 ## Responsabilidades de cada aplicação
 
@@ -112,14 +112,12 @@ Validar compatibilidade da biblioteca de mapas com React Native e com a ferramen
 
 A coleta de notícias continua no Spring Boot, não no celular. Dados salvos no banco exigem conexão com a API; não significam que o aplicativo funciona sozinho offline. Se a API não estiver acessível, o modo de demonstração pode usar exemplos fictícios empacotados no aplicativo, com ativação explícita e identificação. Preparar também mapa e percursos demonstrativos locais.
 
-Alertas no mapa e no painel são a base proposta; a apresentação junto de ofertas simuladas depende da decisão sobre o modelo do produto. Notificações push, integração com contas Uber/iFood, distribuição em lojas e operação pública ficam fora desta entrega. Abrir fontes de notícias em um navegador externo não transforma o produto em site. Usar armazenamento seguro do sistema para credenciais de sessão conforme o mecanismo de autenticação escolhido.
+Alertas no mapa e no painel são a base proposta; a apresentação junto de ofertas simuladas usa a caixinha flutuante descrita em 07-caixinha-alertas.md. Notificações push, integração com contas Uber/iFood, distribuição em lojas e operação pública ficam fora desta entrega. Abrir fontes de notícias em um navegador externo não transforma o produto em site. Usar armazenamento seguro do sistema para credenciais de sessão conforme o mecanismo de autenticação escolhido.
 
-## Alternativas de integração ainda em avaliação
+## Sobreposição e contexto da oferta
 
-- Independente: o usuário consulta região ou trajeto no SafeRide. A troca de aplicativo e o preenchimento manual podem dificultar a consulta antes de aceitar uma oferta.
-- Integrado: uma plataforma autorizada consultaria a API Spring Boot com origem e destino e apresentaria o contexto em sua própria interface. React Native não seria exigido dentro do aplicativo parceiro; permanece útil para demonstrar a proposta acadêmica.
-- Híbrido: comunidade e consulta no aplicativo próprio, com serviço de contexto disponível para uma futura integração autorizada.
+O [plano da caixinha flutuante](07-caixinha-alertas.md) define a experiência adotada, fontes, revisão e estados. React Native mantém o app e detalhes; módulo Kotlin gerencia a janela Android; um app de ofertas fictícias alimenta o fluxo; Spring Boot consulta a base revisada sem esperar coleta externa. A permissão de sobreposição não concede acesso aos dados de outros apps.
 
-Se o grupo escolher demonstrar integração, poderá criar um simulador com ofertas fictícias: oferta → consulta ao SafeRide → resposta com contexto, fontes e datas → exibição junto da oferta. Esse simulador é uma opção, não uma tarefa já aprovada. Não há conexão real implementada nem acesso garantido a ofertas de Uber, 99 ou iFood.
+Reutilizar POST /api/v1/contexto/consulta, acrescentando requestId, offerId, versão e validade da oferta. O cliente ignora respostas de ofertas encerradas ou substituídas. Fechar o cartão não permite reabertura por resposta atrasada. Sem geometria, consultar apenas pontos conhecidos e sinalizar cobertura parcial. A prova de conceito Android e os contratos completos estão no documento 07; iOS não faz parte da demonstração de sobreposição.
 
-Notificação e acesso aos dados da oferta são problemas distintos: localização atual não revela automaticamente destino ou percurso. Aviso imediato também não garante atualização imediata das fontes. Definir com o grupo quais dados entram, onde o aviso aparece, como tratar falha ou demora na consulta e o que será simulado antes de fechar telas e contratos específicos.
+A revisão deve incluir relatos e notícias sobre assaltos, sem transformar registros históricos em ocorrência em andamento. Categoria, origem, precisão espacial, data do fato e atualidade são campos distintos. Não persistir consultas pessoais ou registrar dados de passageiros em logs.
