@@ -12,7 +12,7 @@ O SafeRide complementa a avaliação de valor, distância e tempo. Não garante 
 
 ## Situação atual
 
-Planejamento inicial em 2 de novembro de 2026. Este repositório contém documentação e organização do trabalho; ainda não existe aplicação executável. As decisões técnicas e operacionais propostas precisam ser revisadas pelo grupo.
+Planejamento inicial em 2 de novembro de 2026. Este repositório contém documentação e organização do trabalho; ainda não existe aplicação executável. React no frontend e Spring Boot no backend são requisitos confirmados. As demais decisões técnicas e operacionais propostas precisam ser revisadas pelo grupo.
 
 ## Por onde começar
 
@@ -33,9 +33,9 @@ Dados fictícios devem ser identificados como demonstração. A aplicação só 
 ```text
 01-*.md a 04-*.md    Planejamento e decisões
 .github/              Modelos de tarefas e revisão
-apps/web/             Aplicação responsiva, quando implementada
-services/api/         API, se a stack escolhida exigir serviço separado
+apps/web/             Frontend React, quando implementado
+services/api/         Backend Java com Spring Boot
 data/demo/            Exemplos fictícios identificados
 ```
 
-As pastas de código serão criadas com a escolha da stack. Nenhuma implantação ou serviço pago faz parte desta preparação.
+As pastas de código serão criadas na implementação da base React e Spring Boot. Nenhuma implantação ou serviço pago faz parte desta preparação.
