@@ -113,7 +113,7 @@ Referência: [Expo Location SDK 58](https://docs.expo.dev/versions/v58.0.0/sdk/l
 
 ## Mapa dedicado e busca de lugares
 
-A aba Mapa ocupa a tela, com busca flutuante e painel inferior expansível para planejamento, relatos e filtros. Comunidade, Notícias e Perfil continuam em abas próprias. O estilo visual é inspirado em aplicativos de mobilidade, com identidade SafeRide; não representa integração oficial com a Uber.
+A aba Mapa abre apenas com o mapa e o campo de busca flutuante. O painel de detalhes fica oculto e aparece ao selecionar um lugar, tocar em um ponto ou em um relato; pode ser fechado novamente. Não há atalhos de trajeto/relatar/alertas na tela inicial. Comunidade, Notícias e Perfil continuam em abas próprias. O estilo visual é inspirado em aplicativos de mobilidade, com identidade SafeRide; não representa integração oficial com a Uber.
 
 A busca envia o texto ao backend e ao Photon público. O servidor restringe os resultados à região piloto, limita novas chamadas a uma por 1,1 segundo, mantém cache em memória por uma hora (até 200 termos) e aplica timeout. O provedor pode ser trocado com a propriedade places.url. A busca usa sugestões automáticas com debounce; não há trânsito ao vivo ou garantia de cobertura equivalente ao Google Maps. Falhas exibem mensagem; selecionar no mapa continua disponível. Fonte: [Photon e condições do servidor público](https://github.com/komoot/photon#demo-server).
 

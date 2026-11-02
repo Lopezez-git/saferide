@@ -219,18 +219,17 @@ export default function MapScreen() {
       <MapCanvas
         height={mapHeight}
         data={{ reports: shown, placeFocus, position, locationFocus, origin, destination, selected: point, route: route?.geometry.coordinates ?? null }}
-        onPick={pick}
+        onPick={(point) => { pick(point); setSheetOpen(true); }}
         onReport={(id) => {setDetail(id); setSheetOpen(true);}}
       />
       <View style={{position:"absolute",top:12+insets.top,left:12,right:12,maxWidth:520,alignSelf:"center",backgroundColor:"white",borderRadius:20,padding:14,boxShadow:"0 3px 18px #00000020"}}>
         <ScrollView keyboardShouldPersistTaps="handled" style={{maxHeight:Math.max(180,mapHeight*0.42)}} contentContainerStyle={{gap:8}}>
-      <Text style={{fontSize:11,fontWeight:"700",color:"#64716C",letterSpacing:1}}>{mode === "origin" ? "ORIGEM" : mode === "destination" ? "DESTINO" : "LOCAL DO RELATO"}</Text>
       <TextInput
         accessibilityLabel="Buscar endereço ou lugar"
         style={{fontSize:17,minHeight:48,color:"#17211D",paddingHorizontal:12,backgroundColor:"#F2F4F2",borderRadius:12}}
         value={search}
         onChangeText={(text) => { searchRequest.current++; setSearch(text); setPlaces([]); setSearchError(""); setSearched(false); setSearching(false); }}
-        placeholder="Ex.: Avenida Paulista, MASP, Rua Augusta"
+        placeholder={mode === "origin" ? "Buscar lugar de partida" : mode === "destination" ? "Para onde? Busque um lugar" : "Buscar local do relato"}
         maxLength={120}
         returnKeyType="search"
         onSubmitEditing={() => Keyboard.dismiss()}
@@ -242,7 +241,7 @@ export default function MapScreen() {
         <Text style={styles.heading}>{place.name}</Text>
         <Text style={styles.subtitle}>{place.address}</Text>
         <Button title={mode === "origin" ? "Usar como origem" : mode === "destination" ? "Usar como destino" : "Marcar neste local"} secondary onPress={() => {
-          Keyboard.dismiss(); setSheetOpen(false); pick(place);
+          Keyboard.dismiss(); setSheetOpen(true); pick(place);
           if (mode === "origin") { setOriginName(place.name); setMode("destination"); }
           else if (mode === "destination") setDestinationName(place.name);
           setPlaceFocus({ latitude: place.latitude, longitude: place.longitude, key: Date.now() });
@@ -254,7 +253,7 @@ export default function MapScreen() {
 
         </ScrollView>
       </View>
-      <View style={{position:"absolute",bottom:0,left:0,right:0,backgroundColor:"white",borderTopLeftRadius:24,borderTopRightRadius:24,maxHeight:mapHeight*0.53,boxShadow:"0 -4px 20px #00000016"}}>
+      {sheetOpen ? <View style={{position:"absolute",bottom:0,left:0,right:0,backgroundColor:"white",borderTopLeftRadius:24,borderTopRightRadius:24,maxHeight:mapHeight*0.53,boxShadow:"0 -4px 20px #00000016"}}>
         <Pressable accessibilityRole="button" accessibilityLabel={sheetOpen ? "Recolher painel do mapa" : "Abrir planejamento e relatos"} accessibilityState={{expanded:sheetOpen}} onPress={() => { Keyboard.dismiss(); setSheetOpen(!sheetOpen); }} style={{padding:16,gap:8,minHeight:80}}>
           <View style={{width:38,height:4,borderRadius:4,backgroundColor:"#CBD2CE",alignSelf:"center"}} />
           <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:8}}>
@@ -263,13 +262,6 @@ export default function MapScreen() {
           </View>
           <Text numberOfLines={1} style={{fontSize:12,color:"#64716C"}}>{locating ? "Buscando sua posição…" : position ? "Posição no mapa · São Paulo e região" : "São Paulo · localização indisponível"}</Text>
         </Pressable>
-        {!sheetOpen ? <View style={{paddingHorizontal:16,paddingBottom:14}}>
-          <View style={styles.row}>
-            <Chip label="Trajeto" selected={mode!=="report"} onPress={() => {setMode(origin ? "destination" : "origin");setSheetOpen(true);}} />
-            <Chip label="Relatar" onPress={() => {setMode("report");setSheetOpen(true);}} />
-            <Chip label="Alertas" onPress={() => setSheetOpen(true)} />
-          </View>
-        </View> : null}
         {sheetOpen ? <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{padding:16,paddingTop:0,gap:12,paddingBottom:28}}>
           <Feedback error={locationError} />
           {position && !inPilot(position) ? <Text style={styles.subtitle}>Você está fora da região piloto. Trajetos e relatos estão limitados à área de São Paulo.</Text> : null}
@@ -500,7 +492,7 @@ export default function MapScreen() {
       ) : null}
           <Text style={styles.subtitle}>Protótipo acadêmico · fontes e detalhes nos relatos.</Text>
         </ScrollView> : null}
-      </View>
+      </View> : null}
     </View>
   );
 }
