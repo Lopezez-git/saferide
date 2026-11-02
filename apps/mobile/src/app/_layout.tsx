@@ -17,7 +17,7 @@ export default function Layout() {
           tabBarLabelStyle: { fontSize: 13, fontWeight: "600" },
         }}
       >
-        <Tabs.Screen name="index" options={{ title: "Mapa" }} />
+        <Tabs.Screen name="index" options={{ title: "Mapa", headerShown: false }} />
         <Tabs.Screen name="community" options={{ title: "Comunidade" }} />
         <Tabs.Screen name="news" options={{ title: "Notícias" }} />
         <Tabs.Screen name="profile" options={{ title: "Perfil" }} />

@@ -10,7 +10,7 @@ export default function MapCanvas({ data, onPick, onReport, height = 360 }: MapP
   return (
     <WebView<object>
       ref={ref}
-      style={{ height, borderRadius: 20 }}
+      style={{ height, borderRadius: 0 }}
       source={{
         html: mapHtml,
         baseUrl: "https://github.com/Lopezez-git/saferide",

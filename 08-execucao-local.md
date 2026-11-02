@@ -74,9 +74,9 @@ As tabelas sr_* da migração V3 sustentam os fluxos funcionais e usam UUIDs. As
 
 Relatos de alagamento têm janela inicial de 6 horas e os demais de 24 horas, contadas da observação; são parâmetros provisórios de apresentação. Aprovação antiga é recusada e consultas excluem registros vencidos. Expiração não comprova resolução, e ocorrência de segurança não significa crime em andamento. Revisão humana não comprova o fato. O usuário deve atualizar a consulta para receber novas revisões; não há push em tempo real.
 
-A busca textual atual filtra quatro pontos de referência. Não é busca geral de endereços. Origem/destino arbitrários são selecionados no mapa. O cálculo de rota é para carro, mesmo quando o perfil indica moto ou bicicleta; não usá-lo como orientação específica para esses veículos. Não há navegação curva a curva.
+A busca textual consulta lugares e endereços pelo endpoint /api/v1/places, usando Photon/OpenStreetMap na região piloto. Digite ao menos três caracteres e confirme Buscar ou a tecla de busca do teclado; escolha um resultado para origem/destino. Os quatro pontos de referência continuam como atalhos. O cálculo de rota é para carro, mesmo quando o perfil indica moto ou bicicleta; não usá-lo como orientação específica para esses veículos. Não há navegação curva a curva.
 
-Ainda faltam: edição de posts/comentários, denúncias e moderação completa do feed, verificação de e-mail/recuperação de senha, limites de abuso, paginação além dos primeiros 100 registros, geocodificação de endereços, promoção revisada de notícias a ocorrências, sobreposição nativa Android, eventos de ofertas e integração real com plataformas. Esta entrega é um protótipo local, não um serviço pronto para produção.
+Ainda faltam: edição de posts/comentários, denúncias e moderação completa do feed, verificação de e-mail/recuperação de senha, limites de abuso, paginação além dos primeiros 100 registros, promoção revisada de notícias a ocorrências, sobreposição nativa Android, eventos de ofertas e integração real com plataformas. Esta entrega é um protótipo local, não um serviço pronto para produção.
 
 ## Verificações
 
@@ -110,3 +110,11 @@ No navegador usamos Geolocation API (localhost ou HTTPS). Em computador, a posi�
 A posição fica em memória; não criamos histórico de GPS no banco. O mapa carrega tiles externos da área visualizada. Ao consultar um trajeto, as coordenadas de origem/destino são enviadas à API local e ao OSRM, como no fluxo manual. O envio de relato continua sendo uma ação separada do usuário.
 
 Referência: [Expo Location SDK 58](https://docs.expo.dev/versions/v58.0.0/sdk/location/).
+
+## Mapa dedicado e busca de lugares
+
+A aba Mapa ocupa a tela, com busca flutuante e painel inferior expansível para planejamento, relatos e filtros. Comunidade, Notícias e Perfil continuam em abas próprias. O estilo visual é inspirado em aplicativos de mobilidade, com identidade SafeRide; não representa integração oficial com a Uber.
+
+A busca envia o texto ao backend e ao Photon público. O servidor restringe os resultados à região piloto, limita novas chamadas a uma por 1,1 segundo, mantém cache em memória por uma hora (até 200 termos) e aplica timeout. O provedor pode ser trocado com a propriedade places.url. Não há consulta a cada tecla, trânsito ao vivo ou garantia de cobertura equivalente ao Google Maps. Falhas exibem mensagem; selecionar no mapa continua disponível. Fonte: [Photon e condições do servidor público](https://github.com/komoot/photon#demo-server).
+
+Verificado: busca real por Paulista, seleção na interface, rota de demonstração desde a Sé (aproximadamente 4,4 km), testes existentes da API, TypeScript e ESLint. GPS real no aparelho continua dependendo da permissão e do provedor de localização.

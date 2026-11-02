@@ -32,7 +32,7 @@ export default function MapCanvas({ data, onPick, onReport, height = 360 }: MapP
       srcDoc={mapHtml}
       sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
       referrerPolicy="strict-origin-when-cross-origin"
-      style={{ width: "100%", height, border: 0, borderRadius: 20 }}
+      style={{ width: "100%", height, border: 0, borderRadius: 0 }}
     />
   );
 }
