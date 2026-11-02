@@ -121,3 +121,7 @@ O [plano da caixinha flutuante](07-caixinha-alertas.md) define a experiência ad
 Reutilizar POST /api/v1/contexto/consulta, acrescentando requestId, offerId, versão e validade da oferta. O cliente ignora respostas de ofertas encerradas ou substituídas. Fechar o cartão não permite reabertura por resposta atrasada. Sem geometria, consultar apenas pontos conhecidos e sinalizar cobertura parcial. A prova de conceito Android e os contratos completos estão no documento 07; iOS não faz parte da demonstração de sobreposição.
 
 A revisão deve incluir relatos e notícias sobre assaltos, sem transformar registros históricos em ocorrência em andamento. Categoria, origem, precisão espacial, data do fato e atualidade são campos distintos. Não persistir consultas pessoais ou registrar dados de passageiros em logs.
+
+## Base técnica iniciada
+
+A implementação inicial adota MySQL 8 com Flyway, Spring Boot 3.5.7/Java 21 e Expo SDK 58 com TypeScript e Expo Router. H2 é usado exclusivamente no perfil demo explícito e testes. As escolhas substituem as pendências de stack acima; o restante do produto segue em planejamento. A API inicial usa JDBC e consultas SQL, sem ORM. O mapa é a tela inicial do app. Consulte [execução local](08-execucao-local.md) para limites e comandos.

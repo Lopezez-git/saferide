@@ -71,3 +71,7 @@ Para cada decisão relevante, adicionar data, contexto, decisão, responsável e
 | 2026-11-02 | Planejar busca automática RSS/API e fallback já na primeira versão local; cadastro manual torna-se apenas auxiliar | Requisito atualizado do proprietário; substitui o planejamento inicial de coleta manual em 05-integracao-noticias.md |
 | 2026-11-02 | Adotar proposta integrada com caixinha flutuante, ofertas simuladas e alertas revisados de notícias, assaltos e condições do trajeto; substitui a decisão em aberto | Definição do proprietário |
 | 2026-11-02 | Tornar repositório público por enquanto | Solicitação do proprietário, já aplicada no GitHub |
+
+## Início da implementação
+
+Após autorização do proprietário, a base local usa Expo SDK 58/TypeScript/Expo Router, Spring Boot 3.5.7/Java 21, MySQL 8 e Flyway. Perfil demo explícito usa H2 e dados fictícios de leitura. O proprietário solicitou banco separado para SafeRide. Mapa é a tela inicial; desenho atual é ilustrativo. Código inicial não inclui a caixinha nem integração real.

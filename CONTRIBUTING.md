@@ -12,7 +12,7 @@ Leia o README e as decisões antes de iniciar uma tarefa. Este projeto usa recur
 
 Não versionar senhas, tokens, arquivos `.env`, respostas identificáveis da pesquisa ou dados reais de passageiros. Usar `.env.example` apenas com nomes de variáveis e valores fictícios quando a stack estiver definida.
 
-Não assumir que proteção de branch, CI, colaboradores ou serviços já estão configurados. Esses recursos serão preparados quando houver autenticação e responsáveis definidos. Não há comandos de execução ou testes da aplicação nesta fase porque ainda não há implementação.
+Não assumir que proteção de branch, CI, colaboradores ou serviços já estão configurados. Esses recursos serão preparados quando houver autenticação e responsáveis definidos. Os comandos de execução e testes da base inicial estão em [08-execucao-local.md](08-execucao-local.md).
 
 ## Revisão
 

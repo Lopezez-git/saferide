@@ -54,7 +54,7 @@ O perfil de demonstração terá um botão administrativo para simular falha na 
 
 ## Situação atual
 
-Planejamento inicial em 2 de novembro de 2026. Este repositório contém documentação e organização do trabalho; ainda não existe aplicação executável. React Native na interface do protótipo e Spring Boot no backend são requisitos confirmados. As demais decisões técnicas e operacionais propostas precisam ser revisadas pelo grupo.
+Planejamento inicial em 2 de novembro de 2026. O repositório já tem uma base de app React Native e API Spring Boot, com migrações de banco e exemplos fictícios. Consulte [execução local e limites da primeira entrega](08-execucao-local.md). Ainda não há integração com plataformas, coleta de notícias ou sobreposição implementadas. React Native na interface do protótipo e Spring Boot no backend são requisitos confirmados. As demais decisões técnicas e operacionais propostas precisam ser revisadas pelo grupo.
 
 ## Por onde começar
 
@@ -83,4 +83,8 @@ services/api/         Backend Java com Spring Boot
 data/demo/            Exemplos fictícios identificados
 ```
 
-As pastas de código serão criadas na implementação da base React Native e Spring Boot. Nenhuma implantação ou serviço pago faz parte desta preparação.
+As pastas apps/mobile e services/api contêm a base inicial. Nenhuma implantação ou serviço pago faz parte desta preparação.
+
+## Começar a desenvolver
+
+Consulte [08-execucao-local.md](08-execucao-local.md) para executar API, app e configurar o MySQL. Mapa é a tela inicial, com ilustração temporária; Comunidade e Perfil já têm consultas de demonstração.

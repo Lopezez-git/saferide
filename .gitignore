@@ -11,3 +11,14 @@ Thumbs.db
 .idea/
 .vscode/
 data/private/
+
+# Local tooling and builds
+.expo/
+target/
+.gradle/
+local.properties
+*.jks
+*.keystore
+
+# Generated agent-specific preferences
+.claude/
