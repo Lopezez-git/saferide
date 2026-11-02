@@ -6,7 +6,7 @@ Projeto independente do grupo, destinado à conta pessoal `lopezez-git`. Não po
 
 ## O que vamos construir
 
-Uma aplicação com uma comunidade de profissionais que utilizam veículos para trabalhar com transporte e entregas. O SafeRide permite consultar e compartilhar informações sobre regiões, pontos de embarque ou retirada, destinos e percursos antes de avaliar uma corrida ou entrega. A primeira versão reúne mapa, relatos da comunidade, consulta de trajetos e painel contextual.
+Um aplicativo mobile independente com uma comunidade de profissionais que utilizam veículos para trabalhar com transporte e entregas. O SafeRide permite consultar e compartilhar informações sobre regiões, pontos de embarque ou retirada, destinos e percursos antes de avaliar uma corrida ou entrega. A primeira versão reúne mapa, relatos da comunidade, consulta de trajetos e painel contextual.
 
 O SafeRide complementa a avaliação de valor, distância e tempo. Não garante segurança, não determina quais corridas ou entregas aceitar e não classifica bairros como seguros ou perigosos.
 
@@ -16,7 +16,7 @@ O público inclui motoristas de aplicativos como Uber e 99, entregadores de serv
 
 Uber, 99 e iFood são exemplos de serviços utilizados por esse público. A participação na comunidade não depende de integração com essas plataformas e não implica parceria com elas.
 
-## Comunidade dentro do site
+## Comunidade dentro do aplicativo
 
 A comunidade é uma parte central do SafeRide: os próprios profissionais contribuem com experiências e consultam informações compartilhadas por outros membros. Esse conhecimento complementa os dados geoespaciais e as informações públicas disponíveis.
 
@@ -34,11 +34,11 @@ O SafeRide buscará automaticamente notícias e comunicados sobre obras, interdi
 
 Cada ocorrência poderá reunir várias notícias como evidências, evitando marcadores duplicados. No mapa e no painel, o usuário verá resumo, localização com sua precisão, fonte, data do acontecimento e última verificação. Informação desatualizada será sinalizada; o vencimento de um prazo não confirma que o problema terminou.
 
-O Spring Boot cuidará da coleta, organização, revisão, permissões e consultas; o React apresentará notícias, estado da atualização, mapa e painel. As fontes e a cidade ainda precisam ser escolhidas e validadas. Consulte o [plano de integração de notícias](05-integracao-noticias.md) para fluxo, modelo de dados, API e critérios de aceite.
+O Spring Boot cuidará da coleta, organização, revisão, permissões e consultas; o React Native apresentará notícias, estado da atualização, mapa e painel. As fontes e a cidade ainda precisam ser escolhidas e validadas. Consulte o [plano de integração de notícias](05-integracao-noticias.md) para fluxo, modelo de dados, API e critérios de aceite.
 
 ## Execução local e fallback
 
-O foco é um protótipo funcional para apresentação, com React, Spring Boot e banco local. Não é necessário contratar hospedagem para essa entrega. Buscar notícias novas exige internet; os custos e limites de fontes e mapas precisam ser verificados antes da escolha.
+O foco é um protótipo funcional para apresentação, com React Native, Spring Boot e banco local. O app roda em celular Android ou emulador, com backend e banco no computador da apresentação. Android é o alvo inicial proposto; iOS e uso de Expo ainda serão definidos. Publicação em lojas fica para uma etapa posterior. Não é necessário contratar hospedagem para essa entrega. Buscar notícias novas exige internet; os custos e limites de fontes e mapas precisam ser verificados antes da escolha.
 
 Em caso de falha, o sistema tenta fontes alternativas com limite de tempo e tentativas. Se todas falharem, mostra as últimas notícias salvas localmente, indicando a data e a indisponibilidade da atualização. Sem dados salvos, oferece ativação explícita de um modo de demonstração com exemplos identificados e separados dos dados reais.
 
@@ -46,7 +46,7 @@ O perfil de demonstração terá um botão administrativo para simular falha na 
 
 ## Situação atual
 
-Planejamento inicial em 2 de novembro de 2026. Este repositório contém documentação e organização do trabalho; ainda não existe aplicação executável. React no frontend e Spring Boot no backend são requisitos confirmados. As demais decisões técnicas e operacionais propostas precisam ser revisadas pelo grupo.
+Planejamento inicial em 2 de novembro de 2026. Este repositório contém documentação e organização do trabalho; ainda não existe aplicação executável. React Native no frontend e Spring Boot no backend são requisitos confirmados. As demais decisões técnicas e operacionais propostas precisam ser revisadas pelo grupo.
 
 ## Por onde começar
 
@@ -69,9 +69,9 @@ Dados fictícios devem ser identificados como demonstração. A aplicação só 
 ```text
 01-*.md a 06-*.md    Planejamento, notícias e comunidade
 .github/              Modelos de tarefas e revisão
-apps/web/             Frontend React, quando implementado
+apps/mobile/             Frontend React Native, quando implementado
 services/api/         Backend Java com Spring Boot
 data/demo/            Exemplos fictícios identificados
 ```
 
-As pastas de código serão criadas na implementação da base React e Spring Boot. Nenhuma implantação ou serviço pago faz parte desta preparação.
+As pastas de código serão criadas na implementação da base React Native e Spring Boot. Nenhuma implantação ou serviço pago faz parte desta preparação.

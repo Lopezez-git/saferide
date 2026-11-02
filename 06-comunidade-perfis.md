@@ -55,7 +55,7 @@ As plataformas selecionadas formam uma relação muitos para muitos. Não guarda
 
 O Spring Boot valida opções do catálogo, limites de texto e autorização. O ID do proprietário vem da sessão, não de um campo livre enviado pelo cliente. A atualização deve ser atômica; omitir um campo mantém seu valor, enviar lista vazia remove todas as plataformas. Remover “Outra plataforma” também limpa o texto correspondente. Rejeitar IDs desconhecidos, sem gravar parte da alteração.
 
-O React fornece seleção múltipla acessível, campos independentes, aviso de visibilidade e confirmação de salvamento. Preservar os valores digitados quando houver erro e não apresentar como salva uma alteração que falhou. Contas demonstrativas usam dados fictícios, com identificação de demonstração.
+O React Native fornece seleção múltipla acessível, campos independentes, aviso de visibilidade e confirmação de salvamento. Preservar os valores digitados quando houver erro e não apresentar como salva uma alteração que falhou. Contas demonstrativas usam dados fictícios, com identificação de demonstração.
 
 ## Critérios de aceite
 
@@ -66,7 +66,7 @@ O React fornece seleção múltipla acessível, campos independentes, aviso de v
 - Exibir apenas campos públicos e indicar que as informações são autodeclaradas.
 - Refletir a edição na identificação do autor, sem criar cópias desatualizadas do perfil nas contribuições.
 - Tratar seleção vazia, valor desconhecido e falha da API sem perda silenciosa de dados.
-- Permitir operação por teclado e em tela de celular.
+- Permitir operação por toque, leitor de tela e teclado externo quando disponível.
 
 ## Feed, publicações e comentários
 
@@ -83,7 +83,7 @@ O escopo confirmado inclui conversas gerais da profissão, dicas e dúvidas, al�
 - Autor pode editar e excluir seu próprio conteúdo. Moderador pode ocultar e restaurar conteúdo, com motivo e histórico; não pode reescrever o texto do autor.
 - Denúncias de publicações e comentários entram na fila de moderação. A denúncia sozinha não confirma falsidade nem oculta automaticamente o conteúdo.
 
-Parâmetros iniciais propostos: publicação de 1 a 2.000 caracteres, comentário de 1 a 1.000 caracteres, descontando espaços nas extremidades; páginas de 20 itens, com máximo de 50 na API. Validar no Spring Boot e apresentar os limites no React. Texto simples, sem HTML. Valores podem ser ajustados pelo grupo antes da implementação.
+Parâmetros iniciais propostos: publicação de 1 a 2.000 caracteres, comentário de 1 a 1.000 caracteres, descontando espaços nas extremidades; páginas de 20 itens, com máximo de 50 na API. Validar no Spring Boot e apresentar os limites no React Native. Texto simples, sem HTML. Valores podem ser ajustados pelo grupo antes da implementação.
 
 ### Jornada e exemplos
 
@@ -134,7 +134,7 @@ Publicação comunitária é distinta de notícia coletada e de relato territori
 
 Validar autorização e visibilidade no servidor em toda operação, inclusive comentário de publicação oculta e leitura direta. Nome e plataformas vêm do perfil público, sem email. Contagem de comentários inclui apenas os visíveis. Aplicar paginação também aos comentários, mantendo a ordem por criação e ID.
 
-O React apresenta carregamento, lista vazia, falha com nova tentativa e confirmação de exclusão. Em falha de envio, preservar o rascunho e não afirmar que publicou. Desabilitar envio enquanto houver requisição pendente; usar chave de idempotência por tentativa lógica no servidor para evitar duplicatas em reenvios após perda de resposta. A demonstração usa contas e conversas fictícias identificadas.
+O React Native apresenta carregamento, lista vazia, falha com nova tentativa e confirmação de exclusão. Em falha de envio, preservar o rascunho e não afirmar que publicou. Desabilitar envio enquanto houver requisição pendente; usar chave de idempotência por tentativa lógica no servidor para evitar duplicatas em reenvios após perda de resposta. A demonstração usa contas e conversas fictícias identificadas.
 
 ### Critérios de aceite do feed
 
@@ -145,7 +145,7 @@ O React apresenta carregamento, lista vazia, falha com nova tentativa e confirma
 - Denunciar, ocultar e restaurar como moderador, registrando motivo; usuário comum não executa essas ações.
 - Não expor post oculto ou seus comentários por ID; não criar marcador no mapa ao publicar ou comentar.
 - Paginar sem repetir itens e tratar erros sem perder o texto digitado ou duplicar envios.
-- Demonstrar o fluxo em celular e por teclado.
+- Demonstrar o fluxo em celular, com toque e leitor de tela.
 
 ### Fora do escopo inicial
 

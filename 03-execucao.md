@@ -6,7 +6,7 @@ Sequência proposta, sem datas fechadas: prazo, disponibilidade e integrantes ai
 
 | Etapa | Entrega verificável | Condição para avançar |
 | --- | --- | --- |
-| 1 Alinhamento | Cidade piloto, configuração da stack React e Spring Boot, responsáveis, fontes candidatas e escopo revisado | Grupo registra as decisões |
+| 1 Alinhamento | Cidade piloto, configuração da stack React Native e Spring Boot, responsáveis, fontes candidatas e escopo revisado | Grupo registra as decisões |
 | 2 Protótipo | Telas navegáveis com dados fictícios | Jornada de consulta compreensível e revisada |
 | 3 Consulta funcional | Mapa, endereços, rota e contexto com base demonstrativa | Percurso completo e estados de erro funcionando |
 | 4 Comunidade | Autenticação, perfis, relatos, feed, comentários e moderação persistidos | Controle de acesso e publicação verificados |
@@ -18,9 +18,9 @@ P0 é necessário para a demonstração completa. P1 é necessário para o pilot
 
 | ID | Prioridade | Tarefa | Dependência | Critério de aceite |
 | --- | --- | --- | --- | --- |
-| SR-01 | P0 | Fechar decisões iniciais | — | Cidade, versões e ferramentas para React e Spring Boot, integrantes e prazo registrados |
+| SR-01 | P0 | Fechar decisões iniciais | — | Cidade, versões e ferramentas para React Native e Spring Boot, integrantes e prazo registrados |
 | SR-02 | P0 | Desenhar telas e estados | SR-01 | Jornada de consulta, envio e revisão navegável |
-| SR-03 | P0 | Preparar frontend React e backend Spring Boot | SR-01 | Outro integrante inicia frontend e backend seguindo README; uma chamada React → API Spring Boot funciona, sem segredos no Git |
+| SR-03 | P0 | Preparar frontend React Native e backend Spring Boot | SR-01 | Outro integrante inicia o app em celular/emulador e o backend seguindo README; URL da API configurada por ambiente, chamada React Native → Spring Boot funciona, sem segredos no Git |
 | SR-04 | P0 | Preparar base demonstrativa | SR-01 | Exemplos recentes, antigos, sem dados e contraditórios, todos fictícios |
 | SR-05 | P0 | Implementar mapa e busca | SR-02, SR-03 | Seleção confirmada dos dois pontos; erro de endereço tratado |
 | SR-06 | P0 | Implementar consulta de rota | SR-05 | Geometria correta e falha do provedor tratada |
@@ -59,7 +59,7 @@ Conforme o [plano de perfis](06-comunidade-perfis.md), adicionar ao MVP local:
 | ID | Tarefa | Dependência | Critério de aceite |
 | --- | --- | --- | --- |
 | SR-23 | Modelar catálogo e plataformas do perfil | SR-08 | Usuário pode ter várias plataformas, atividade e veículo separados; API pública não expõe campos privados |
-| SR-24 | Criar edição de perfil em React | SR-23 | Selecionar Uber e iFood, salvar, recarregar, editar e remover; tratar erros e seleção vazia |
+| SR-24 | Criar edição de perfil em React Native | SR-23 | Selecionar Uber e iFood, salvar, recarregar, editar e remover; tratar erros e seleção vazia |
 | SR-25 | Apresentar perfil nas contribuições e verificar permissões | SR-24, SR-09 | Nome e plataformas atualizados nos relatos; outro usuário não consegue editar o perfil; informação identificada como autodeclarada |
 
 Incluir no roteiro de apresentação a edição de um perfil fictício com duas plataformas e sua identificação em relatos, publicações e comentários.
@@ -71,7 +71,7 @@ O MVP local inclui conversas gerais da profissão, dicas, dúvidas e experiênci
 | ID | Tarefa | Dependência | Critério de aceite |
 | --- | --- | --- | --- |
 | SR-26 | Modelar publicações, comentários e APIs | SR-08, SR-23 | Persistência, localização opcional, paginação, autoria da sessão e permissões verificadas |
-| SR-27 | Criar feed e conversa em React | SR-24, SR-26 | Publicar dúvida sem local, filtrar, comentar, editar, excluir e recarregar; preservar rascunho em erro |
+| SR-27 | Criar feed e conversa em React Native | SR-24, SR-26 | Publicar dúvida sem local, filtrar, comentar, editar, excluir e recarregar; preservar rascunho em erro |
 | SR-28 | Ampliar denúncias e moderação | SR-10, SR-26 | Ocultar post bloqueia consulta direta e comentários; restaurar respeita exclusões individuais e registra motivo |
 | SR-29 | Verificar jornada da comunidade | SR-25, SR-27, SR-28 | Duas contas fictícias conversam; testar autorização, paginação, reenvio, moderação e ausência de marcador automático |
 
@@ -118,3 +118,7 @@ Uma tarefa está concluída quando atende ao critério de aceite, passou por rev
 | Poucos relatos | Limitar área piloto; nunca gerar relatos fictícios como se fossem reais |
 | Falta de moderação | Definir responsável antes de abrir contribuições |
 | Prazo curto | Preservar a jornada completa e reduzir categorias e área coberta |
+
+## Verificação da entrega mobile
+
+Antes da apresentação, verificar build e abertura no dispositivo escolhido, acesso à API no computador, permissões de localização negadas e concedidas, teclado virtual, leitor de tela, navegação de voltar e retorno do app após ir para segundo plano. Executar o fluxo de feed, comentários e consulta de mapa no dispositivo. Simular perda de conexão com a API separadamente da falha de uma fonte de notícias. O protótipo não exige publicação em loja.

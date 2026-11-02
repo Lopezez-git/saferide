@@ -2,11 +2,11 @@
 
 ## Organização proposta
 
-Uma aplicação responsiva acessa uma API com regras de negócio e um banco com suporte a consultas espaciais. Adaptadores isolam os serviços de mapa, busca de endereços e cálculo de rotas. O provedor do mapa não necessariamente oferece os outros dois serviços.
+Um aplicativo mobile independente acessa uma API com regras de negócio e um banco com suporte a consultas espaciais. Adaptadores isolam os serviços de mapa, busca de endereços e cálculo de rotas. O provedor do mapa não necessariamente oferece os outros dois serviços.
 
 ```mermaid
 flowchart TD
-    U[Frontend React] --> API[API Java com Spring Boot]
+    U[Frontend React Native] --> API[API Java com Spring Boot]
     U --> M[Camada visual do mapa]
     API --> DB[Banco de dados]
     API --> GEO[Busca de endereços e rotas]
@@ -15,17 +15,17 @@ flowchart TD
     PUB[Importação revisada de fontes públicas] --> DB
 ```
 
-React no frontend e Java com Spring Boot no backend são requisitos confirmados. Banco, hospedagem, fornecedores, versões e ferramentas de build ainda serão definidos. Essas escolhas devem considerar familiaridade do grupo, exigências da disciplina, cobertura da cidade piloto, limites, custo e direitos de uso. Não criar dependência de contas da Advanced.
+React Native no frontend e Java com Spring Boot no backend são requisitos confirmados. Banco, hospedagem, fornecedores, versões e ferramentas de build ainda serão definidos. Essas escolhas devem considerar familiaridade do grupo, exigências da disciplina, cobertura da cidade piloto, limites, custo e direitos de uso. Não criar dependência de contas da Advanced.
 
 ## Responsabilidades de cada aplicação
 
-O frontend React, em `apps/web/`, reúne as telas de consulta, mapa, painel contextual, envio de relatos, perfis, feed, publicações, comentários e moderação. Ele apresenta os estados de carregamento e erro e consome a API por HTTP com JSON.
+O frontend React Native, em `apps/mobile/`, reúne as telas de consulta, mapa, painel contextual, envio de relatos, perfis, feed, publicações, comentários e moderação. Ele apresenta os estados de carregamento e erro e consome a API por HTTP com JSON.
 
 O backend Java com Spring Boot, em `services/api/`, concentra validação, autorização, regras dos relatos, moderação, consultas de contexto e acesso ao banco. As integrações que exigem credenciais privadas ficam no backend. A interface nunca é a única responsável por verificar permissões.
 
 Manter os dois componentes no mesmo repositório, com configuração e instruções de execução próprias. Separar no backend a entrada HTTP, os serviços de negócio, a persistência e os adaptadores externos. Definir os contratos da API antes de dividir a implementação entre integrantes.
 
-A primeira entrega técnica deve demonstrar uma chamada do React a um endpoint do Spring Boot. Versões, ferramenta de build do frontend, gerenciador de dependências Java, banco e mecanismo de autenticação permanecem pendentes; não são necessários para fechar o planejamento funcional.
+A primeira entrega técnica deve demonstrar uma chamada do React Native a um endpoint do Spring Boot. Versões, ferramenta de build do frontend, gerenciador de dependências Java, banco e mecanismo de autenticação permanecem pendentes; não são necessários para fechar o planejamento funcional.
 
 ## Como formar o painel
 
@@ -81,7 +81,7 @@ Validar tamanho do texto, coordenadas, área suportada e datas; bloquear observa
 
 ## Fontes e demonstração
 
-O [módulo de notícias](05-integracao-noticias.md) acrescenta fontes editoriais, publicações, ocorrências, evidências e execuções de coleta. A primeira entrega local inclui coleta automática RSS/API em segundo plano e fallback: fontes alternativas, notícias persistidas e modo demo explicitamente identificado. Notícias elegíveis aparecem na lista regional; ocorrências revisadas entram no mapa e contexto com precisão espacial e atualidade explícitas. O documento do módulo define estados de falha, contratos, limites e responsabilidades de React e Spring Boot.
+O [módulo de notícias](05-integracao-noticias.md) acrescenta fontes editoriais, publicações, ocorrências, evidências e execuções de coleta. A primeira entrega local inclui coleta automática RSS/API em segundo plano e fallback: fontes alternativas, notícias persistidas e modo demo explicitamente identificado. Notícias elegíveis aparecem na lista regional; ocorrências revisadas entram no mapa e contexto com precisão espacial e atualidade explícitas. O documento do módulo define estados de falha, contratos, limites e responsabilidades de React Native e Spring Boot.
 
 A primeira demonstração utiliza uma base fictícia pequena, marcada visualmente. Para o piloto real, escolher uma fonte pública concreta com cobertura útil e registrar origem, atribuição, permissão de reutilização e atualização. A existência e a adequação dessa fonte ainda não foram comprovadas.
 
@@ -100,4 +100,16 @@ Guardar segredos fora do Git. Separar dados fictícios e piloto real. Preparar e
 - Uma falha externa não vira “sem registros”.
 - Consulta espacial funciona nas bordas do corredor e não duplica registros.
 - Datas, fonte e identificação de dados fictícios aparecem em mapa e lista.
-- O fluxo principal funciona em tela de celular, com teclado e sem depender apenas de cores.
+- O fluxo principal funciona em tela de celular, com leitor de tela e sem depender apenas de cores.
+
+## Aplicativo mobile e apresentação local
+
+React Native é a interface mobile confirmada; a implementação não será um site nem dependerá de uma WebView. A navegação proposta tem Mapa, Comunidade e Perfil. Detalhes de alertas abrem em um painel inferior no celular. O layout visual apresentado foi exploratório, não uma interface já implementada.
+
+Alvo inicial proposto: Android em celular físico ou emulador. Spring Boot e banco ficam no computador da apresentação. Configurar a URL da API por ambiente: localhost no celular aponta para o próprio celular, não para o computador. Selecionar o endereço alcançável conforme dispositivo/emulador e testar a conexão antes da apresentação. No celular físico, usar rede local de confiança e permitir somente o acesso necessário à API, sem expor o banco ou criar acesso público. Não versionar endereços pessoais nem segredos.
+
+Validar compatibilidade da biblioteca de mapas com React Native e com a ferramenta de build escolhida. Expo, versões, biblioteca de navegação e armazenamento de sessão ainda serão definidos. Solicitar localização apenas após ação explícita; permitir pesquisa manual quando a permissão for negada. Não incluir rastreamento contínuo em segundo plano.
+
+A coleta de notícias continua no Spring Boot, não no celular. Dados salvos no banco exigem conexão com a API; não significam que o aplicativo funciona sozinho offline. Se a API não estiver acessível, o modo de demonstração pode usar exemplos fictícios empacotados no aplicativo, com ativação explícita e identificação. Preparar também mapa e percursos demonstrativos locais.
+
+Alertas iniciais são avisos dentro do mapa e do painel. Notificações push, integração com contas Uber/iFood, distribuição em lojas e operação pública ficam fora desta entrega. Abrir fontes de notícias em um navegador externo não transforma o produto em site. Usar armazenamento seguro do sistema para credenciais de sessão conforme o mecanismo de autenticação escolhido.
