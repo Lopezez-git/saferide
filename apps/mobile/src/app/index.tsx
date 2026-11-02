@@ -71,9 +71,12 @@ export default function MapScreen() {
   const [originName, setOriginName] = useState("");
   const [destinationName, setDestinationName] = useState("");
   const lastSearchAt = useRef(0);
+  const placeCache = useRef(new Map<string, PlaceResult[]>());
   useFocusEffect(useCallback(() => {
     const term = search.trim();
     if (term.length < 3) return;
+    const cached = placeCache.current.get(term.toLocaleLowerCase());
+    if (cached) { setPlaces(cached); setSearched(true); setSearching(false); return; }
     const id = ++searchRequest.current;
     const controller = new AbortController();
     // Debounce typing and keep this device below the shared provider limit.
@@ -82,8 +85,14 @@ export default function MapScreen() {
       lastSearchAt.current = Date.now();
       setSearching(true);
       try {
-        const results = await api<PlaceResult[]>("/places?q=" + encodeURIComponent(term), { signal: controller.signal });
-        if (id === searchRequest.current && !controller.signal.aborted) { setPlaces(results); setSearched(true); }
+        const received = await api<PlaceResult[]>("/places?q=" + encodeURIComponent(term), { signal: controller.signal });
+        const labels = new Set<string>();
+        const results = received.filter((place) => {
+          const label = `${place.name}|${place.address}`.toLocaleLowerCase();
+          if (labels.has(label)) return false;
+          labels.add(label); return true;
+        });
+        if (id === searchRequest.current && !controller.signal.aborted) { if (placeCache.current.size >= 30) placeCache.current.delete(placeCache.current.keys().next().value!); placeCache.current.set(term.toLocaleLowerCase(), results); setPlaces(results); setSearched(true); }
       } catch (e) {
         if (id === searchRequest.current && !controller.signal.aborted) setSearchError(message(e));
       } finally {
@@ -223,31 +232,38 @@ export default function MapScreen() {
         onReport={(id) => {setDetail(id); setSheetOpen(true);}}
       />
       <View style={{position:"absolute",top:12+insets.top,left:12,right:12,maxWidth:520,alignSelf:"center",backgroundColor:"white",borderRadius:20,padding:14,boxShadow:"0 3px 18px #00000020"}}>
-        <ScrollView keyboardShouldPersistTaps="handled" style={{maxHeight:Math.max(180,mapHeight*0.42)}} contentContainerStyle={{gap:8}}>
+        <View style={{flexDirection:"row",alignItems:"center",gap:8}}>
       <TextInput
         accessibilityLabel="Buscar endereço ou lugar"
-        style={{fontSize:17,minHeight:48,color:"#17211D",paddingHorizontal:12,backgroundColor:"#F2F4F2",borderRadius:12}}
+        style={{flex:1,fontSize:17,minHeight:48,color:"#17211D",paddingHorizontal:12,backgroundColor:"#F2F4F2",borderRadius:12}}
         value={search}
-        onChangeText={(text) => { searchRequest.current++; setSearch(text); setPlaces([]); setSearchError(""); setSearched(false); setSearching(false); }}
+        onChangeText={(text) => { searchRequest.current++; setSearch(text); setPlaces([]); setSearchError(""); setSearched(false); setSearching(text.trim().length >= 3); setSheetOpen(false); }}
         placeholder={mode === "origin" ? "Buscar lugar de partida" : mode === "destination" ? "Para onde? Busque um lugar" : "Buscar local do relato"}
+        onFocus={() => setSheetOpen(false)}
+        autoCorrect={false}
         maxLength={120}
         returnKeyType="search"
         onSubmitEditing={() => Keyboard.dismiss()}
       />
+      {search.length > 0 ? <Pressable accessibilityRole="button" accessibilityLabel="Limpar busca" onPress={() => { searchRequest.current++; setSearch(""); setPlaces([]); setSearched(false); setSearching(false); setSearchError(""); }} style={{width:40,minHeight:44,alignItems:"center",justifyContent:"center"}}><Text style={{fontSize:24,color:"#64716C"}}>×</Text></Pressable> : null}
+      </View>
+      <ScrollView keyboardShouldPersistTaps="handled" style={{maxHeight:Math.max(160,mapHeight*0.42)}} contentContainerStyle={{gap:4}}>
       {searching ? <Text accessibilityLiveRegion="polite" style={styles.subtitle}>Buscando sugestões…</Text> : null}
       {search.length > 0 && search.trim().length < 3 ? <Text style={styles.subtitle}>Digite pelo menos 3 caracteres.</Text> : null}
       <Feedback error={searchError} />
-      {places.map((place) => <View key={place.id} style={styles.card}>
-        <Text style={styles.heading}>{place.name}</Text>
-        <Text style={styles.subtitle}>{place.address}</Text>
-        <Button title={mode === "origin" ? "Usar como origem" : mode === "destination" ? "Usar como destino" : "Marcar neste local"} secondary onPress={() => {
+      {places.length > 0 ? <Text style={[styles.subtitle,{paddingTop:10}]}>Sugestões em São Paulo e região</Text> : null}
+      {places.map((place) => <Pressable key={place.id} accessibilityRole="button" accessibilityLabel={`${place.name}, ${place.address}`} onPress={() => {
           Keyboard.dismiss(); setSheetOpen(true); pick(place);
           if (mode === "origin") { setOriginName(place.name); setMode("destination"); }
           else if (mode === "destination") setDestinationName(place.name);
           setPlaceFocus({ latitude: place.latitude, longitude: place.longitude, key: Date.now() });
           searchRequest.current++; setSearching(false); setSearch(""); setPlaces([]); setSearched(false);
-        }} />
-      </View>)}
+        }} style={({pressed}) => ({flexDirection:"row",alignItems:"center",gap:12,paddingVertical:13,paddingHorizontal:8,borderBottomWidth:1,borderBottomColor:"#EDF0EE",backgroundColor:pressed?"#EDF5F2":"white",borderRadius:8})}>
+        <Text style={{fontSize:22,color:"#087F71"}}>⌖</Text>
+        <View style={{flex:1,gap:3}}><Text style={styles.heading} numberOfLines={1}>{place.name}</Text>
+        <Text style={styles.subtitle} numberOfLines={2}>{place.address}</Text></View>
+        <Text style={{fontSize:22,color:"#64716C"}}>›</Text>
+      </Pressable>)}
       {searched && places.length === 0 ? <Text style={styles.subtitle}>Nenhum resultado na região piloto. Tente o nome completo, bairro ou número.</Text> : null}
       {places.length > 0 ? <Text style={styles.subtitle}>Photon · © OpenStreetMap contributors</Text> : null}
 
