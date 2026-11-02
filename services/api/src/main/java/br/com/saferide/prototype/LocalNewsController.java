@@ -21,7 +21,7 @@ public class LocalNewsController {
  private final Map<String,Result> cache=new LinkedHashMap<>();
  private long lastRequest;
  private static final Set<String> PUBLISHERS=Set.of("g1.globo.com","agenciabrasil.ebc.com.br","agenciasp.sp.gov.br","www.agenciasp.sp.gov.br","www.cnnbrasil.com.br","www.band.uol.com.br","www.band.com.br");
- public record Item(String id,String title,String url,String source,String publishedAt){}
+ public record Item(String id,String title,String url,String source,String publishedAt,String topic){}
  public record Result(String place,String status,String lastAttempt,List<Item> items){}
  private static String normalize(String value){return Normalizer.normalize(value,Normalizer.Form.NFD).replaceAll("\\p{M}","").toLowerCase(Locale.ROOT).replaceAll("\\bav\\.?\\s+","avenida ").replaceAll("[^a-z0-9 ]"," ").replaceAll("\\s+"," ").strip();}
  public static boolean mentions(String title,String place){String p=normalize(place);return p.length()>=4&&!Set.of("sao paulo","sp","capital paulista").contains(p)&&(" "+normalize(title)+" ").contains(" "+p+" ");}
@@ -35,7 +35,7 @@ public class LocalNewsController {
   if(now-lastRequest<1200)throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,"Aguarde um instante e tente novamente.");
   lastRequest=now;Instant collected=Instant.now();List<Item> found=new ArrayList<>();
   try{
-   String query=URLEncoder.encode("\""+place+"\" \""+city+"\" when:7d",StandardCharsets.UTF_8);
+   String query=URLEncoder.encode("\""+place+"\" \""+city+"\" (assalto OR roubo OR acidente OR alagamento OR interdição OR trânsito OR buraco OR obras OR tiroteio) when:7d",StandardCharsets.UTF_8);
    var request=HttpRequest.newBuilder(URI.create("https://news.google.com/rss/search?q="+query+"&hl=pt-BR&gl=BR&ceid=BR:pt-419")).timeout(Duration.ofSeconds(10)).header("User-Agent","SafeRideAcademicPrototype/0.1 (+https://github.com/Lopezez-git/saferide)").GET().build();
    var response=http.send(request,HttpResponse.BodyHandlers.ofInputStream());
    try(var input=response.body()){
@@ -47,12 +47,12 @@ public class LocalNewsController {
      Element item=(Element)items.item(i);String title=text(item,"title"),url=text(item,"link");
      // Match the headline before the publisher suffix, never just the source name.
      String headline=title.contains(" - ")?title.substring(0,title.lastIndexOf(" - ")):title;
-     if(title.length()>300||url.length()>1000||!mentions(headline,place))continue;
+     if(title.length()>300||url.length()>1000||!mentions(headline,place)||!NewsRelevance.relevant(title))continue;
      var time=NewsService.publication(text(item,"pubDate"),collected);if(time.isEmpty())continue;
      var uri=URI.create(url);if(!"https".equals(uri.getScheme())||!"news.google.com".equals(uri.getHost()))continue;
      var nodes=item.getElementsByTagName("source");if(nodes.getLength()==0)continue;Element publisher=(Element)nodes.item(0);
      if(!PUBLISHERS.contains(URI.create(publisher.getAttribute("url")).getHost()))continue;
-     if(urls.add(url))found.add(new Item(AuthService.hash(url),title,url,publisher.getTextContent().strip()+" · via Google Notícias",time.get().toString()));
+     if(urls.add(url))found.add(new Item(AuthService.hash(url),title,url,publisher.getTextContent().strip()+" · via Google Notícias",time.get().toString(),NewsRelevance.topic(headline)));
     }
    }
    found.sort(Comparator.comparing(Item::publishedAt).reversed());

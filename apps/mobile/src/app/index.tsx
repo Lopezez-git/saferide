@@ -62,7 +62,7 @@ export default function MapScreen() {
   const [newsVersion, setNewsVersion] = useState(0);
   const [newsCity, setNewsCity] = useState("");
   const [newsPlace, setNewsPlace] = useState("");
-  type LocalNews = {place:string;status:string;lastAttempt:string;items:{id:string;title:string;source:string;url:string;publishedAt:string}[]};
+  type LocalNews = {place:string;status:string;lastAttempt:string;items:{id:string;title:string;source:string;url:string;publishedAt:string;topic:string}[]};
   const [localNews, setLocalNews] = useState<{place:string;data:LocalNews|null;error:string;loading:boolean}>({place:"",data:null,error:"",loading:false});
   useEffect(() => {
     if (!newsPlace) return;
@@ -295,7 +295,7 @@ export default function MapScreen() {
             {([
               {id:"safety",title:"Segurança",color:"#A76A12",bg:"#FFF5E3",text:q.loading?"Consultando…":q.error?"Dados indisponíveis":safety.length?`${safety.length} registro(s) próximo(s)`:"Sem dados suficientes",caption:"Ocorrências relatadas"},
               {id:"pavement",title:"Pavimento",color:"#B5532A",bg:"#FFF0E9",text:q.loading?"Consultando…":q.error?"Dados indisponíveis":pavement.length?`${pavement.length} relato(s) próximo(s)`:"Condição não informada",caption:"Buracos e condições da via"},
-              {id:"news",title:"Notícias",color:"#2563B5",bg:"#EBF3FF",text:news.loading?"Consultando…":news.error?"Fonte indisponível":!newsPlace?"Selecione um endereço":news.data?.status==="UNAVAILABLE"?"Consulta indisponível":`${news.data?.items.length ?? 0} notícia(s) deste local`,caption:"Menções ao lugar selecionado"},
+              {id:"news",title:"Notícias",color:"#2563B5",bg:"#EBF3FF",text:news.loading?"Consultando…":news.error?"Fonte indisponível":!newsPlace?"Selecione um endereço":news.data?.status==="UNAVAILABLE"?"Consulta indisponível":`${news.data?.items.length ?? 0} notícia(s) deste local`,caption:"Segurança e condições do trajeto"},
               {id:"community",title:"Comunidade",color:"#7952B3",bg:"#F4EEFF",text:q.loading?"Consultando…":q.error?"Dados indisponíveis":actualNearby.length?`${actualNearby.length} relato(s) do local`:"Sem relatos reais aqui",caption:"Experiências de motoristas"},
             ] as const).map(card => <Pressable key={card.id} accessibilityRole="button" accessibilityState={{selected:topic===card.id}} accessibilityLabel={`${card.title}: ${card.text}`} onPress={() => setTopic(card.id)} style={({pressed}) => ({width:"48%",flexGrow:1,minHeight:142,padding:13,gap:6,borderRadius:18,backgroundColor:card.bg,borderWidth:2,borderColor:topic===card.id?card.color:"transparent",opacity:pressed?0.8:1})}>
               <Svg width={27} height={27} viewBox="0 0 24 24" fill="none" stroke={card.color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" accessible={false}>
@@ -322,15 +322,15 @@ export default function MapScreen() {
           </View>)}
           {topic === "news" ? <>
           <Text style={styles.heading}>Notícias de {newsPlace || "um local identificado"}{newsCity && newsPlace ? " · "+newsCity : ""}</Text>
-          <View style={[styles.card,{backgroundColor:"#EBF3FF"}]}><Text style={styles.heading}>De onde vêm as notícias?</Text><Text style={styles.body}>Busca específica por {newsPlace || "nome do local"} no Google Notícias. Só aparecem matérias cujo título menciona esse lugar, de G1, Agência Brasil, Agência SP, CNN Brasil ou Band.</Text><Text style={styles.subtitle}>Consulta ao selecionar o local · cache de 15 minutos · últimos 7 dias. Cada matéria identifica o veículo de origem.</Text>{news.data?.lastAttempt ? <Text style={styles.subtitle}>Última tentativa: {when(news.data.lastAttempt)}</Text> : null}</View>
+          <View style={[styles.card,{backgroundColor:"#EBF3FF"}]}><Text style={styles.heading}>De onde vêm as notícias?</Text><Text style={styles.body}>Busca específica por {newsPlace || "nome do local"} no Google Notícias. Filtramos títulos que mencionam esse lugar e situações de segurança, trânsito, clima ou pavimento. Fontes: G1, Agência Brasil, Agência SP, CNN Brasil ou Band.</Text><Text style={styles.subtitle}>Consulta ao selecionar o local · cache de 15 minutos · últimos 7 dias. Cada matéria identifica o veículo de origem.</Text>{news.data?.lastAttempt ? <Text style={styles.subtitle}>Última tentativa: {when(news.data.lastAttempt)}</Text> : null}</View>
           <Text style={styles.subtitle}>Uma menção ao local não confirma a ocorrência no ponto exato nem uma situação em andamento. Não exibimos notícias gerais de São Paulo como substituição.</Text>
           <ResourceState {...news} refresh={() => { if (newsPlace) {setLocalNews({place:newsPlace+"::"+newsCity,data:null,error:"",loading:true});setNewsVersion(v=>v+1);} }} />
           {news.data?.status === "UNAVAILABLE" ? <Text style={styles.subtitle}>Consulta indisponível: somente resultados anteriores deste mesmo local, quando disponíveis.</Text> : null}
           {news.data?.items.slice(0,3).map(n => <Pressable key={n.id} accessibilityRole="link" onPress={() => Linking.openURL(n.url).catch(e => setError(message(e)))} style={styles.card}>
-            <Text style={styles.label}>{n.source} · {when(n.publishedAt)}</Text>
+            <Text style={styles.label}>{n.topic} · {n.source} · {when(n.publishedAt)}</Text>
             <Text style={styles.heading}>{n.title}</Text><Text style={{color:"#087F71"}}>Ler na fonte ↗</Text>
           </Pressable>)}
-          {!news.loading && !news.error && news.data?.status !== "UNAVAILABLE" && !news.data?.items.length ? <Text style={styles.body}>{newsPlace ? "Nenhuma notícia recente correspondente a este local foi encontrada. Isso não indica ausência de ocorrências." : "Busque e selecione um endereço para consultar notícias desse lugar. Um ponto sem nome no mapa não permite identificar a rua com confiança."}</Text> : null}
+          {!news.loading && !news.error && news.data?.status !== "UNAVAILABLE" && !news.data?.items.length ? <Text style={styles.body}>{newsPlace ? "Nenhuma notícia recente sobre segurança ou condições do trajeto foi encontrada neste local. Isso não indica ausência de ocorrências." : "Busque e selecione um endereço para consultar notícias desse lugar. Um ponto sem nome no mapa não permite identificar a rua com confiança."}</Text> : null}
           </> : null}
           <Button title={reportOpen ? "Fechar relato" : "Relatar uma situação neste local"} secondary disabled={!focus} onPress={() => { setPoint(reportOpen ? null : focus); setReportOpen(!reportOpen); }} />
       {reportOpen ? (user ? (

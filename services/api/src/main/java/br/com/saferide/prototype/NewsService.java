@@ -59,6 +59,7 @@ public class NewsService {
        if(!normalized.matches(".*(são paulo|capital paulista|\\bsp\\b).*"))continue;
        if(!normalized.matches(".*(trânsito|interdi|alag|obra|assalto|roubo|enchente|avenida|marginal|rodovia).*"))continue;
       }
+      if(!NewsRelevance.relevant(title))continue;
       if(title.length()>300||url.length()>1000||source.length()>120)continue;
       String id=AuthService.hash(url);if(db.queryForObject("SELECT COUNT(*) FROM sr_news WHERE id=?",Integer.class,id)==0)db.update("INSERT INTO sr_news VALUES(?,?,?,?,?,?)",id,title,url,source,time.get().toString(),Timestamp.from(now));accepted++;
      }
@@ -68,6 +69,6 @@ public class NewsService {
   }
   status=reachedSource?"NO_RECENT_ITEMS":"UNAVAILABLE";
  }
- public Map<String,Object> list(){return Map.of("status",status,"lastAttempt",lastAttempt,"items",db.queryForList("SELECT id,title,url,source,published_at AS publishedAt,collected_at AS collectedAt FROM sr_news WHERE (LOWER(title) LIKE '%são paulo%' OR LOWER(title) LIKE '%capital paulista%') AND published_at LIKE '20%' AND published_at>=? ORDER BY published_at DESC LIMIT 30",Instant.now().minus(Duration.ofDays(7)).toString()));}
+ public Map<String,Object> list(){return Map.of("status",status,"lastAttempt",lastAttempt,"items",db.queryForList("SELECT id,title,url,source,published_at AS publishedAt,collected_at AS collectedAt FROM sr_news WHERE (LOWER(title) LIKE '%são paulo%' OR LOWER(title) LIKE '%capital paulista%') AND published_at LIKE '20%' AND published_at>=? ORDER BY published_at DESC LIMIT 30",Instant.now().minus(Duration.ofDays(7)).toString()).stream().filter(item->NewsRelevance.relevant((String)item.get("title"))).toList());}
  private static String text(Element e,String name){Node n=e.getElementsByTagName(name).item(0);return n==null?"":n.getTextContent().strip();}
 }
