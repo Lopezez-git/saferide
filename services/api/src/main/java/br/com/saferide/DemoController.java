@@ -7,6 +7,7 @@ import java.util.*;
 /** Read-only synthetic examples. Not the authenticated product API. */
 @RestController
 @Profile("demo & !mysql")
+@CrossOrigin(origins = {"http://localhost:8081", "http://127.0.0.1:8081"})
 @RequestMapping("/api/v1/demo")
 public class DemoController {
  private final JdbcTemplate jdbc;

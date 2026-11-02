@@ -125,3 +125,7 @@ A revisão deve incluir relatos e notícias sobre assaltos, sem transformar regi
 ## Base técnica iniciada
 
 A implementação inicial adota MySQL 8 com Flyway, Spring Boot 3.5.7/Java 21 e Expo SDK 58 com TypeScript e Expo Router. H2 é usado exclusivamente no perfil demo explícito e testes. As escolhas substituem as pendências de stack acima; o restante do produto segue em planejamento. A API inicial usa JDBC e consultas SQL, sem ORM. O mapa é a tela inicial do app. Consulte [execução local](08-execucao-local.md) para limites e comandos.
+
+## Protótipo funcional
+
+Migração V3 introduz tabelas sr_* com contas, sessões, publicações, comentários, relatos, auditoria de revisão e notícias. O perfil mysql,prototype usa esses dados persistentes. V1/V2 são mantidas para a demonstração legada isolada. API em localhost, autenticação por token opaco de 24h (hash SHA-256 no banco) e senhas BCrypt. Papel de moderador exige atribuição administrativa local. O mapa usa um componente Leaflet embutido; restante da interface é React Native. Os limites operacionais e endpoints são descritos no guia de execução e no código de prototype/.

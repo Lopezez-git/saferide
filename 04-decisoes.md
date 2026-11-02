@@ -75,3 +75,7 @@ Para cada decisão relevante, adicionar data, contexto, decisão, responsável e
 ## Início da implementação
 
 Após autorização do proprietário, a base local usa Expo SDK 58/TypeScript/Expo Router, Spring Boot 3.5.7/Java 21, MySQL 8 e Flyway. Perfil demo explícito usa H2 e dados fictícios de leitura. O proprietário solicitou banco separado para SafeRide. Mapa é a tela inicial; desenho atual é ilustrativo. Código inicial não inclui a caixinha nem integração real.
+
+## Evolução para protótipo funcional
+
+São Paulo escolhida pelo proprietário como região piloto. Perfil mysql,prototype ativa contas, comunidade, relatos revisados, coleta RSS e consulta de rota. Mapa temporariamente com Leaflet (iframe na prévia/WebView no Android), sem geocodificação geral. Janelas provisórias de relatos: 6 horas para alagamentos e 24 horas para demais categorias; precisam de validação antes de uso real. A caixinha continua como simulação interna, sem alegar sobreposição Android pronta. Escopo e limites em 08-execucao-local.md.

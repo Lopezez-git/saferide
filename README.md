@@ -54,7 +54,7 @@ O perfil de demonstração terá um botão administrativo para simular falha na 
 
 ## Situação atual
 
-Planejamento inicial em 2 de novembro de 2026. O repositório já tem uma base de app React Native e API Spring Boot, com migrações de banco e exemplos fictícios. Consulte [execução local e limites da primeira entrega](08-execucao-local.md). Ainda não há integração com plataformas, coleta de notícias ou sobreposição implementadas. React Native na interface do protótipo e Spring Boot no backend são requisitos confirmados. As demais decisões técnicas e operacionais propostas precisam ser revisadas pelo grupo.
+Planejamento inicial em 2 de novembro de 2026. O repositório já tem um protótipo funcional local React Native e Spring Boot, com MySQL, contas, perfil, publicações, comentários, mapa, consulta de rotas, relatos e coleta RSS. Consulte [execução local e limites da primeira entrega](08-execucao-local.md). A integração real com plataformas e a sobreposição nativa ainda não estão implementadas; a caixinha tem uma simulação interna identificada. React Native na interface do protótipo e Spring Boot no backend são requisitos confirmados. As demais decisões técnicas e operacionais propostas precisam ser revisadas pelo grupo.
 
 ## Por onde começar
 
@@ -87,4 +87,4 @@ As pastas apps/mobile e services/api contêm a base inicial. Nenhuma implantaç�
 
 ## Começar a desenvolver
 
-Consulte [08-execucao-local.md](08-execucao-local.md) para executar API, app e configurar o MySQL. Mapa é a tela inicial, com ilustração temporária; Comunidade e Perfil já têm consultas de demonstração.
+Consulte [08-execucao-local.md](08-execucao-local.md) para executar API, app e configurar o MySQL. Mapa é a tela inicial, agora interativo, com seleção de pontos e rota. Comunidade e Perfil têm ações persistentes; veja [fluxos verificados](09-prototipo-funcional.md).
