@@ -2,6 +2,8 @@
 
 ## Base confirmada
 
+- Feed com publicações e comentários, incluindo conversas gerais da profissão, dicas e dúvidas, além de experiências sobre locais e trajetos; localização opcional.
+
 - Perfil com plataformas de trabalho autodeclaradas e editáveis, permitindo múltipla seleção e opções de outra plataforma e trabalho independente; atividade e veículo ficam separados.
 
 - Entrega focada em protótipo local para apresentação, sem exigir implantação pública.
@@ -42,12 +44,13 @@
 
 ## Registro de mudanças
 
-Os detalhes de perfil estão em [Comunidade e perfis](06-comunidade-perfis.md). Feed, comentários e demais interações propostas ainda não têm escopo aprovado.
+Os detalhes de perfil estão em [Comunidade e perfis](06-comunidade-perfis.md). Feed, publicações e comentários estão incluídos, com conversas gerais, dicas e dúvidas. Ordem cronológica, filtros, limites e moderação posterior do feed são o funcionamento proposto; detalhes técnicos ainda podem ser ajustados pelo grupo.
 
 Para cada decisão relevante, adicionar data, contexto, decisão, responsável e consequência. Não transformar sugestão em requisito sem registrar a decisão do grupo.
 
 | Data | Decisão | Origem |
 | --- | --- | --- |
+| 2026-11-02 | Incluir feed com publicações e comentários, conversas gerais da profissão, dicas e dúvidas; localização opcional | Solicitação do proprietário |
 | 2026-11-02 | Manter SafeRide separado de projetos e recursos da Advanced | Solicitação do proprietário |
 | 2026-11-02 | Usar a conta pessoal lopezez-git como destino do repositório | Confirmação do proprietário |
 | 2026-11-02 | Usar React no frontend e Java com Spring Boot no backend | Requisito do proprietário |

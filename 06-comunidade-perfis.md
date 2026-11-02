@@ -34,7 +34,7 @@ No formulário de edição, explicar que esses campos serão visíveis à comuni
 
 Identificar o autor com nome público e plataformas em que trabalha para contextualizar a experiência. Usar etiquetas de texto, sem selos de verificação ou indicação de parceria com as empresas. Exibir atividade e veículo no perfil; nas contribuições, manter uma apresentação compacta com acesso ao perfil.
 
-Isso se aplica aos relatos previstos no MVP. Caso publicações de feed e comentários sejam aprovados, reutilizar o mesmo componente de identificação do autor. Não expor email, identificador de autenticação ou credenciais nas respostas públicas.
+Isso se aplica aos relatos, publicações do feed e comentários previstos no MVP, reutilizando o mesmo componente de identificação do autor. Não expor email, identificador de autenticação ou credenciais nas respostas públicas.
 
 ## Modelo de dados e API propostos
 
@@ -68,6 +68,85 @@ O React fornece seleção múltipla acessível, campos independentes, aviso de v
 - Tratar seleção vazia, valor desconhecido e falha da API sem perda silenciosa de dados.
 - Permitir operação por teclado e em tela de celular.
 
-## Funções da comunidade ainda em discussão
+## Feed, publicações e comentários
 
-Feed, publicações gerais, comentários, reação “Foi útil” e filtros por plataforma foram propostos, mas ainda precisam de definição de escopo. Chat privado, seguidores e fotos também não estão aprovados para a primeira entrega. Os relatos vinculados ao mapa e sua moderação continuam conforme o plano do produto; informar uma plataforma no perfil não aumenta automaticamente a confiabilidade de um relato.
+O escopo confirmado inclui conversas gerais da profissão, dicas e dúvidas, além de experiências sobre locais e trajetos. O profissional pode participar sem associar sua publicação a um lugar. O feed reúne motoristas e entregadores de diferentes plataformas na mesma comunidade.
+
+### Funcionamento planejado para o MVP local
+
+- Feed em ordem de criação, do mais recente para o mais antigo, com paginação e botão “Carregar mais”. Editar ou comentar não muda essa ordem.
+- Publicação de texto com categoria obrigatória e localização opcional. Categorias iniciais: condições da via, trânsito e interdições, pontos de apoio, dicas de trabalho, dúvidas da profissão e conversa geral.
+- Exibir nome e plataformas do autor, categoria, data, indicação de edição e quantidade de comentários visíveis. Atividade e veículo ficam acessíveis pelo perfil.
+- Comentários em lista simples, do mais antigo para o mais recente, paginados, sem respostas aninhadas. Comentar exige conta autenticada, assim como publicar, editar, excluir e denunciar.
+- Consulta do feed e comentários pode ser pública, conforme a proposta de acesso do produto. Não exigir uma plataforma específica para participar.
+- Filtros por categoria e cidade/região. Sem filtro territorial, incluir também publicações sem localização; com esse filtro, mostrar apenas as associadas à área selecionada e explicar esse comportamento.
+- Autor pode editar e excluir seu próprio conteúdo. Moderador pode ocultar e restaurar conteúdo, com motivo e histórico; não pode reescrever o texto do autor.
+- Denúncias de publicações e comentários entram na fila de moderação. A denúncia sozinha não confirma falsidade nem oculta automaticamente o conteúdo.
+
+Parâmetros iniciais propostos: publicação de 1 a 2.000 caracteres, comentário de 1 a 1.000 caracteres, descontando espaços nas extremidades; páginas de 20 itens, com máximo de 50 na API. Validar no Spring Boot e apresentar os limites no React. Texto simples, sem HTML. Valores podem ser ajustados pelo grupo antes da implementação.
+
+### Jornada e exemplos
+
+1. Usuário abre a comunidade, lê publicações e escolhe uma categoria ou região, se desejar.
+2. Entra na conta, seleciona uma categoria, escreve e opcionalmente associa uma localização.
+3. Publica e abre a conversa; outro participante pode comentar.
+4. O autor pode corrigir seu texto ou excluí-lo; qualquer participante autenticado pode denunciar conteúdo inadequado.
+
+Exemplos fictícios: “Como vocês organizam as pausas durante o trabalho?” em conversa geral; “Que cuidados ajudam a conservar a bicicleta nas entregas?” em dúvidas; “Minha dica é conferir os pontos de retirada antes de sair” em dicas de trabalho. Nenhum exige localização. Um relato de buracos pode indicar rua e data da observação.
+
+### Publicação no feed e informação no mapa
+
+Proposta de moderação: publicações e comentários válidos aparecem imediatamente no feed, sujeitos a denúncia e revisão posterior. Os relatos territoriais continuam exigindo revisão antes de entrar no mapa. Esta diferença deve ser explícita na interface e no backend.
+
+Uma publicação localizada não cria automaticamente um marcador ou ocorrência. No MVP, o autor usa o fluxo existente de envio de relato para propor informação ao mapa; não haverá conversão automática do post. Conversas gerais e comentários não alimentam o painel territorial. Moderação e plataformas do perfil não equivalem a comprovação factual.
+
+Quando o texto tratar de uma situação temporária observada, permitir informar a data da observação separadamente da data de publicação, rejeitando datas futuras. Se não informada, mostrar “Data da observação não informada”. Uma publicação antiga não confirma a situação atual, e comentários não renovam sua data.
+
+### Estados, exclusão e permissões
+
+Publicações e comentários têm estados publicado, oculto pela moderação e excluído pelo autor. Conteúdo oculto ou excluído não aparece nas consultas comuns, inclusive por acesso direto ao ID. Ocultar ou excluir a publicação também impede a leitura e novos comentários nela; comentários existentes não são expostos isoladamente. Restaurar a publicação não restaura comentários que tenham sido ocultados ou excluídos individualmente.
+
+Autor pode editar conteúdo publicado; editar não torna visível um conteúdo ocultado. Exclusão pelo autor não pode ser revertida pelo moderador. A política de retenção e remoção definitiva deve ser definida antes de um piloto público. Registrar ações de moderação com acesso restrito.
+
+Não permitir exposição de dados pessoais de passageiros ou terceiros, assédio, discriminação, spam ou acusações pessoais. A interface explica as regras e oferece denúncia. Limites de frequência serão configurados no servidor; definir seus valores na implementação.
+
+### Modelo e contratos propostos do feed
+
+| Entidade | Dados essenciais |
+| --- | --- |
+| Publicação comunitária | ID, autor, texto, categoria, localização opcional, data da observação opcional, criação, edição e estado |
+| Comentário | ID, publicação, autor, texto, criação, edição e estado |
+| Denúncia | Solicitante, alvo (relato, publicação ou comentário), motivo, criação e status |
+| Ação de moderação | Moderador, alvo, ação, motivo e data |
+
+Publicação comunitária é distinta de notícia coletada e de relato territorial. Ampliar denúncia e ação de moderação existentes, garantindo exatamente um alvo válido e preservando o fluxo dos relatos.
+
+| Método e rota proposta | Finalidade |
+| --- | --- |
+| GET /api/v1/publicacoes | Feed com filtros e cursor estável por criação e ID |
+| POST /api/v1/publicacoes | Criar publicação com autor obtido da sessão |
+| GET /api/v1/publicacoes/{id} | Consultar publicação visível |
+| PATCH ou DELETE /api/v1/publicacoes/{id} | Editar ou excluir como proprietário |
+| GET ou POST /api/v1/publicacoes/{id}/comentarios | Listar comentários visíveis ou criar comentário |
+| PATCH ou DELETE /api/v1/comentarios/{id} | Editar ou excluir como proprietário |
+| POST /api/v1/denuncias | Denunciar um alvo válido com motivo |
+| POST /api/v1/moderacao/acoes | Ocultar ou restaurar com motivo; exclusivo de moderador |
+
+Validar autorização e visibilidade no servidor em toda operação, inclusive comentário de publicação oculta e leitura direta. Nome e plataformas vêm do perfil público, sem email. Contagem de comentários inclui apenas os visíveis. Aplicar paginação também aos comentários, mantendo a ordem por criação e ID.
+
+O React apresenta carregamento, lista vazia, falha com nova tentativa e confirmação de exclusão. Em falha de envio, preservar o rascunho e não afirmar que publicou. Desabilitar envio enquanto houver requisição pendente; usar chave de idempotência por tentativa lógica no servidor para evitar duplicatas em reenvios após perda de resposta. A demonstração usa contas e conversas fictícias identificadas.
+
+### Critérios de aceite do feed
+
+- Publicar uma dúvida sem localização e encontrá-la no feed após recarregar.
+- Publicar uma dica e uma observação territorial; filtrar por categoria e região com comportamento explícito para posts sem local.
+- Comentar com outro usuário, recarregar e conferir autor, plataformas, ordem e contagem.
+- Editar e excluir conteúdo próprio; impedir alterações de terceiros por chamadas diretas à API.
+- Denunciar, ocultar e restaurar como moderador, registrando motivo; usuário comum não executa essas ações.
+- Não expor post oculto ou seus comentários por ID; não criar marcador no mapa ao publicar ou comentar.
+- Paginar sem repetir itens e tratar erros sem perder o texto digitado ou duplicar envios.
+- Demonstrar o fluxo em celular e por teclado.
+
+### Fora do escopo inicial
+
+Fotos, curtidas ou reação “Foi útil”, seguidores, chat privado, respostas aninhadas, notificações em tempo real, ranking e filtros por plataforma ficam para evolução posterior. O feed e os comentários fazem parte do planejamento do MVP; ainda não foram implementados.

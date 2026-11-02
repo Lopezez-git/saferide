@@ -24,7 +24,7 @@ No MVP, a participação acontece por relatos associados a locais e percursos, c
 
 O perfil informará as plataformas em que o profissional trabalha, com múltipla seleção: por exemplo, Uber, 99 e iFood no mesmo perfil. Haverá opções para outra plataforma e trabalho independente, além de atividade e veículo em campos separados. Essas informações serão autodeclaradas e editáveis, sem conexão com as contas externas. Consulte o [plano de comunidade e perfis](06-comunidade-perfis.md).
 
-As plataformas serão exibidas junto à identificação do autor para contextualizar suas contribuições. Feed, comentários, filtros e outras interações entre membros ainda precisam ter seu escopo definido pelo grupo.
+As plataformas serão exibidas junto à identificação do autor. O MVP também terá feed com publicações e comentários: experiências sobre locais e trajetos, conversas gerais da profissão, dicas de trabalho e dúvidas. A localização será opcional, permitindo conversar sem vincular o assunto a uma região. O plano prevê ordem cronológica, filtros por categoria e região, edição e exclusão pelo autor e denúncias para moderação. Publicar no feed não cria automaticamente um alerta no mapa.
 
 O levantamento inicial de 14 respostas foi realizado com motoristas. A ampliação para entregadores e outras atividades deverá incluir validação das necessidades desses públicos. Os documentos detalhados vinculados abaixo ainda partem desse recorte inicial e deverão acompanhar a ampliação do produto.
 
@@ -56,7 +56,7 @@ Planejamento inicial em 2 de novembro de 2026. Este repositório contém documen
 4. [Decisões do grupo](04-decisoes.md): perguntas que faltam resolver.
 5. [Como colaborar](CONTRIBUTING.md): rotina de branches, revisão e entregas.
 6. [Integração de notícias](05-integracao-noticias.md): busca automática, fontes alternativas, dados locais, demonstração e ocorrências no mapa.
-7. [Comunidade e perfis](06-comunidade-perfis.md): plataformas de trabalho, atividade, veículo, edição e apresentação pública.
+7. [Comunidade e perfis](06-comunidade-perfis.md): perfis, feed, conversas gerais, dicas, dúvidas, comentários e moderação.
 
 ## Primeiro objetivo
 
