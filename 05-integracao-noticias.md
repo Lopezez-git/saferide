@@ -11,7 +11,7 @@ A primeira entrega é um protótipo local para apresentação, com busca automá
 1. Spring Boot executa a coleta em fontes previamente configuradas, no início da aplicação e em intervalo configurável. Um botão administrativo também pode solicitar atualização.
 2. Filtra por região e assuntos relevantes, valida os campos recebidos e salva título, link, fonte e datas, sem inventar dados ausentes.
 3. Evita duplicar publicações por identificador externo e URL normalizada; matérias relacionadas podem ser agrupadas como candidatas à mesma ocorrência.
-4. React apresenta automaticamente as notícias elegíveis na lista regional, identificadas como publicações da fonte, sem tratá-las como fatos confirmados pelo SafeRide. Região desconhecida fica pendente de classificação.
+4. React Native apresenta automaticamente as notícias elegíveis na lista regional, identificadas como publicações da fonte, sem tratá-las como fatos confirmados pelo SafeRide. Região desconhecida fica pendente de classificação.
 5. A extração de localização gera candidatos; ocorrência só entra no mapa após localização suficiente e revisão. Uma notícia regional sem endereço preciso continua na lista, sem marcador inventado.
 6. Ocorrências aprovadas entram no mapa e painel de trajetos com evidências e prazo de revisão. Revisão editorial não equivale a confirmação oficial.
 7. Se a coleta falhar, executar a sequência de fallback abaixo. Moderador pode corrigir ou retirar notícias e revisar ocorrências.
@@ -24,7 +24,7 @@ flowchart LR
     D -->|Sucesso| C
     D -->|Falha| E[Notícias salvas localmente]
     E -->|Sem dados| F[Oferecer demonstração identificada]
-    C --> G[Lista regional React]
+    C --> G[Lista regional React Native]
     E --> G
     C --> H[Localização e revisão de ocorrência]
     H --> I[Mapa e painel contextual]
@@ -32,7 +32,7 @@ flowchart LR
 
 ## Fallback e funcionamento local
 
-React, Spring Boot e banco rodam na máquina da apresentação. Buscar notícias novas exige internet. Consultar dados já persistidos não deve depender de uma nova coleta; a atualização acontece em segundo plano e não bloqueia a interface.
+O aplicativo React Native roda em celular Android ou emulador; Spring Boot e banco rodam no computador da apresentação. Buscar notícias novas exige internet. Consultar dados já persistidos não deve depender de uma nova coleta; a atualização acontece em segundo plano e não bloqueia a interface.
 
 | Situação | Comportamento esperado |
 | --- | --- |
@@ -42,7 +42,7 @@ React, Spring Boot e banco rodam na máquina da apresentação. Buscar notícias
 | Sem notícias salvas e coleta indisponível | Oferecer ativação explícita do modo de demonstração, com exemplos identificados |
 | Resposta válida sem resultados | Mostrar ausência de novos resultados; não tratar como falha nem ativar exemplos automaticamente |
 | Localização imprecisa | Manter notícia regional na lista; não criar ponto exato no mapa |
-| API local ou banco indisponível | Mostrar erro de serviço local; o cache no banco não resolve essa falha. No perfil demo, oferecer exemplos estáticos empacotados no React |
+| API local ou banco indisponível | Mostrar erro de serviço local; o cache no banco não resolve essa falha. No perfil demo, oferecer exemplos estáticos empacotados no React Native |
 
 Configuração inicial proposta para teste: atualização a cada 15 minutos, até três fontes por ciclo, timeout de 5 segundos por tentativa, uma repetição para falhas transitórias e orçamento total de 40 segundos por ciclo. Respeitar limites da fonte e Retry-After; não repetir indefinidamente erros de autenticação ou formato. Ajustar os valores após selecionar fornecedores. Não iniciar ciclos sobrepostos; solicitações simultâneas retornam o identificador do ciclo em andamento.
 
@@ -112,7 +112,7 @@ Edições materiais de localização, descrição ou evidência retornam a ocorr
 
 **Spring Boot:** agendamento e execução da coleta, adaptadores RSS/API, limites de tempo, fallback, persistência local, endpoints, validação, autorização, consulta espacial, deduplicação, histórico e prazos. Organizar controllers, serviços, repositórios e adaptadores separados. Verificar versão nas alterações para não sobrescrever a revisão de outro moderador.
 
-**React:** lista automática de notícias, estado da atualização e cobertura, indicadores de dados salvos e modo demo, fila de revisão, seleção da localização, mapa, filtros e detalhe com fontes e datas. Diferenciar informações por texto e ícones, sem depender só de cores. A lista consulta a API local e não acessa fornecedores diretamente.
+**React Native:** lista automática de notícias, estado da atualização e cobertura, indicadores de dados salvos e modo demo, fila de revisão, seleção da localização, mapa, filtros e detalhe com fontes e datas. Diferenciar informações por texto e ícones, sem depender só de cores. A lista consulta a API local e não acessa fornecedores diretamente.
 
 Os coletores acessam somente fontes aprovadas. Bloquear destinos internos/locais e validar redirecionamentos, tamanho e tempo de resposta. Desabilitar entidades externas no processamento de XML/RSS. Não renderizar HTML recebido de fontes externas. Segredos de provedores ficam no backend. O formulário manual pode existir como ferramenta auxiliar, mas não é requisito para a busca funcionar.
 
@@ -147,7 +147,7 @@ O cartão deve indicar quando estiver desatualizado. Nunca apresentar o horário
 ## Etapas de implementação
 
 1. **Preparação:** selecionar cidade e fontes principal/alternativas com acesso permitido e testar seu formato. Definir banco e execução local.
-2. **Coleta automática no MVP:** implementar adaptadores, filtros, deduplicação, persistência e lista regional no React, sem cadastro manual obrigatório.
+2. **Coleta automática no MVP:** implementar adaptadores, filtros, deduplicação, persistência e lista regional no React Native, sem cadastro manual obrigatório.
 3. **Fallback no MVP:** fontes alternativas, dados locais, demonstração separada e simulação de falha; preparar roteiro online e offline.
 4. **Contexto territorial:** relacionar notícias a ocorrências, revisar localização e publicar no mapa e painel com histórico e datas.
 5. **Evolução posterior:** piloto público, sugestões da comunidade e eventual extração assistida por IA. Não fazem parte da infraestrutura necessária à apresentação local.
@@ -169,7 +169,7 @@ O cartão deve indicar quando estiver desatualizado. Nunca apresentar o horário
 - Retirada e encerramento deixam de aparecer como ocorrências atuais; correções ficam auditáveis.
 - Falha do serviço, ausência de cobertura e ausência de registros são estados distintos.
 - Relatos comunitários e notícias permanecem identificados por origem; nenhuma nota automática de segurança é gerada.
-- Fluxo verificado no celular e por teclado, com lista alternativa ao mapa e links de origem utilizáveis.
+- Fluxo verificado no celular, por toque e leitor de tela, com lista alternativa ao mapa e links de origem utilizáveis.
 
 ## Decisões pendentes
 
