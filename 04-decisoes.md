@@ -10,7 +10,7 @@
 - Busca automática de notícias na primeira versão, sem cadastro manual obrigatório.
 - Fallback com fontes alternativas, notícias salvas e modo demonstrativo explicitamente identificado.
 
-- Stack obrigatória: React Native no frontend e Java com Spring Boot no backend.
+- Stack do protótipo acadêmico: React Native na interface e Java com Spring Boot no backend.
 
 - Nome do produto: SafeRide.
 - Objetivo: oferecer contexto de região e percurso para apoiar a avaliação da corrida.
@@ -22,13 +22,26 @@
 
 | Tema | Ponto de partida | O que pode mudar |
 | --- | --- | --- |
-| Plataforma | Aplicativo mobile independente | Android como alvo inicial proposto; suporte a iOS a definir |
+| Modelo do produto | Em aberto: independente, integrado ou híbrido | Decisão conjunta do grupo antes de fechar o fluxo principal |
+| Protótipo | React Native + Spring Boot | Android como alvo inicial proposto; suporte a iOS a definir |
 | Cobertura | Uma cidade ou área piloto | Região escolhida pelo grupo |
 | Repositório | Nome saferide, privado inicialmente | Preferência do proprietário e necessidades de entrega |
 | Consulta | Sem autenticação | Regras de acesso ao piloto |
 | Relatos | Login e revisão antes de publicar | Operação e capacidade de moderação |
 | Fontes públicas | Importação revisada | Fonte e periodicidade após validação |
 | Atualidade | Validade inicial de 30 dias para relatos | Ajustes por categoria e testes |
+
+## Decisão pendente: independente ou integrado?
+
+Status: **em aberto, para discussão com o grupo**. Não assumir integração real nem aplicativo independente como escolha definitiva.
+
+| Alternativa | Benefício esperado | Ponto a resolver |
+| --- | --- | --- |
+| App independente | Autonomia e comunidade entre plataformas | Como consultar sem atrapalhar a decisão diante de uma oferta em outro app |
+| Serviço integrado | Contexto junto da oferta de corrida ou entrega | Acesso autorizado aos dados e interface controlada pela plataforma; demonstração acadêmica pode ser simulada |
+| Híbrido | Comunidade própria e possibilidade de integração | Escopo e esforço compatíveis com prazo e equipe |
+
+O grupo deve escolher qual experiência pretende demonstrar, onde a comunidade fica, como origem e destino chegam ao serviço e quais partes serão simuladas. Registrar a escolha, participantes e justificativa antes de fechar telas, contratos específicos e tarefas de integração. O protótipo continua em React Native e Spring Boot em qualquer alternativa; uma plataforma real poderia consumir a API com sua própria tecnologia de interface.
 
 ## Pendências que afetam o desenvolvimento
 
@@ -56,5 +69,6 @@ Para cada decisão relevante, adicionar data, contexto, decisão, responsável e
 | 2026-11-02 | Manter SafeRide separado de projetos e recursos da Advanced | Solicitação do proprietário |
 | 2026-11-02 | Usar a conta pessoal lopezez-git como destino do repositório | Confirmação do proprietário |
 | 2026-11-02 | Usar inicialmente React no frontend e Spring Boot no backend | Decisão histórica; frontend substituído pela decisão mobile abaixo |
-| 2026-11-02 | Construir aplicativo mobile independente em React Native com backend Spring Boot; substituir a proposta de site responsivo | Correção e autorização do proprietário |
+| 2026-11-02 | Adotar protótipo mobile em React Native com backend Spring Boot, substituindo a proposta de site responsivo | Formato independente inicialmente proposto; reaberto na decisão abaixo |
+| 2026-11-02 | Deixar o modelo independente, integrado ou híbrido em aberto para decisão do grupo | Solicitação do proprietário; mantém a stack do protótipo, sem aprovar integração ou simulador |
 | 2026-11-02 | Planejar busca automática RSS/API e fallback já na primeira versão local; cadastro manual torna-se apenas auxiliar | Requisito atualizado do proprietário; substitui o planejamento inicial de coleta manual em 05-integracao-noticias.md |
