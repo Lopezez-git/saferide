@@ -218,7 +218,7 @@ export default function MapScreen() {
     <View style={{flex:1,backgroundColor:"#E6E9E3"}} onLayout={(event) => setMapHeight(event.nativeEvent.layout.height)}>
       <MapCanvas
         height={mapHeight}
-        data={{ reports: shown, placeFocus, position, locationFocus, origin, destination, selected: point, route: route?.geometry.coordinates ?? null }}
+        data={{ routeMinutes: route ? Math.round(route.duration / 60) : undefined, reports: shown, placeFocus, position, locationFocus, origin, destination, selected: point, route: route?.geometry.coordinates ?? null }}
         onPick={(point) => { pick(point); setSheetOpen(true); }}
         onReport={(id) => {setDetail(id); setSheetOpen(true);}}
       />

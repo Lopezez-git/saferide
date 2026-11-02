@@ -118,3 +118,9 @@ A aba Mapa abre apenas com o mapa e o campo de busca flutuante. O painel de deta
 A busca envia o texto ao backend e ao Photon público. O servidor restringe os resultados à região piloto, limita novas chamadas a uma por 1,1 segundo, mantém cache em memória por uma hora (até 200 termos) e aplica timeout. O provedor pode ser trocado com a propriedade places.url. A busca usa sugestões automáticas com debounce; não há trânsito ao vivo ou garantia de cobertura equivalente ao Google Maps. Falhas exibem mensagem; selecionar no mapa continua disponível. Fonte: [Photon e condições do servidor público](https://github.com/komoot/photon#demo-server).
 
 Verificado: busca real por Paulista, seleção na interface, rota de demonstração desde a Sé (aproximadamente 4,4 km), testes existentes da API, TypeScript e ESLint. GPS real no aparelho continua dependendo da permissão e do provedor de localização.
+
+## Estilo visual do mapa
+
+A base usa tiles vetoriais OpenFreeMap/OpenMapTiles desenhados com Leaflet.VectorGrid, com fundo cinza claro e ruas brancas, sem rótulos de ruas e pontos comerciais. O trajeto calculado é preto, as extremidades são quadradas e a chegada mostra a estimativa do OSRM. Atribuições permanecem visíveis. Fonte: https://openfreemap.org/quick_start/.
+
+O carro representa a última posição obtida do dispositivo. Sem GPS disponível, aparece somente quando há origem escolhida, com identificação de origem manual no tooltip; isso não representa rastreamento ao vivo. O círculo tracejado mostra a precisão informada pelo dispositivo quando disponível. Foi verificado no navegador um trajeto real Paulista–Sé, com o painel recolhido após o cálculo. Teste físico Android/iOS ainda pendente.
