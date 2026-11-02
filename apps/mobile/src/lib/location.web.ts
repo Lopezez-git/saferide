@@ -1,22 +1,44 @@
 import type { DevicePosition } from "./location";
 export type { DevicePosition } from "./location";
 
-export function locate(): Promise<DevicePosition> {
+function requestPosition(highAccuracy: boolean): Promise<DevicePosition> {
   return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error("Este navegador não oferece localização. Abra em localhost ou HTTPS em um navegador compatível."));
-      return;
-    }
-    // Some embedded browsers never finish the permission request.
-    const timer = setTimeout(() => reject(new Error("O navegador não respondeu à localização. Verifique a permissão ou abra o SafeRide no Chrome/Edge e tente novamente.")), 25000);
+    const timeout = highAccuracy ? 12000 : 8000;
+    const timer = setTimeout(() => reject({ code: 3 }), timeout + 2000);
     navigator.geolocation.getCurrentPosition(
-      ({ coords, timestamp }) => { clearTimeout(timer); resolve({ latitude: coords.latitude, longitude: coords.longitude, accuracy: coords.accuracy, timestamp }); },
-      (error) => { clearTimeout(timer); reject(new Error(error.code === 1
-        ? "Localização bloqueada. Permita o acesso nas configurações deste site e do dispositivo e tente novamente."
-        : error.code === 3
-          ? "A localização demorou para responder. Verifique o sinal e tente novamente."
-          : "Não foi possível localizar este dispositivo. Ative a localização e tente novamente.")); },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 },
+      ({ coords, timestamp }) => {
+        clearTimeout(timer);
+        resolve({ latitude: coords.latitude, longitude: coords.longitude, accuracy: coords.accuracy, timestamp });
+      },
+      (error) => { clearTimeout(timer); reject(error); },
+      { enableHighAccuracy: highAccuracy, maximumAge: highAccuracy ? 0 : 60000, timeout },
     );
   });
+}
+
+export async function locate(onRefined?: (position: DevicePosition) => void): Promise<DevicePosition> {
+  if (!navigator.geolocation) {
+    throw new Error("Este navegador não oferece localização. Abra o SafeRide em localhost ou HTTPS no Chrome/Edge.");
+  }
+  try {
+    // A recent network position is useful even when a precise GPS fix is unavailable.
+    let initial: DevicePosition;
+    try {
+      initial = await requestPosition(false);
+    } catch (error) {
+      if ((error as { code?: number }).code === 1) throw error;
+      return await requestPosition(true);
+    }
+    if (onRefined) {
+      void requestPosition(true).then((precise) => {
+        if (precise.accuracy !== null && (initial.accuracy === null || precise.accuracy < initial.accuracy)) onRefined(precise);
+      }).catch(() => { /* Keep the real approximate position when refinement fails. */ });
+    }
+    return initial;
+  } catch (error) {
+    if ((error as { code?: number }).code === 1) {
+      throw new Error("Localização bloqueada. Permita o acesso para este site e ative a localização nas configurações do dispositivo.");
+    }
+    throw new Error("O dispositivo não forneceu sua localização. No Windows, confira Configurações > Privacidade e segurança > Localização. Se estiver no navegador integrado, teste localhost:8081 no Chrome/Edge com a permissão liberada. O mapa continua disponível para seleção manual.");
+  }
 }

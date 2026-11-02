@@ -74,7 +74,9 @@ export default function MapScreen() {
     setLocating(true);
     setLocationError("");
     try {
-      const p = await locate();
+      const p = await locate((refined) => {
+        if (id === locationRequest.current) setPosition(refined);
+      });
       if (id !== locationRequest.current) return;
       if (!Number.isFinite(p.latitude) || !Number.isFinite(p.longitude) || Math.abs(p.latitude) > 90 || Math.abs(p.longitude) > 180) {
         throw new Error("O dispositivo retornou uma posição inválida. Tente novamente.");

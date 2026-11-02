@@ -7,7 +7,7 @@ export type DevicePosition = {
   timestamp: number;
 };
 
-export async function locate(): Promise<DevicePosition> {
+export async function locate(_onRefined?: (position: DevicePosition) => void): Promise<DevicePosition> {
   const permission = await Location.requestForegroundPermissionsAsync();
   if (!permission.granted) {
     throw new Error("Permita o acesso à localização nas configurações do dispositivo e tente novamente.");
