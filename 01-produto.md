@@ -33,6 +33,8 @@ Aplicação web responsiva com React no frontend e Java com Spring Boot no backe
 | Trajetos | Informar origem e destino manualmente e visualizar um percurso calculado por um provedor |
 | Painel contextual | Resumir registros do embarque, destino e percurso, indicando fonte, data e lacunas |
 
+A comunidade inclui também feed com publicações e comentários sobre locais, trajetos e conversas gerais da profissão, incluindo dicas e dúvidas. Localização é opcional no feed; publicação não vira automaticamente registro no mapa. O [plano da comunidade](06-comunidade-perfis.md) detalha o funcionamento.
+
 Cadastro e moderação são funções de suporte necessárias aos relatos. A consulta pode ser pública; publicar exige autenticação. Isso é uma proposta de acesso a validar pelo grupo.
 
 ## Jornada do motorista
@@ -66,13 +68,15 @@ flowchart LR
 | Detalhe do registro | Categoria, descrição, localização, fonte, datas e opção de denunciar |
 | Envio de relato | Local ou trecho, categoria, data da observação e descrição curta |
 | Minha conta | Autenticação, edição do perfil com plataformas de trabalho, atividade e veículo, meus relatos, status e exclusão dos meus relatos |
-| Moderação | Fila de relatos e denúncias, publicação, rejeição e retirada com motivo |
+| Feed da comunidade | Publicações recentes, filtros por categoria e região e criação de publicação com localização opcional |
+| Conversa | Publicação, comentários paginados, edição, exclusão e denúncia |
+| Moderação | Revisão prévia de relatos territoriais e denúncias de relatos, publicações e comentários, com motivo e histórico |
 
 ## Regras de conteúdo
 
 O perfil permite múltiplas plataformas de trabalho, incluindo opções de outra plataforma e trabalho independente. As informações são autodeclaradas, editáveis e públicas na comunidade, conforme o [plano de perfis](06-comunidade-perfis.md). Não representam vínculo verificado nem alteram as regras de moderação dos relatos.
 
-Categorias iniciais propostas: pavimento, obra/interdição e condição de acesso. A prioridade é informação observável sobre o território. Fotos, comentários, avaliações de passageiros e acusações contra pessoas ficam fora do MVP.
+Categorias iniciais propostas: pavimento, obra/interdição e condição de acesso. A prioridade é informação observável sobre o território. Comentários estão incluídos no feed. Fotos, avaliações de passageiros e acusações contra pessoas ficam fora do MVP. As categorias do feed incluem também dicas de trabalho, dúvidas e conversa geral, conforme o plano da comunidade.
 
 Cada registro exibe a data da observação e sua fonte. Relato comunitário é apresentado como relato, mesmo depois da revisão; moderação não equivale a comprovação factual. Registros contraditórios podem coexistir com datas e autoria pública pseudonimizada.
 

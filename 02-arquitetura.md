@@ -19,7 +19,7 @@ React no frontend e Java com Spring Boot no backend são requisitos confirmados.
 
 ## Responsabilidades de cada aplicação
 
-O frontend React, em `apps/web/`, reúne as telas de consulta, mapa, painel contextual, envio de relatos e moderação. Ele apresenta os estados de carregamento e erro e consome a API por HTTP com JSON.
+O frontend React, em `apps/web/`, reúne as telas de consulta, mapa, painel contextual, envio de relatos, perfis, feed, publicações, comentários e moderação. Ele apresenta os estados de carregamento e erro e consome a API por HTTP com JSON.
 
 O backend Java com Spring Boot, em `services/api/`, concentra validação, autorização, regras dos relatos, moderação, consultas de contexto e acesso ao banco. As integrações que exigem credenciais privadas ficam no backend. A interface nunca é a única responsável por verificar permissões.
 
@@ -50,12 +50,14 @@ Se a rota falhar, manter consulta por região e explicar a falha. Se uma fonte e
 | Relato | ID, autor, categoria, descrição, ponto ou trecho, data da observação, criação, atualização, validade, status |
 | Fonte pública | ID, nome, endereço de origem, condições de uso, cobertura, frequência esperada, última importação bem-sucedida |
 | Registro público | ID, fonte, identificador externo, categoria, geometria, observação, atualização, validade, conteúdo normalizado |
-| Denúncia | ID, relato, solicitante, motivo, criação, status |
-| Ação de moderação | ID, moderador, relato ou denúncia, ação, motivo, data |
+| Publicação comunitária | ID, autor, texto, categoria, localização e observação opcionais, criação, edição, estado |
+| Comentário | ID, publicação comunitária, autor, texto, criação, edição, estado |
+| Denúncia | ID, alvo único (relato, publicação ou comentário), solicitante, motivo, criação, status |
+| Ação de moderação | ID, moderador, alvo (relato, publicação ou comentário) ou denúncia, ação, motivo, data |
 
 Consultas de trajetos não precisam ser persistidas no MVP. Credenciais de autenticação ficam a cargo do mecanismo escolhido; não armazenar senhas em campos do perfil.
 
-O [plano de comunidade e perfis](06-comunidade-perfis.md) detalha seleção múltipla de plataformas, edição pelo proprietário, campos públicos e contratos propostos. Plataforma de trabalho é autodeclarada e não determina o papel de autorização do usuário.
+O [plano de comunidade e perfis](06-comunidade-perfis.md) detalha seleção múltipla de plataformas, edição pelo proprietário, campos públicos, feed, comentários, estados de moderação, paginação e contratos propostos. Publicações comunitárias são distintas de notícias coletadas e de relatos territoriais; não geram ocorrências automaticamente. Plataforma de trabalho é autodeclarada e não determina o papel de autorização do usuário.
 
 ## Ciclo de vida do relato
 
@@ -87,7 +89,7 @@ Um arquivo revisado pode apoiar outras bases públicas, mas não substitui a col
 
 ## Proteção dos dados e operação
 
-Coletar apenas o necessário ao fluxo. Não publicar nomes de passageiros, placas, telefones, endereços residenciais identificados como pertencentes a pessoas ou acusações pessoais. Textos passam por revisão antes da publicação. Logs não devem conter senhas, tokens ou coordenadas precisas de consultas.
+Coletar apenas o necessário ao fluxo. Não publicar nomes de passageiros, placas, telefones, endereços residenciais identificados como pertencentes a pessoas ou acusações pessoais. Relatos territoriais passam por revisão antes da publicação no mapa. No feed, a proposta é publicação imediata com denúncias e moderação posterior; ocultação bloqueia também acesso direto e leitura dos comentários da publicação. As regras detalhadas estão no plano da comunidade. Logs não devem conter senhas, tokens ou coordenadas precisas de consultas.
 
 Guardar segredos fora do Git. Separar dados fictícios e piloto real. Preparar exclusão de conta e relatos, procedimento de restauração do banco e limites de consumo dos provedores antes do piloto. Definir responsável por moderação e incidentes; se não houver responsável, manter apenas a demonstração fechada.
 

@@ -9,7 +9,7 @@ Sequência proposta, sem datas fechadas: prazo, disponibilidade e integrantes ai
 | 1 Alinhamento | Cidade piloto, configuração da stack React e Spring Boot, responsáveis, fontes candidatas e escopo revisado | Grupo registra as decisões |
 | 2 Protótipo | Telas navegáveis com dados fictícios | Jornada de consulta compreensível e revisada |
 | 3 Consulta funcional | Mapa, endereços, rota e contexto com base demonstrativa | Percurso completo e estados de erro funcionando |
-| 4 Comunidade | Autenticação, relato e moderação persistidos | Controle de acesso e publicação verificados |
+| 4 Comunidade | Autenticação, perfis, relatos, feed, comentários e moderação persistidos | Controle de acesso e publicação verificados |
 | 5 Piloto e avaliação | Fonte real validada, teste com motoristas e ajustes | Evidências de uso e limitações documentadas |
 
 ## Backlog inicial
@@ -62,7 +62,20 @@ Conforme o [plano de perfis](06-comunidade-perfis.md), adicionar ao MVP local:
 | SR-24 | Criar edição de perfil em React | SR-23 | Selecionar Uber e iFood, salvar, recarregar, editar e remover; tratar erros e seleção vazia |
 | SR-25 | Apresentar perfil nas contribuições e verificar permissões | SR-24, SR-09 | Nome e plataformas atualizados nos relatos; outro usuário não consegue editar o perfil; informação identificada como autodeclarada |
 
-Essas tarefas não aprovam automaticamente feed ou comentários. Incluir no roteiro de apresentação a edição de um perfil fictício com duas plataformas e sua identificação em um relato.
+Incluir no roteiro de apresentação a edição de um perfil fictício com duas plataformas e sua identificação em relatos, publicações e comentários.
+
+### Entregas de feed e comentários
+
+O MVP local inclui conversas gerais da profissão, dicas, dúvidas e experiências territoriais, conforme o [plano da comunidade](06-comunidade-perfis.md).
+
+| ID | Tarefa | Dependência | Critério de aceite |
+| --- | --- | --- | --- |
+| SR-26 | Modelar publicações, comentários e APIs | SR-08, SR-23 | Persistência, localização opcional, paginação, autoria da sessão e permissões verificadas |
+| SR-27 | Criar feed e conversa em React | SR-24, SR-26 | Publicar dúvida sem local, filtrar, comentar, editar, excluir e recarregar; preservar rascunho em erro |
+| SR-28 | Ampliar denúncias e moderação | SR-10, SR-26 | Ocultar post bloqueia consulta direta e comentários; restaurar respeita exclusões individuais e registra motivo |
+| SR-29 | Verificar jornada da comunidade | SR-25, SR-27, SR-28 | Duas contas fictícias conversam; testar autorização, paginação, reenvio, moderação e ausência de marcador automático |
+
+SR-29 integra os critérios da demonstração, junto de SR-11 e SR-18. Revisar divisão e prazo considerando esse acréscimo de escopo.
 
 ### Responsabilidades por frente
 
@@ -93,6 +106,8 @@ Uma tarefa está concluída quando atende ao critério de aceite, passou por rev
 7. Atualizar notícias automaticamente e mostrar fontes, datas e lista regional.
 8. Simular falha na coleta e demonstrar fontes alternativas ou notícias salvas com aviso.
 9. Demonstrar ausência de cache com exemplos separados, desativar a simulação e verificar a recuperação sem duplicações.
+10. Publicar uma dúvida profissional sem localização, comentar com outra conta e mostrar nome e plataformas dos autores.
+11. Editar o próprio texto, denunciar e ocultar como moderador; demonstrar que a conversa não cria ocorrência no mapa.
 
 ## Principais dependências
 
