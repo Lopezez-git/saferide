@@ -121,6 +121,6 @@ Verificado: busca real por Paulista, seleção na interface, rota de demonstraç
 
 ## Estilo visual do mapa
 
-A base usa tiles vetoriais OpenFreeMap/OpenMapTiles desenhados com Leaflet.VectorGrid, com fundo cinza claro e ruas brancas, sem rótulos de ruas e pontos comerciais. O trajeto calculado é preto, as extremidades são quadradas e a chegada mostra a estimativa do OSRM. Atribuições permanecem visíveis. Fonte: https://openfreemap.org/quick_start/.
+A base usa tiles vetoriais OpenFreeMap/OpenMapTiles desenhados em SVG com Leaflet.VectorGrid (sem ampliar imagens canvas), com fundo cinza claro e ruas brancas, sem rótulos de ruas e pontos comerciais. O trajeto calculado é preto, as extremidades são quadradas e a chegada mostra a estimativa do OSRM. Atribuições permanecem visíveis. Fonte: https://openfreemap.org/quick_start/.
 
-O carro representa a última posição obtida do dispositivo. Sem GPS disponível, aparece somente quando há origem escolhida, com identificação de origem manual no tooltip; isso não representa rastreamento ao vivo. O círculo tracejado mostra a precisão informada pelo dispositivo quando disponível. Foi verificado no navegador um trajeto real Paulista–Sé, com o painel recolhido após o cálculo. Teste físico Android/iOS ainda pendente.
+Um marcador circular verde representa a última posição obtida do dispositivo. Sem GPS disponível, um círculo vazado escuro aparece somente quando há origem escolhida, com identificação de origem manual no tooltip; isso não representa rastreamento ao vivo. O círculo tracejado mostra a precisão informada pelo dispositivo quando disponível. Foi verificado no navegador um trajeto real Paulista–Sé, com o painel recolhido após o cálculo. Teste físico Android/iOS ainda pendente.
