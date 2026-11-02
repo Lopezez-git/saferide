@@ -18,7 +18,7 @@ P0 é necessário para a demonstração completa. P1 é necessário para o pilot
 
 | ID | Prioridade | Tarefa | Dependência | Critério de aceite |
 | --- | --- | --- | --- | --- |
-| SR-01 | P0 | Fechar decisões iniciais | — | Cidade, versões e ferramentas para React Native e Spring Boot, integrantes e prazo registrados |
+| SR-01 | P0 | Fechar decisões iniciais | — | Modelo independente/integrado/híbrido decidido pelo grupo, cidade, versões e ferramentas para React Native e Spring Boot, integrantes e prazo registrados |
 | SR-02 | P0 | Desenhar telas e estados | SR-01 | Jornada de consulta, envio e revisão navegável |
 | SR-03 | P0 | Preparar frontend React Native e backend Spring Boot | SR-01 | Outro integrante inicia o app em celular/emulador e o backend seguindo README; URL da API configurada por ambiente, chamada React Native → Spring Boot funciona, sem segredos no Git |
 | SR-04 | P0 | Preparar base demonstrativa | SR-01 | Exemplos recentes, antigos, sem dados e contraditórios, todos fictícios |
@@ -96,6 +96,8 @@ Usar um quadro com A fazer, Em andamento, Em revisão e Concluído. Limitar a um
 Uma tarefa está concluída quando atende ao critério de aceite, passou por revisão, foi verificada no fluxo afetado e teve sua documentação atualizada. Uma tela isolada sem dados ou tratamento de erro não encerra uma funcionalidade integrada.
 
 ## Roteiro de demonstração
+
+Roteiro-base de consulta manual, sujeito à escolha do modelo em SR-01. Se o grupo optar pela proposta integrada, revisar telas e tarefas para incluir oferta fictícia → consulta de contexto → aviso na oferta. Não implementar simulador nem prometer conexão real antes dessa definição; a base de API, notícias e comunidade permanece aproveitável.
 
 1. Mostrar uma consulta de origem e destino dentro da área piloto.
 2. Abrir o percurso e um registro de pavimento com fonte e data.

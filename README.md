@@ -6,9 +6,13 @@ Projeto independente do grupo, destinado à conta pessoal `lopezez-git`. Não po
 
 ## O que vamos construir
 
-Um aplicativo mobile independente com uma comunidade de profissionais que utilizam veículos para trabalhar com transporte e entregas. O SafeRide permite consultar e compartilhar informações sobre regiões, pontos de embarque ou retirada, destinos e percursos antes de avaliar uma corrida ou entrega. A primeira versão reúne mapa, relatos da comunidade, consulta de trajetos e painel contextual.
+Uma solução de contexto territorial, com protótipo mobile e uma comunidade de profissionais que utilizam veículos para trabalhar com transporte e entregas. O SafeRide permite consultar e compartilhar informações sobre regiões, pontos de embarque ou retirada, destinos e percursos antes de avaliar uma corrida ou entrega. A primeira versão reúne mapa, relatos da comunidade, consulta de trajetos e painel contextual.
 
 O SafeRide complementa a avaliação de valor, distância e tempo. Não garante segurança, não determina quais corridas ou entregas aceitar e não classifica bairros como seguros ou perigosos.
+
+## Modelo do produto: decisão em aberto
+
+O grupo ainda decidirá entre aplicativo independente, serviço integrado a plataformas como Uber/99/iFood ou modelo híbrido. Nenhuma dessas alternativas está aprovada como formato definitivo. React Native permanece como interface do protótipo acadêmico e Spring Boot como backend. Uma proposta integrada pode ser demonstrada com ofertas fictícias; isso não representa conexão real ou parceria com as empresas. Consulte a [decisão pendente](04-decisoes.md) para comparar os caminhos.
 
 ## Para quem é o SafeRide
 
@@ -46,7 +50,7 @@ O perfil de demonstração terá um botão administrativo para simular falha na 
 
 ## Situação atual
 
-Planejamento inicial em 2 de novembro de 2026. Este repositório contém documentação e organização do trabalho; ainda não existe aplicação executável. React Native no frontend e Spring Boot no backend são requisitos confirmados. As demais decisões técnicas e operacionais propostas precisam ser revisadas pelo grupo.
+Planejamento inicial em 2 de novembro de 2026. Este repositório contém documentação e organização do trabalho; ainda não existe aplicação executável. React Native na interface do protótipo e Spring Boot no backend são requisitos confirmados. As demais decisões técnicas e operacionais propostas precisam ser revisadas pelo grupo.
 
 ## Por onde começar
 

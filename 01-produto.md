@@ -37,6 +37,10 @@ A comunidade inclui também feed com publicações e comentários sobre locais, 
 
 Cadastro e moderação são funções de suporte necessárias aos relatos. A consulta pode ser pública; publicar exige autenticação. Isso é uma proposta de acesso a validar pelo grupo.
 
+## Modelo de uso a decidir
+
+O grupo decidirá entre aplicativo independente, integração proposta a Uber/99/iFood ou modelo híbrido. O protótipo acadêmico mantém React Native e Spring Boot. Uma integração poderá ser demonstrada com ofertas fictícias se escolhida pelo grupo; não existe acesso real garantido às plataformas. A jornada manual abaixo é uma hipótese para consulta no app, não a escolha definitiva do modelo. Ver [decisões pendentes](04-decisoes.md).
+
 ## Jornada do motorista
 
 1. Abre o SafeRide e informa origem e destino. A localização atual é opcional, solicitada somente após uma ação explícita.

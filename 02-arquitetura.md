@@ -2,7 +2,7 @@
 
 ## Organização proposta
 
-Um aplicativo mobile independente acessa uma API com regras de negócio e um banco com suporte a consultas espaciais. Adaptadores isolam os serviços de mapa, busca de endereços e cálculo de rotas. O provedor do mapa não necessariamente oferece os outros dois serviços.
+O protótipo mobile em React Native acessa uma API com regras de negócio e um banco com suporte a consultas espaciais. Adaptadores isolam os serviços de mapa, busca de endereços e cálculo de rotas. O provedor do mapa não necessariamente oferece os outros dois serviços.
 
 ```mermaid
 flowchart TD
@@ -15,7 +15,7 @@ flowchart TD
     PUB[Importação revisada de fontes públicas] --> DB
 ```
 
-React Native no frontend e Java com Spring Boot no backend são requisitos confirmados. Banco, hospedagem, fornecedores, versões e ferramentas de build ainda serão definidos. Essas escolhas devem considerar familiaridade do grupo, exigências da disciplina, cobertura da cidade piloto, limites, custo e direitos de uso. Não criar dependência de contas da Advanced.
+React Native na interface do protótipo acadêmico e Java com Spring Boot no backend são requisitos confirmados. O formato final (independente, integrado ou híbrido) está pendente de decisão do grupo. Banco, hospedagem, fornecedores, versões e ferramentas de build ainda serão definidos. Essas escolhas devem considerar familiaridade do grupo, exigências da disciplina, cobertura da cidade piloto, limites, custo e direitos de uso. Não criar dependência de contas da Advanced.
 
 ## Responsabilidades de cada aplicação
 
@@ -104,7 +104,7 @@ Guardar segredos fora do Git. Separar dados fictícios e piloto real. Preparar e
 
 ## Aplicativo mobile e apresentação local
 
-React Native é a interface mobile confirmada; a implementação não será um site nem dependerá de uma WebView. A navegação proposta tem Mapa, Comunidade e Perfil. Detalhes de alertas abrem em um painel inferior no celular. O layout visual apresentado foi exploratório, não uma interface já implementada.
+React Native é a interface mobile confirmada para o protótipo; a implementação não será um site nem dependerá de uma WebView. A navegação proposta tem Mapa, Comunidade e Perfil. Detalhes de alertas abrem em um painel inferior no celular. O layout visual apresentado foi exploratório, não uma interface já implementada.
 
 Alvo inicial proposto: Android em celular físico ou emulador. Spring Boot e banco ficam no computador da apresentação. Configurar a URL da API por ambiente: localhost no celular aponta para o próprio celular, não para o computador. Selecionar o endereço alcançável conforme dispositivo/emulador e testar a conexão antes da apresentação. No celular físico, usar rede local de confiança e permitir somente o acesso necessário à API, sem expor o banco ou criar acesso público. Não versionar endereços pessoais nem segredos.
 
@@ -112,4 +112,14 @@ Validar compatibilidade da biblioteca de mapas com React Native e com a ferramen
 
 A coleta de notícias continua no Spring Boot, não no celular. Dados salvos no banco exigem conexão com a API; não significam que o aplicativo funciona sozinho offline. Se a API não estiver acessível, o modo de demonstração pode usar exemplos fictícios empacotados no aplicativo, com ativação explícita e identificação. Preparar também mapa e percursos demonstrativos locais.
 
-Alertas iniciais são avisos dentro do mapa e do painel. Notificações push, integração com contas Uber/iFood, distribuição em lojas e operação pública ficam fora desta entrega. Abrir fontes de notícias em um navegador externo não transforma o produto em site. Usar armazenamento seguro do sistema para credenciais de sessão conforme o mecanismo de autenticação escolhido.
+Alertas no mapa e no painel são a base proposta; a apresentação junto de ofertas simuladas depende da decisão sobre o modelo do produto. Notificações push, integração com contas Uber/iFood, distribuição em lojas e operação pública ficam fora desta entrega. Abrir fontes de notícias em um navegador externo não transforma o produto em site. Usar armazenamento seguro do sistema para credenciais de sessão conforme o mecanismo de autenticação escolhido.
+
+## Alternativas de integração ainda em avaliação
+
+- Independente: o usuário consulta região ou trajeto no SafeRide. A troca de aplicativo e o preenchimento manual podem dificultar a consulta antes de aceitar uma oferta.
+- Integrado: uma plataforma autorizada consultaria a API Spring Boot com origem e destino e apresentaria o contexto em sua própria interface. React Native não seria exigido dentro do aplicativo parceiro; permanece útil para demonstrar a proposta acadêmica.
+- Híbrido: comunidade e consulta no aplicativo próprio, com serviço de contexto disponível para uma futura integração autorizada.
+
+Se o grupo escolher demonstrar integração, poderá criar um simulador com ofertas fictícias: oferta → consulta ao SafeRide → resposta com contexto, fontes e datas → exibição junto da oferta. Esse simulador é uma opção, não uma tarefa já aprovada. Não há conexão real implementada nem acesso garantido a ofertas de Uber, 99 ou iFood.
+
+Notificação e acesso aos dados da oferta são problemas distintos: localização atual não revela automaticamente destino ou percurso. Aviso imediato também não garante atualização imediata das fontes. Definir com o grupo quais dados entram, onde o aviso aparece, como tratar falha ou demora na consulta e o que será simulado antes de fechar telas e contratos específicos.
