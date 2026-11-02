@@ -75,6 +75,8 @@ Validar tamanho do texto, coordenadas, área suportada e datas; bloquear observa
 
 ## Fontes e demonstração
 
+O [módulo de notícias](05-integracao-noticias.md) acrescenta fontes editoriais, publicações, ocorrências e evidências ao modelo. A primeira entrega usa cadastro manual e revisão; ocorrências publicadas entram na consulta de contexto com origem, precisão espacial e atualidade explícitas. Notícias e relatos comunitários permanecem distinguíveis. O documento do módulo detalha entidades, estados, contratos de API e responsabilidades de React e Spring Boot.
+
 A primeira demonstração utiliza uma base fictícia pequena, marcada visualmente. Para o piloto real, escolher uma fonte pública concreta com cobertura útil e registrar origem, atribuição, permissão de reutilização e atualização. A existência e a adequação dessa fonte ainda não foram comprovadas.
 
 Um arquivo manual revisado pode ser suficiente para a primeira importação. Não presumir API aberta, cobertura nacional ou atualização em tempo real. A importação deve evitar duplicação por fonte e identificador externo e preservar a data original.

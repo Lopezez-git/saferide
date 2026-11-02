@@ -43,3 +43,4 @@ Para cada decisão relevante, adicionar data, contexto, decisão, responsável e
 | 2026-11-02 | Manter SafeRide separado de projetos e recursos da Advanced | Solicitação do proprietário |
 | 2026-11-02 | Usar a conta pessoal lopezez-git como destino do repositório | Confirmação do proprietário |
 | 2026-11-02 | Usar React no frontend e Java com Spring Boot no backend | Requisito do proprietário |
+| 2026-11-02 | Documentar integração de notícias ao mapa e painel; planejar cadastro manual e revisão antes de automatizar coleta | Solicitação do proprietário; detalhamento em 05-integracao-noticias.md |

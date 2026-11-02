@@ -26,6 +26,14 @@ Como evolução proposta, o perfil e os relatos poderão identificar o tipo de a
 
 O levantamento inicial de 14 respostas foi realizado com motoristas. A ampliação para entregadores e outras atividades deverá incluir validação das necessidades desses públicos. Os documentos detalhados vinculados abaixo ainda partem desse recorte inicial e deverão acompanhar a ampliação do produto.
 
+## Notícias e informações locais
+
+O SafeRide também terá um módulo para relacionar notícias e comunicados sobre obras, interdições e alagamentos a locais e trajetos. A primeira entrega prevista usa cadastro manual de links e revisão por moderador; a coleta por RSS ou API fica para uma etapa posterior.
+
+Cada ocorrência poderá reunir várias notícias como evidências, evitando marcadores duplicados. No mapa e no painel, o usuário verá resumo, localização com sua precisão, fonte, data do acontecimento e última verificação. Informação desatualizada será sinalizada; o vencimento de um prazo não confirma que o problema terminou.
+
+O Spring Boot cuidará da organização, revisão, permissões e consultas; o React apresentará o formulário administrativo e os registros no mapa e no painel. As fontes ainda precisam ser escolhidas e validadas. Consulte o [plano de integração de notícias](05-integracao-noticias.md) para fluxo, modelo de dados, API e critérios de aceite.
+
 ## Situação atual
 
 Planejamento inicial em 2 de novembro de 2026. Este repositório contém documentação e organização do trabalho; ainda não existe aplicação executável. React no frontend e Spring Boot no backend são requisitos confirmados. As demais decisões técnicas e operacionais propostas precisam ser revisadas pelo grupo.
@@ -37,6 +45,7 @@ Planejamento inicial em 2 de novembro de 2026. Este repositório contém documen
 3. [Plano de execução](03-execucao.md): entregas, tarefas e critérios de aceite.
 4. [Decisões do grupo](04-decisoes.md): perguntas que faltam resolver.
 5. [Como colaborar](CONTRIBUTING.md): rotina de branches, revisão e entregas.
+6. [Integração de notícias](05-integracao-noticias.md): cadastro, verificação, ocorrências, mapa e evolução da coleta.
 
 ## Primeiro objetivo
 
@@ -47,7 +56,7 @@ Dados fictícios devem ser identificados como demonstração. A aplicação só 
 ## Organização prevista
 
 ```text
-01-*.md a 04-*.md    Planejamento e decisões
+01-*.md a 05-*.md    Planejamento, decisões e integração de notícias
 .github/              Modelos de tarefas e revisão
 apps/web/             Frontend React, quando implementado
 services/api/         Backend Java com Spring Boot
