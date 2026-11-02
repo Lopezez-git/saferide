@@ -323,9 +323,9 @@ export default function MapScreen() {
               <Text style={{ color: "white", lineHeight: 22 }}>
                 {contextual.length
                   ? contextual[0].title +
-                    " � " +
+                    " - " +
                     (contextual[0].source ?? "Relato revisado") +
-                    " � " +
+                    " - " +
                     when(contextual[0].observedAt)
                   : "Sem informações revisadas próximas deste trajeto."}
               </Text>
