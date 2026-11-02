@@ -6,9 +6,25 @@ Projeto independente do grupo, destinado à conta pessoal `lopezez-git`. Não po
 
 ## O que vamos construir
 
-Uma aplicação para motoristas consultarem contexto sobre o embarque, o destino e o percurso antes de avaliar uma corrida. A primeira versão reúne mapa, relatos da comunidade, consulta de trajetos e painel contextual.
+Uma aplicação com uma comunidade de profissionais que utilizam veículos para trabalhar com transporte e entregas. O SafeRide permite consultar e compartilhar informações sobre regiões, pontos de embarque ou retirada, destinos e percursos antes de avaliar uma corrida ou entrega. A primeira versão reúne mapa, relatos da comunidade, consulta de trajetos e painel contextual.
 
-O SafeRide complementa a avaliação de valor, distância e tempo. Não garante segurança, não determina quais corridas aceitar e não classifica bairros como seguros ou perigosos.
+O SafeRide complementa a avaliação de valor, distância e tempo. Não garante segurança, não determina quais corridas ou entregas aceitar e não classifica bairros como seguros ou perigosos.
+
+## Para quem é o SafeRide
+
+O público inclui motoristas de aplicativos como Uber e 99, entregadores de serviços como iFood, motofretistas e outros profissionais de transporte e entregas. A proposta pode atender diferentes veículos, incluindo carros, motos e bicicletas, considerando as necessidades de cada atividade.
+
+Uber, 99 e iFood são exemplos de serviços utilizados por esse público. A participação na comunidade não depende de integração com essas plataformas e não implica parceria com elas.
+
+## Comunidade dentro do site
+
+A comunidade é uma parte central do SafeRide: os próprios profissionais contribuem com experiências e consultam informações compartilhadas por outros membros. Esse conhecimento complementa os dados geoespaciais e as informações públicas disponíveis.
+
+No MVP, a participação acontece por relatos associados a locais e percursos, com autenticação para envio, fonte, data e moderação. Os relatos podem abordar condições do pavimento, obras, acesso a estabelecimentos, pontos de embarque e retirada e dificuldades no caminho.
+
+Como evolução proposta, o perfil e os relatos poderão identificar o tipo de atividade e veículo, permitindo filtrar informações relevantes para cada profissional. Feed, comentários e outras interações entre membros ainda precisam ter seu escopo definido pelo grupo.
+
+O levantamento inicial de 14 respostas foi realizado com motoristas. A ampliação para entregadores e outras atividades deverá incluir validação das necessidades desses públicos. Os documentos detalhados vinculados abaixo ainda partem desse recorte inicial e deverão acompanhar a ampliação do produto.
 
 ## Situação atual
 
