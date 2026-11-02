@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { WebView } from "react-native-webview";
 import { mapHtml, MapProps } from "./mapHtml";
-export default function MapCanvas({ data, onPick, onReport }: MapProps) {
+export default function MapCanvas({ data, onPick, onReport, height = 360 }: MapProps) {
   const ref = useRef<WebView<object>>(null);
   const script = `window.updateMap && window.updateMap(${JSON.stringify(data)});true;`;
   useEffect(() => {
@@ -10,7 +10,7 @@ export default function MapCanvas({ data, onPick, onReport }: MapProps) {
   return (
     <WebView<object>
       ref={ref}
-      style={{ height: 360, borderRadius: 20 }}
+      style={{ height, borderRadius: 20 }}
       source={{
         html: mapHtml,
         baseUrl: "https://github.com/Lopezez-git/saferide",

@@ -99,9 +99,11 @@ A exportação Android produz bundle JavaScript/Hermes, não um APK. Instalaçã
 
 ## Localização do dispositivo
 
-No mapa, toque em **Minha localização** e permita o acesso. O app centraliza na posição obtida, mostra um ponto azul e o círculo de precisão informado pelo dispositivo. A consulta é pontual: toque novamente para atualizar; não acompanha deslocamentos em segundo plano. O horário da leitura fica visível.
+Ao abrir ou voltar à aba Mapa, o app solicita automaticamente a localização, respeitando a permissão do sistema. Quando disponível, centraliza no ponto azul e desenha o círculo de precisão. Não existe botão de localização. A consulta é pontual ao entrar na aba; não acompanha deslocamentos em segundo plano. O horário da leitura fica visível.
 
-**Usar minha posição como origem** substitui a origem, limpa o trajeto anterior e permite selecionar o destino. Fora dos limites da região piloto, a localização continua visível, mas não pode ser usada nos endpoints de trajetos/relatos, que permanecem restritos à área de São Paulo.
+A primeira posição válida dentro da região piloto preenche a origem se ela ainda não foi definida. Uma origem escolhida manualmente é preservada. Fora dos limites da região piloto, a posição continua visível, mas trajetos e relatos permanecem restritos à área de São Paulo.
+
+A tela do mapa usa cabeçalho compacto e altura proporcional à janela (entre 280 e 560 pixels). Telas abaixo de 480 pixels usam margens e espaçamentos reduzidos; os controles preservam áreas de toque de pelo menos 44 pixels. Verificado em prévia de 390 pixels, sem transbordamento horizontal.
 
 No navegador usamos Geolocation API (localhost ou HTTPS). Em computador, a posição pode ser aproximada, sem sensor GPS. No Android/iOS usamos expo-location com permissão de uso em primeiro plano; a nova dependência exige reconstruir o development build. Se o navegador integrado não responder, abra localhost:8081 no Chrome/Edge, permita a localização e verifique também a configuração do sistema operacional. Recusa, indisponibilidade e timeout exibem erro, sem substituir por coordenadas fictícias.
 

@@ -1,6 +1,7 @@
 import { PropsWithChildren } from "react";
 import {
   ActivityIndicator,
+  useWindowDimensions,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -93,24 +94,28 @@ export function Page({
   title,
   subtitle,
   children,
-}: PropsWithChildren<{ title: string; subtitle: string }>) {
+  compact = false,
+}: PropsWithChildren<{ title: string; subtitle: string; compact?: boolean }>) {
+  const { width } = useWindowDimensions();
+  const small = width < 480;
   return (
     <ScrollView
       keyboardShouldPersistTaps="handled"
       style={styles.page}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, small ? { padding: 12, gap: 12, paddingBottom: 28 } : null]}
     >
-      <Text style={styles.label}>SAFERIDE / SÃO PAULO</Text>
-      <Text accessibilityRole="header" style={styles.title}>
+      {!compact ? <Text style={styles.label}>SAFERIDE / SÃO PAULO</Text> : null}
+      <Text accessibilityRole="header" style={[styles.title, small || compact ? { fontSize: 24 } : null]}>
         {title}
       </Text>
-      <Text style={styles.subtitle}>{subtitle}</Text>
-      <View style={styles.tag}>
+      {!compact ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+      {!compact ? <View style={styles.tag}>
         <Text style={{ ...styles.subtitle, fontSize: 12 }}>
           Protótipo acadêmico • use dados de teste
         </Text>
-      </View>
+      </View> : null}
       {children}
+      {compact ? <Text style={styles.subtitle}>Protótipo acadêmico • use dados de teste</Text> : null}
     </ScrollView>
   );
 }

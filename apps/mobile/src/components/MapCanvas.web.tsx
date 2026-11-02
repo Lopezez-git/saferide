@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { mapHtml, MapProps } from "./mapHtml";
-export default function MapCanvas({ data, onPick, onReport }: MapProps) {
+export default function MapCanvas({ data, onPick, onReport, height = 360 }: MapProps) {
   const ref = useRef<HTMLIFrameElement>(null);
   useEffect(() => {
     function send() {
@@ -32,7 +32,7 @@ export default function MapCanvas({ data, onPick, onReport }: MapProps) {
       srcDoc={mapHtml}
       sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
       referrerPolicy="strict-origin-when-cross-origin"
-      style={{ width: "100%", height: 360, border: 0, borderRadius: 20 }}
+      style={{ width: "100%", height, border: 0, borderRadius: 20 }}
     />
   );
 }

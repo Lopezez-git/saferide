@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { Text, View } from "react-native";
+import { useCallback, useRef, useState } from "react";
+import { Text, View, useWindowDimensions } from "react-native";
 import {
   Page,
   styles,
@@ -10,6 +10,7 @@ import {
   ResourceState,
   SignInNotice,
 } from "../components/ui";
+import { useFocusEffect } from "expo-router";
 import MapCanvas from "../components/MapCanvas";
 import { MapPoint } from "../components/mapHtml";
 import { useResource } from "../lib/useResource";
@@ -40,6 +41,8 @@ type Route = {
 };
 export default function MapScreen() {
   const { token, user } = useSession();
+  const { height } = useWindowDimensions();
+  const manualOrigin = useRef(false);
   const q = useResource<Report[]>("/reports");
   const [mode, setMode] = useState<"origin" | "destination" | "report">(
     "origin",
@@ -66,8 +69,7 @@ export default function MapScreen() {
   const [locationError, setLocationError] = useState("");
   const [locationFocus, setLocationFocus] = useState(0);
   const locationRequest = useRef(0);
-  useEffect(() => () => { locationRequest.current++; }, []);
-  async function findMe() {
+  const findMe = useCallback(async () => {
     const id = ++locationRequest.current;
     setLocating(true);
     setLocationError("");
@@ -79,23 +81,20 @@ export default function MapScreen() {
       }
       setPosition(p);
       setLocationFocus((value) => value + 1);
+      if (inPilot(p) && !manualOrigin.current) {
+        setOrigin((current) => current ?? { latitude: p.latitude, longitude: p.longitude });
+        setMode((current) => current === "origin" ? "destination" : current);
+      }
     } catch (e) {
       if (id === locationRequest.current) setLocationError(message(e));
     } finally {
       if (id === locationRequest.current) setLocating(false);
     }
-  }
-  function usePositionAsOrigin() {
-    if (!position || !inPilot(position)) return;
-    request.current++;
-    setRouting(false);
-    setRoute(null);
-    setSimulation(false);
-    setError("");
-    setOrigin({ latitude: position.latitude, longitude: position.longitude });
-    setMode("destination");
-    setLocationFocus((value) => value + 1);
-  }
+  }, []);
+  useFocusEffect(useCallback(() => {
+    void findMe();
+    return () => { locationRequest.current++; };
+  }, [findMe]));
   function pick(p: MapPoint) {
     if (
       p.latitude < -24.1 ||
@@ -114,7 +113,7 @@ export default function MapScreen() {
       setRouting(false);
       setRoute(null);
       setSimulation(false);
-      if (mode === "origin") setOrigin(p);
+      if (mode === "origin") { manualOrigin.current = true; setOrigin(p); }
       else setDestination(p);
     }
   }
@@ -181,20 +180,29 @@ export default function MapScreen() {
     : [];
   return (
     <Page
-      title="Conheça o caminho."
+      title="Seu mapa"
       subtitle="Consulte o trajeto e os relatos antes de fazer sua escolha."
+      compact
     >
-      <Button title={locating ? "Localizando…" : "Minha localização"} onPress={findMe} disabled={locating} />
+      <Text accessibilityLiveRegion="polite" style={styles.subtitle}>
+        {locating ? "Localizando você…" : position ? `Posição obtida às ${new Date(position.timestamp).toLocaleTimeString("pt-BR")}${position.accuracy !== null ? ` · precisão de ${Math.round(position.accuracy)} m` : ""}` : "Localização indisponível"}
+      </Text>
+      <MapCanvas
+        height={Math.max(280, Math.min(560, height * 0.52))}
+        data={{
+          reports: shown,
+          position,
+          locationFocus,
+          origin,
+          destination,
+          selected: point,
+          route: route?.geometry.coordinates ?? null,
+        }}
+        onPick={pick}
+        onReport={setDetail}
+      />
       <Feedback error={locationError} />
-      {position ? <>
-        <Text style={styles.subtitle}>
-          Ponto azul: posição obtida às {new Date(position.timestamp).toLocaleTimeString("pt-BR")}.
-          {position.accuracy !== null ? ` Precisão aproximada: ${Math.round(position.accuracy)} m.` : " Precisão não informada."}
-          {locationError ? " A última posição foi mantida; ela pode estar desatualizada." : " Toque em Minha localização para atualizar."}
-        </Text>
-        {inPilot(position) ? <Button title="Usar minha posição como origem" secondary onPress={usePositionAsOrigin} /> :
-          <Text style={styles.subtitle}>Você está fora da região piloto. Sua posição aparece no mapa; trajetos e novos relatos continuam limitados à área de São Paulo.</Text>}
-      </> : <Text style={styles.subtitle}>Permita a localização para ver sua posição no mapa.</Text>}
+      {position && !inPilot(position) ? <Text style={styles.subtitle}>Você está fora da região piloto. Trajetos e relatos estão limitados à área de São Paulo.</Text> : null}
       <View style={styles.row}>
         <Chip
           label="Marcar origem"
@@ -221,19 +229,6 @@ export default function MapScreen() {
             : "marcar o local observado"}
         .
       </Text>
-      <MapCanvas
-        data={{
-          reports: shown,
-          position,
-          locationFocus,
-          origin,
-          destination,
-          selected: point,
-          route: route?.geometry.coordinates ?? null,
-        }}
-        onPick={pick}
-        onReport={setDetail}
-      />
       <Field
         label="Buscar ponto de referência"
         value={search}

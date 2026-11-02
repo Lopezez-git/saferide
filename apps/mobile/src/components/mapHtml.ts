@@ -9,6 +9,7 @@ export type MapData = {
   route: number[][] | null;
 };
 export type MapProps = {
+  height?: number;
   data: MapData;
   onPick: (point: MapPoint) => void;
   onReport: (id: string) => void;
