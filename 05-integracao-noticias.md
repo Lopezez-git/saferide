@@ -4,29 +4,55 @@
 
 Integrar notícias e comunicados sobre obras, interdições e alagamentos ao mapa e ao painel contextual do SafeRide, apoiando motoristas e entregadores. Este documento define o funcionamento planejado; o módulo ainda não foi implementado.
 
-A primeira entrega usa cadastro manual de links e revisão por moderador na cidade piloto. Coleta por RSS ou API, extração assistida por IA e sugestões de links pelos membros ficam como evoluções. Os fornecedores e suas condições de uso ainda precisam ser verificados. Notícias não alteram automaticamente o trajeto nem geram uma classificação de segurança de bairros.
+A primeira entrega é um protótipo local para apresentação, com busca automática de notícias na internet por RSS ou API e fallback. Não depende de cadastrar links manualmente. A cidade, as fontes e suas condições de uso ainda precisam ser escolhidas e verificadas; nenhum serviço pago está contratado. IA e sugestões de links pelos membros são opcionais para evolução. Notícias não alteram automaticamente o trajeto nem geram uma classificação de segurança de bairros.
 
 ## Fluxo completo
 
-1. Moderador cadastra a publicação e identifica sua fonte original.
-2. Registra resumo, categoria, local, data do acontecimento e data da publicação separadamente.
-3. Procura ocorrência existente antes de criar outra; novas matérias podem complementar o mesmo acontecimento.
-4. Confirma a localização no mapa, a precisão disponível e as evidências que sustentam a informação.
-5. Publica a ocorrência com prazo para nova revisão. Revisão editorial não equivale a confirmação oficial.
-6. O backend inclui ocorrências pertinentes na consulta de contexto; o frontend apresenta fonte, datas e situação.
-7. Moderador registra atualizações, correções, retirada ou encerramento com justificativa e evidência.
+1. Spring Boot executa a coleta em fontes previamente configuradas, no início da aplicação e em intervalo configurável. Um botão administrativo também pode solicitar atualização.
+2. Filtra por região e assuntos relevantes, valida os campos recebidos e salva título, link, fonte e datas, sem inventar dados ausentes.
+3. Evita duplicar publicações por identificador externo e URL normalizada; matérias relacionadas podem ser agrupadas como candidatas à mesma ocorrência.
+4. React apresenta automaticamente as notícias elegíveis na lista regional, identificadas como publicações da fonte, sem tratá-las como fatos confirmados pelo SafeRide. Região desconhecida fica pendente de classificação.
+5. A extração de localização gera candidatos; ocorrência só entra no mapa após localização suficiente e revisão. Uma notícia regional sem endereço preciso continua na lista, sem marcador inventado.
+6. Ocorrências aprovadas entram no mapa e painel de trajetos com evidências e prazo de revisão. Revisão editorial não equivale a confirmação oficial.
+7. Se a coleta falhar, executar a sequência de fallback abaixo. Moderador pode corrigir ou retirar notícias e revisar ocorrências.
 
 ```mermaid
 flowchart LR
-    A[Link cadastrado] --> B[Notícia e fonte]
-    B --> C[Relacionar ou criar ocorrência]
-    C --> D[Revisar local, datas e evidências]
-    D --> E[Publicação no banco]
-    E --> F[API de contexto Spring Boot]
-    F --> G[Mapa e painel React]
-    E --> H[Revisão de atualidade]
-    H --> D
+    A[Coleta automática RSS ou API] --> B{Resposta válida?}
+    B -->|Sim| C[Filtrar e salvar notícias]
+    B -->|Não| D[Fontes alternativas]
+    D -->|Sucesso| C
+    D -->|Falha| E[Notícias salvas localmente]
+    E -->|Sem dados| F[Oferecer demonstração identificada]
+    C --> G[Lista regional React]
+    E --> G
+    C --> H[Localização e revisão de ocorrência]
+    H --> I[Mapa e painel contextual]
 ```
+
+## Fallback e funcionamento local
+
+React, Spring Boot e banco rodam na máquina da apresentação. Buscar notícias novas exige internet. Consultar dados já persistidos não deve depender de uma nova coleta; a atualização acontece em segundo plano e não bloqueia a interface.
+
+| Situação | Comportamento esperado |
+| --- | --- |
+| Fonte principal indisponível ou resposta inválida | Tentar fontes alternativas habilitadas para a mesma região e assunto |
+| Algumas fontes respondem | Salvar resultados válidos e informar cobertura parcial; preservar dados anteriores das fontes que falharam |
+| Todas as fontes falham | Exibir notícias do banco local com data da última coleta bem-sucedida e aviso de atualização indisponível |
+| Sem notícias salvas e coleta indisponível | Oferecer ativação explícita do modo de demonstração, com exemplos identificados |
+| Resposta válida sem resultados | Mostrar ausência de novos resultados; não tratar como falha nem ativar exemplos automaticamente |
+| Localização imprecisa | Manter notícia regional na lista; não criar ponto exato no mapa |
+| API local ou banco indisponível | Mostrar erro de serviço local; o cache no banco não resolve essa falha. No perfil demo, oferecer exemplos estáticos empacotados no React |
+
+Configuração inicial proposta para teste: atualização a cada 15 minutos, até três fontes por ciclo, timeout de 5 segundos por tentativa, uma repetição para falhas transitórias e orçamento total de 40 segundos por ciclo. Respeitar limites da fonte e Retry-After; não repetir indefinidamente erros de autenticação ou formato. Ajustar os valores após selecionar fornecedores. Não iniciar ciclos sobrepostos; solicitações simultâneas retornam o identificador do ciclo em andamento.
+
+Registrar por fonte a última tentativa, o último sucesso e o motivo da falha. Um ciclo só conta como sucesso após validar e persistir a resposta. Uma resposta válida vazia também é sucesso, mas não muda a data das notícias antigas. Recoletar uma matéria não renova a data do acontecimento nem a verificação de uma ocorrência.
+
+O fallback não apaga registros anteriores, não republica conteúdo retirado e não transforma notícia antiga em informação atual. A interface distingue notícias coletadas, dados locais desatualizados e exemplos. Exemplo de aviso: “Não foi possível atualizar agora. Exibindo informações salvas em 02/11 às 14h.” Exibir fuso e horário real do último sucesso disponível; sem sucesso anterior, informar isso explicitamente.
+
+Dados de demonstração usam armazenamento ou namespace separado, com indicador `demo` no retorno e aviso permanente na tela. Não misturar exemplos nas contagens de dados reais. O botão “Simular falha na coleta” existe somente no perfil local de demonstração, para administradores, e deve poder ser desativado. Ele simula falha dos coletores sem desligar a API ou apagar o banco. Após recuperação, uma coleta bem-sucedida restaura o estado de atualização; sair do modo demo deve ser uma ação explícita.
+
+Para apresentar sem internet, preparar previamente notícias salvas e exemplos estáticos. O fallback de notícias não garante que mapa e cálculo de rota externos funcionem offline: preparar também mapa e percursos demonstrativos locais identificados, sem apresentá-los como navegação atual.
 
 ## Notícias e ocorrências são registros diferentes
 
@@ -39,6 +65,7 @@ Uma notícia é uma publicação de um veículo ou órgão. Uma ocorrência é o
 | Ocorrência | ID, categoria, resumo, geometria, precisão espacial, início do acontecimento, fim previsto quando informado, situação, última verificação, próxima revisão e versão |
 | Evidência da ocorrência | IDs de ocorrência e notícia, informação sustentada, vínculo com fonte primária e data da revisão |
 | Histórico de revisão | ID, ocorrência, moderador, ação, motivo, evidência, data e versão anterior |
+| Execução de coleta | ID, início, fim, fontes tentadas, resultado por fonte, último sucesso, erros, quantidades importadas e identificador de modo demo |
 
 A relação entre notícias e ocorrências pode ser muitos para muitos: uma matéria pode tratar de mais de um trecho ou acontecimento. Não armazenar o texto integral ou imagens de terceiros por padrão; guardar referência e resumo próprio. Datas desconhecidas permanecem desconhecidas, sem preencher com a data da coleta. Horários devem preservar o fuso da origem quando conhecido.
 
@@ -54,7 +81,7 @@ As entidades deste módulo complementam o modelo de [arquitetura](02-arquitetura
 - Tratar republicações da mesma origem como uma evidência, não como confirmações independentes.
 - Em contradições materiais não resolvidas, manter a ocorrência pendente ou retirar sua publicação até revisão.
 
-Uma fonte cadastrada não torna toda matéria automaticamente correta. Conferência humana continua necessária no MVP. O grupo definirá a lista inicial de fontes por cidade; não há fornecedor contratado ou integração ativa.
+Uma fonte cadastrada não torna toda matéria automaticamente correta. As notícias passam por validação automática de origem, campos e pertinência antes da lista regional; a revisão humana continua necessária para publicar ocorrências no mapa e resolver ambiguidades. O grupo definirá a lista inicial de fontes por cidade; não há fornecedor contratado ou integração ativa. Os estados da seção seguinte se referem às ocorrências; notícias têm estados próprios: elegível para lista, pendente de classificação ou retirada.
 
 ## Localização e consulta por trajeto
 
@@ -83,11 +110,11 @@ Edições materiais de localização, descrição ou evidência retornam a ocorr
 
 ## Responsabilidades técnicas
 
-**Spring Boot:** endpoints, validação, autorização por papel, persistência, consulta espacial, deduplicação, histórico de alterações e tratamento de prazos. Organizar controllers, serviços de negócio, repositórios e adaptadores de coleta separados. Verificar versão nas alterações para não sobrescrever a revisão de outro moderador.
+**Spring Boot:** agendamento e execução da coleta, adaptadores RSS/API, limites de tempo, fallback, persistência local, endpoints, validação, autorização, consulta espacial, deduplicação, histórico e prazos. Organizar controllers, serviços, repositórios e adaptadores separados. Verificar versão nas alterações para não sobrescrever a revisão de outro moderador.
 
-**React:** formulário administrativo, fila de revisão, seleção da localização, mapa e lista acessível, filtros por categoria e origem, detalhe com fontes, datas e situação. Diferenciar informações por texto e ícones, sem depender só de cores.
+**React:** lista automática de notícias, estado da atualização e cobertura, indicadores de dados salvos e modo demo, fila de revisão, seleção da localização, mapa, filtros e detalhe com fontes e datas. Diferenciar informações por texto e ícones, sem depender só de cores. A lista consulta a API local e não acessa fornecedores diretamente.
 
-No cadastro manual inicial, o servidor não precisa abrir a URL: o moderador consulta a fonte e preenche o formulário. Se houver busca automática futura, limitar origens a fontes aprovadas, bloquear endereços internos/locais e validar redirecionamentos, tamanho e tempo de resposta. Não renderizar HTML recebido de fontes externas. Segredos de provedores ficam no backend.
+Os coletores acessam somente fontes aprovadas. Bloquear destinos internos/locais e validar redirecionamentos, tamanho e tempo de resposta. Desabilitar entidades externas no processamento de XML/RSS. Não renderizar HTML recebido de fontes externas. Segredos de provedores ficam no backend. O formulário manual pode existir como ferramenta auxiliar, mas não é requisito para a busca funcionar.
 
 ## Contratos de API propostos
 
@@ -95,6 +122,10 @@ As rotas abaixo são propostas de implementação, não endpoints existentes. To
 
 | Método e rota | Finalidade |
 | --- | --- |
+| GET /api/v1/noticias | Listar notícias elegíveis por região e categoria, com paginação, origem, datas e identificação de dados reais ou demo |
+| POST /api/v1/admin/coletas | Solicitar coleta em segundo plano; retornar ID e estado, sem bloquear a consulta pública |
+| GET /api/v1/coletas/status | Informar atualização, cobertura parcial, último sucesso e uso de dados salvos, sem segredos ou erros internos detalhados |
+| POST /api/v1/admin/demo/falha-coleta | Ativar ou desativar simulação; indisponível fora do perfil local demo |
 | POST /api/v1/admin/noticias | Cadastrar URL, fonte, título, datas e resumo; devolver registro existente ou conflito se a URL já estiver cadastrada |
 | POST /api/v1/admin/ocorrencias | Criar ocorrência pendente com evidências vinculadas |
 | GET /api/v1/admin/ocorrencias | Listar fila paginada por estado e prazo de revisão |
@@ -115,14 +146,21 @@ O cartão deve indicar quando estiver desatualizado. Nunca apresentar o horário
 
 ## Etapas de implementação
 
-1. **MVP manual:** entidades, formulário administrativo, revisão, histórico e publicação no mapa e painel. Usar dados fictícios identificados na demonstração.
-2. **Piloto real:** selecionar fontes e validar cobertura, uso, atribuição e rotina de atualização; testar com motoristas e entregadores.
-3. **Evolução:** importar fontes RSS/API permitidas para a fila, com deduplicação, limites, tentativas controladas e monitoramento de falhas. Importação nunca publica automaticamente.
-4. **Evolução opcional:** membros sugerem links para revisão; IA pode auxiliar extração, sem inventar campos ausentes nem aprovar a veracidade.
+1. **Preparação:** selecionar cidade e fontes principal/alternativas com acesso permitido e testar seu formato. Definir banco e execução local.
+2. **Coleta automática no MVP:** implementar adaptadores, filtros, deduplicação, persistência e lista regional no React, sem cadastro manual obrigatório.
+3. **Fallback no MVP:** fontes alternativas, dados locais, demonstração separada e simulação de falha; preparar roteiro online e offline.
+4. **Contexto territorial:** relacionar notícias a ocorrências, revisar localização e publicar no mapa e painel com histórico e datas.
+5. **Evolução posterior:** piloto público, sugestões da comunidade e eventual extração assistida por IA. Não fazem parte da infraestrutura necessária à apresentação local.
 
 ## Critérios de aceite
 
-- Moderador cadastra, revisa e publica uma ocorrência que aparece no percurso pertinente e no detalhe com fonte e datas.
+- Com banco vazio e fonte acessível, o sistema coleta e mostra notícias sem cadastrar links manualmente.
+- Falha da fonte principal aciona alternativa; falha total mantém dados locais e informa o último sucesso.
+- Sem internet e sem banco populado, modo demo é oferecido explicitamente e mantém exemplos identificados e separados.
+- Resposta vazia, erro de formato, timeout, indisponibilidade da API local e cobertura parcial têm tratamento distinto.
+- Retomar a conexão permite nova coleta sem duplicar registros; datas antigas não são renovadas artificialmente.
+- Simulação de falha é reversível, não apaga dados e não fica disponível fora do perfil demo.
+- Moderador revisa e publica uma ocorrência originada da coleta, que aparece no percurso pertinente e no detalhe com fonte e datas.
 - Usuário comum não publica nem acessa filas ou conteúdo pendente por chamadas diretas à API.
 - Duas notícias do mesmo evento aparecem como referências de uma ocorrência, sem duplicar marcadores.
 - Uma republicação antiga mantém a data original do acontecimento e não renova sua atualidade.
@@ -135,4 +173,4 @@ O cartão deve indicar quando estiver desatualizado. Nunca apresentar o horário
 
 ## Decisões pendentes
 
-Escolher cidade e fontes iniciais; definir responsáveis e frequência de revisão por categoria; estabelecer limites de consulta e política de histórico; validar banco e operações espaciais; priorizar a coleta automatizada após a demonstração manual.
+Escolher cidade, fonte principal e alternativas; validar RSS/APIs e condições de uso; definir responsáveis e frequência de revisão por categoria; ajustar limites de coleta e política de histórico; escolher banco local e operações espaciais; preparar exemplos, mapa e percursos para a apresentação offline. Busca automática e fallback já são requisitos da primeira versão.

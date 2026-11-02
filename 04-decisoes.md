@@ -2,6 +2,10 @@
 
 ## Base confirmada
 
+- Entrega focada em protótipo local para apresentação, sem exigir implantação pública.
+- Busca automática de notícias na primeira versão, sem cadastro manual obrigatório.
+- Fallback com fontes alternativas, notícias salvas e modo demonstrativo explicitamente identificado.
+
 - Stack obrigatória: React no frontend e Java com Spring Boot no backend.
 
 - Nome do produto: SafeRide.
@@ -43,4 +47,4 @@ Para cada decisão relevante, adicionar data, contexto, decisão, responsável e
 | 2026-11-02 | Manter SafeRide separado de projetos e recursos da Advanced | Solicitação do proprietário |
 | 2026-11-02 | Usar a conta pessoal lopezez-git como destino do repositório | Confirmação do proprietário |
 | 2026-11-02 | Usar React no frontend e Java com Spring Boot no backend | Requisito do proprietário |
-| 2026-11-02 | Documentar integração de notícias ao mapa e painel; planejar cadastro manual e revisão antes de automatizar coleta | Solicitação do proprietário; detalhamento em 05-integracao-noticias.md |
+| 2026-11-02 | Planejar busca automática RSS/API e fallback já na primeira versão local; cadastro manual torna-se apenas auxiliar | Requisito atualizado do proprietário; substitui o planejamento inicial de coleta manual em 05-integracao-noticias.md |
