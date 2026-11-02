@@ -33,6 +33,21 @@ P0 é necessário para a demonstração completa. P1 é necessário para o pilot
 | SR-13 | P1 | Preparar operação do piloto | SR-10, SR-12 | Moderação, validade, exclusão, restauração e limites de consumo definidos |
 | SR-14 | P1 | Testar com motoristas e consolidar aprendizado | SR-11, SR-13 | Resultados por tarefa, problemas e decisões de melhoria registrados |
 
+## Entregas adicionais de notícias
+
+Estas tarefas complementam o backlog conforme o [plano do módulo](05-integracao-noticias.md). A coleta automática permanece como evolução; os IDs ainda não representam issues criadas.
+
+| ID | Etapa | Tarefa | Dependência | Critério de aceite |
+| --- | --- | --- | --- | --- |
+| SR-15 | MVP manual | Modelar notícias, ocorrências e evidências | SR-03 | Persistência separa publicação de acontecimento e aceita múltiplas fontes sem duplicar ocorrência |
+| SR-16 | MVP manual | Criar cadastro e revisão administrativa | SR-08, SR-15 | Apenas moderador publica; local, datas, evidência, próxima revisão e histórico obrigatórios |
+| SR-17 | MVP manual | Integrar ocorrências ao mapa e painel | SR-07, SR-16 | Consulta espacial retorna ocorrências pertinentes com precisão, fonte e datas, sem duplicações |
+| SR-18 | MVP manual | Verificar atualização e jornada de notícias | SR-17 | Prazos não encerram eventos; retirada, permissões, duplicidades e falhas verificadas ponta a ponta |
+| SR-19 | Piloto real | Validar fontes e operação editorial | SR-18 | Fontes, atribuição, cobertura e responsáveis por revisão registrados antes de usar notícias reais |
+| SR-20 | Evolução | Automatizar coleta RSS/API | SR-19 | Coleta permitida alimenta fila, evita duplicação e registra falhas; nenhuma publicação automática |
+
+A demonstração integrada inclui SR-18 além de SR-11; o piloto com notícias reais depende também de SR-19. Distribuir esses trabalhos entre as frentes abaixo e revisar prazo do grupo para acomodar o módulo.
+
 ## Divisão sugerida por frente
 
 | Frente | Responsabilidade | Entrega compartilhável |
