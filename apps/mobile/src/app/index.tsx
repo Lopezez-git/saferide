@@ -234,6 +234,7 @@ export default function MapScreen() {
   const pavementNews = (news.data?.items || []).filter(n => n.topic === "Pavimento" || n.topic === "Obras na via");
   const topicNews = topic === "safety" ? safetyNews : topic === "pavement" ? pavementNews : [];
 
+  const showRouteAction = !!origin && !!destination && !route && !search;
   const contextual = route
     ? reports.filter((r) => nearRoute(r, route.geometry.coordinates))
     : [];
@@ -285,7 +286,7 @@ export default function MapScreen() {
         </ScrollView>
       </View>
       {route && !sheetOpen && !search ? <Pressable accessibilityRole="button" accessibilityLabel="Ver detalhes do trajeto" onPress={() => setSheetOpen(true)} style={{position:"absolute",bottom:30,alignSelf:"center",paddingHorizontal:20,paddingVertical:14,borderRadius:24,backgroundColor:"#17211D"}}><Text style={{color:"white",fontWeight:"600"}}>{(route.distance/1000).toFixed(1)} km · {Math.round(route.duration/60)} min · Ver trajeto</Text></Pressable> : null}
-      {sheetOpen ? <View style={{position:"absolute",bottom:0,left:0,right:0,backgroundColor:"white",borderTopLeftRadius:24,borderTopRightRadius:24,maxHeight:mapHeight*0.65,boxShadow:"0 -4px 20px #00000016"}}>
+      {sheetOpen ? <View style={{position:"absolute",bottom:showRouteAction ? 84 : 0,left:0,right:0,backgroundColor:"white",borderTopLeftRadius:24,borderTopRightRadius:24,maxHeight:Math.max(160,mapHeight*0.65-(showRouteAction ? 84 : 0)),boxShadow:"0 -4px 20px #00000016"}}>
         <Pressable accessibilityRole="button" accessibilityLabel={sheetOpen ? "Recolher painel do mapa" : "Abrir planejamento e relatos"} accessibilityState={{expanded:sheetOpen}} onPress={() => { Keyboard.dismiss(); setSheetOpen(!sheetOpen); }} style={{padding:16,gap:8,minHeight:80}}>
           <View style={{width:38,height:4,borderRadius:4,backgroundColor:"#CBD2CE",alignSelf:"center"}} />
           <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:8}}>
@@ -394,10 +395,16 @@ export default function MapScreen() {
             <Text style={styles.heading}>Trajeto selecionado</Text>
             <Text style={styles.subtitle}>De: {originName || "Ponto marcado no mapa"}</Text>
             <Text style={styles.subtitle}>Para: {destinationName || "Ponto marcado no mapa"}</Text>
-            {route ? <Text style={styles.body}>{(route.distance/1000).toFixed(1)} km · cerca de {Math.round(route.duration/60)} min · {contextual.length} relato(s) próximo(s) ao percurso</Text> : <Button title={routing ? "Calculando…" : "Traçar percurso"} disabled={routing} onPress={calculate} />}
+            {route ? <Text style={styles.body}>{(route.distance/1000).toFixed(1)} km · cerca de {Math.round(route.duration/60)} min · {contextual.length} relato(s) próximo(s) ao percurso</Text> : null}
           </View> : null}
           <Text style={styles.subtitle}>Protótipo acadêmico · fontes e detalhes nos relatos.</Text>
         </ScrollView> : null}
+      </View> : null}
+      {showRouteAction ? <View style={{position:"absolute",bottom:0,left:0,right:0,height:84,padding:12,backgroundColor:"white",borderTopWidth:1,borderTopColor:"#E1E8E5"}}>
+        <Pressable accessibilityRole="button" accessibilityLabel={routing ? "Calculando percurso" : "Traçar percurso"} accessibilityState={{disabled:routing,busy:routing}} disabled={routing} onPress={calculate} style={({pressed}) => ({flex:1,minHeight:56,flexDirection:"row",alignItems:"center",justifyContent:"center",gap:12,borderRadius:16,backgroundColor:routing?"#526C63":pressed?"#075E54":"#087F71"})}>
+          <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><Path d="M4 20V9a4 4 0 0 1 4-4h12m-5-4 5 4-5 4" /></Svg>
+          <Text style={{color:"white",fontSize:18,fontWeight:"700"}}>{routing ? "Calculando percurso…" : "Traçar percurso"}</Text>
+        </Pressable>
       </View> : null}
     </View>
   );
