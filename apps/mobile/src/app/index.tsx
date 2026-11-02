@@ -29,7 +29,7 @@ const categories = {
   ACESSO: "Acesso",
   SEGURANCA: "Segurança",
 };
-type PlaceResult = MapPoint & { id: string; name: string; address: string; accuracy?: string };
+type PlaceResult = MapPoint & { id: string; name: string; address: string; accuracy?: string; city?: string };
 type Route = {
   distance: number;
   duration: number;
@@ -59,7 +59,21 @@ export default function MapScreen() {
   const [inspected, setInspected] = useState<MapPoint | null>(null);
   const [localName, setLocalName] = useState("");
   const [reportOpen, setReportOpen] = useState(false);
-  const news = useResource<{status:string;lastAttempt:string;items:{id:string;title:string;source:string;url:string;publishedAt:string}[]}>("/news");
+  const [newsVersion, setNewsVersion] = useState(0);
+  const [newsCity, setNewsCity] = useState("");
+  const [newsPlace, setNewsPlace] = useState("");
+  type LocalNews = {place:string;status:string;lastAttempt:string;items:{id:string;title:string;source:string;url:string;publishedAt:string}[]};
+  const [localNews, setLocalNews] = useState<{place:string;data:LocalNews|null;error:string;loading:boolean}>({place:"",data:null,error:"",loading:false});
+  useEffect(() => {
+    if (!newsPlace) return;
+    const controller = new AbortController();
+    api<LocalNews>("/news/local?place="+encodeURIComponent(newsPlace)+"&city="+encodeURIComponent(newsCity),{signal:controller.signal})
+      .then(data => {if(!controller.signal.aborted)setLocalNews({place:newsPlace+"::"+newsCity,data,error:"",loading:false});})
+      .catch(e => {if(!controller.signal.aborted)setLocalNews({place:newsPlace+"::"+newsCity,data:null,error:message(e),loading:false});});
+    return () => controller.abort();
+  },[newsPlace,newsCity,newsVersion]);
+  const news = localNews.place === newsPlace+"::"+newsCity ? localNews : {data:null,error:"",loading:!!newsPlace};
+
   const [search, setSearch] = useState("");
   const [places, setPlaces] = useState<PlaceResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -141,7 +155,7 @@ export default function MapScreen() {
       setError("Escolha um ponto dentro da região piloto de São Paulo.");
       return;
     }
-    setInspected(p); setLocalName(""); setReportOpen(false);
+    setInspected(p); setLocalName(""); setNewsPlace(""); setReportOpen(false);
     setError("");
     if (mode === "report") {
       setPoint(p);
@@ -222,8 +236,8 @@ export default function MapScreen() {
       <MapCanvas
         height={mapHeight}
         data={{ routeMinutes: route ? Math.round(route.duration / 60) : undefined, reports: shown, placeFocus, position, locationFocus, origin, destination, selected: point, route: route?.geometry.coordinates ?? null }}
-        onPick={(point) => { if (search) { Keyboard.dismiss(); setSearch(""); setPlaces([]); setSearched(false); setSearching(false); searchRequest.current++; return; } if (!route || mode === "report") pick(point); else { setInspected(point); setLocalName(""); } setSheetOpen(true); }}
-        onReport={(id) => { const report = reports.find(r => r.id === id); if (report) { setInspected(report); setLocalName(report.title); } setSheetOpen(true); }}
+        onPick={(point) => { if (search) { Keyboard.dismiss(); setSearch(""); setPlaces([]); setSearched(false); setSearching(false); searchRequest.current++; return; } if (!route || mode === "report") pick(point); else { setInspected(point); setLocalName(""); setNewsPlace(""); } setSheetOpen(true); }}
+        onReport={(id) => { const report = reports.find(r => r.id === id); if (report) { setInspected(report); setLocalName(report.title); setNewsPlace(""); } setSheetOpen(true); }}
       />
       <View style={{position:"absolute",top:12+insets.top,left:12,right:12,maxWidth:520,alignSelf:"center",backgroundColor:"white",borderRadius:20,padding:14,boxShadow:"0 3px 18px #00000020"}}>
         <View style={{flexDirection:"row",alignItems:"center",gap:8}}>
@@ -247,7 +261,7 @@ export default function MapScreen() {
       <Feedback error={searchError} />
       {places.length > 0 ? <Text style={[styles.subtitle,{paddingTop:10}]}>Sugestões em São Paulo e região</Text> : null}
       {places.map((place) => <Pressable key={place.id} accessibilityRole="button" accessibilityLabel={`${place.name}, ${place.address}`} onPress={() => {
-          Keyboard.dismiss(); setSheetOpen(true); pick(place); setLocalName([place.name,place.address].filter(Boolean).join(" · "));
+          Keyboard.dismiss(); setSheetOpen(true); pick(place); setNewsPlace(place.city ? place.name : ""); setNewsCity(place.city || ""); setLocalName([place.name,place.address].filter(Boolean).join(" · "));
           if (mode === "origin") { setOriginName([place.name,place.address].filter(Boolean).join(" · ")); setMode("destination"); }
           else if (mode === "destination") setDestinationName([place.name,place.address].filter(Boolean).join(" · "));
           setPlaceFocus({ latitude: place.latitude, longitude: place.longitude, key: Date.now() });
@@ -281,7 +295,7 @@ export default function MapScreen() {
             {([
               {id:"safety",title:"Segurança",color:"#A76A12",bg:"#FFF5E3",text:q.loading?"Consultando…":q.error?"Dados indisponíveis":safety.length?`${safety.length} registro(s) próximo(s)`:"Sem dados suficientes",caption:"Ocorrências relatadas"},
               {id:"pavement",title:"Pavimento",color:"#B5532A",bg:"#FFF0E9",text:q.loading?"Consultando…":q.error?"Dados indisponíveis":pavement.length?`${pavement.length} relato(s) próximo(s)`:"Condição não informada",caption:"Buracos e condições da via"},
-              {id:"news",title:"Notícias",color:"#2563B5",bg:"#EBF3FF",text:news.loading?"Consultando…":news.error?"Fonte indisponível":`${news.data?.items.length ?? 0} notícia(s) na região`,caption:"Imprensa · São Paulo"},
+              {id:"news",title:"Notícias",color:"#2563B5",bg:"#EBF3FF",text:news.loading?"Consultando…":news.error?"Fonte indisponível":!newsPlace?"Selecione um endereço":news.data?.status==="UNAVAILABLE"?"Consulta indisponível":`${news.data?.items.length ?? 0} notícia(s) deste local`,caption:"Menções ao lugar selecionado"},
               {id:"community",title:"Comunidade",color:"#7952B3",bg:"#F4EEFF",text:q.loading?"Consultando…":q.error?"Dados indisponíveis":actualNearby.length?`${actualNearby.length} relato(s) do local`:"Sem relatos reais aqui",caption:"Experiências de motoristas"},
             ] as const).map(card => <Pressable key={card.id} accessibilityRole="button" accessibilityState={{selected:topic===card.id}} accessibilityLabel={`${card.title}: ${card.text}`} onPress={() => setTopic(card.id)} style={({pressed}) => ({width:"48%",flexGrow:1,minHeight:142,padding:13,gap:6,borderRadius:18,backgroundColor:card.bg,borderWidth:2,borderColor:topic===card.id?card.color:"transparent",opacity:pressed?0.8:1})}>
               <Svg width={27} height={27} viewBox="0 0 24 24" fill="none" stroke={card.color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" accessible={false}>
@@ -307,16 +321,16 @@ export default function MapScreen() {
             <Text style={styles.subtitle}>Revisão não comprova o fato.{r.validUntil ? ` Válido até ${when(r.validUntil)}.` : ""}</Text>
           </View>)}
           {topic === "news" ? <>
-          <Text style={styles.heading}>Notícias de São Paulo e região</Text>
-          <View style={[styles.card,{backgroundColor:"#EBF3FF"}]}><Text style={styles.heading}>De onde vêm as notícias?</Text><Text style={styles.body}>RSS da Agência Brasil e busca no Google Notícias. Veículos aceitos: G1, Agência Brasil, Agência SP, CNN Brasil e Band.</Text><Text style={styles.subtitle}>Coleta a cada 15 minutos · matérias dos últimos 7 dias. Google Notícias reúne links; o veículo indicado em cada matéria é a fonte.</Text>{news.data?.lastAttempt ? <Text style={styles.subtitle}>Última tentativa: {when(news.data.lastAttempt)}</Text> : null}</View>
-          <Text style={styles.subtitle}>As notícias ainda não têm localização verificada por rua. São contexto regional, não ocorrências confirmadas neste ponto.</Text>
-          <ResourceState {...news} />
-          {news.data?.status === "UNAVAILABLE" ? <Text style={styles.subtitle}>Fonte indisponível: exibindo notícias salvas quando disponíveis.</Text> : null}
+          <Text style={styles.heading}>Notícias de {newsPlace || "um local identificado"}{newsCity && newsPlace ? " · "+newsCity : ""}</Text>
+          <View style={[styles.card,{backgroundColor:"#EBF3FF"}]}><Text style={styles.heading}>De onde vêm as notícias?</Text><Text style={styles.body}>Busca específica por {newsPlace || "nome do local"} no Google Notícias. Só aparecem matérias cujo título menciona esse lugar, de G1, Agência Brasil, Agência SP, CNN Brasil ou Band.</Text><Text style={styles.subtitle}>Consulta ao selecionar o local · cache de 15 minutos · últimos 7 dias. Cada matéria identifica o veículo de origem.</Text>{news.data?.lastAttempt ? <Text style={styles.subtitle}>Última tentativa: {when(news.data.lastAttempt)}</Text> : null}</View>
+          <Text style={styles.subtitle}>Uma menção ao local não confirma a ocorrência no ponto exato nem uma situação em andamento. Não exibimos notícias gerais de São Paulo como substituição.</Text>
+          <ResourceState {...news} refresh={() => { if (newsPlace) {setLocalNews({place:newsPlace+"::"+newsCity,data:null,error:"",loading:true});setNewsVersion(v=>v+1);} }} />
+          {news.data?.status === "UNAVAILABLE" ? <Text style={styles.subtitle}>Consulta indisponível: somente resultados anteriores deste mesmo local, quando disponíveis.</Text> : null}
           {news.data?.items.slice(0,3).map(n => <Pressable key={n.id} accessibilityRole="link" onPress={() => Linking.openURL(n.url).catch(e => setError(message(e)))} style={styles.card}>
             <Text style={styles.label}>{n.source} · {when(n.publishedAt)}</Text>
             <Text style={styles.heading}>{n.title}</Text><Text style={{color:"#087F71"}}>Ler na fonte ↗</Text>
           </Pressable>)}
-          {!news.loading && !news.error && !news.data?.items.length ? <Text style={styles.body}>Nenhuma notícia recente disponível na coleta. Isso não indica ausência de ocorrências.</Text> : null}
+          {!news.loading && !news.error && news.data?.status !== "UNAVAILABLE" && !news.data?.items.length ? <Text style={styles.body}>{newsPlace ? "Nenhuma notícia recente correspondente a este local foi encontrada. Isso não indica ausência de ocorrências." : "Busque e selecione um endereço para consultar notícias desse lugar. Um ponto sem nome no mapa não permite identificar a rua com confiança."}</Text> : null}
           </> : null}
           <Button title={reportOpen ? "Fechar relato" : "Relatar uma situação neste local"} secondary disabled={!focus} onPress={() => { setPoint(reportOpen ? null : focus); setReportOpen(!reportOpen); }} />
       {reportOpen ? (user ? (

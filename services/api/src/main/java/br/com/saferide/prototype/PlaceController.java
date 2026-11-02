@@ -21,7 +21,7 @@ public class PlaceController {
  private final Map<String,Cached> cache=new LinkedHashMap<>();
  private long lastRequest;
  record Cached(long time,List<Place> places){}
- public record Place(String id,String name,String address,double latitude,double longitude,String accuracy){}
+ public record Place(String id,String name,String address,double latitude,double longitude,String accuracy,String city){}
  public PlaceController(ObjectMapper json,@Value("${places.url:https://photon.komoot.io/api/}") String endpoint){this.json=json;this.endpoint=endpoint;}
  @GetMapping("/places") public synchronized List<Place> search(@RequestParam String q){
   String term=q.strip().replaceAll("\\s+"," ");

@@ -180,3 +180,10 @@ Escolher cidade, fonte principal e alternativas; validar RSS/APIs e condições 
 O [plano de caixinha e alertas](07-caixinha-alertas.md) define como ocorrências revisadas são apresentadas sobre o app de ofertas. Uma notícia elegível na lista não gera automaticamente alerta. Assaltos noticiados são ocorrências registradas com fonte e data, não evidência de crime em andamento. Revisar dados pessoais, localização, atualidade e contradições antes de destacar; sem data suficiente, não apresentar como atual. Se só houver bairro, indicar contexto regional, sem inventar marcador exato.
 
 Consultar ofertas usa dados persistidos e revisados, sem aguardar o ciclo de coleta. Datas e status são preservados no fallback. O ID e versão da oferta impedem mostrar respostas antigas em uma nova solicitação. O prazo de relevância de assalto controla sua exibição, não significa que o crime continua durante o prazo.
+
+
+### Notícias do local selecionado no mapa
+
+O painel consulta `GET /api/v1/news/local?place=...&city=...` com o nome e a cidade do resultado selecionado na busca. O RSS do Google Notícias pesquisa o lugar e a cidade; a API exige menção ao lugar no título, aceita apenas os veículos cadastrados e datas informadas nos últimos sete dias. A consulta considera abreviação Av./Avenida e acentuação. Ela não comprova coordenadas da ocorrência nem substitui a leitura da fonte.
+
+O cache em memória dura 15 minutos e é separado por lugar e cidade. Na falha, só resultados recentes desse mesmo lugar podem ser reaproveitados. Uma busca vazia não é substituída pelo feed geral de São Paulo. Ao trocar o local, a interface descarta resultados anteriores e cancela a consulta pendente. Um ponto escolhido por toque sem nome/cidade identificados pede a seleção de um endereço na busca; geocodificação reversa automática ainda não está implementada.
