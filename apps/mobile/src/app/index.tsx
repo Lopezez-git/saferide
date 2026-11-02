@@ -1,5 +1,5 @@
-import { useCallback, useRef, useState } from "react";
-import { Text, View, ScrollView, Pressable, TextInput, Keyboard, useWindowDimensions } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Text, View, ScrollView, Pressable, TextInput, Keyboard, Linking, useWindowDimensions } from "react-native";
 import {
   styles,
   Button,
@@ -28,12 +28,6 @@ const categories = {
   ACESSO: "Acesso",
   SEGURANCA: "Segurança",
 };
-const landmarks = [
-  { name: "Praça da Sé", latitude: -23.5505, longitude: -46.6333 },
-  { name: "MASP / Paulista", latitude: -23.5614, longitude: -46.6559 },
-  { name: "Parque Ibirapuera", latitude: -23.5874, longitude: -46.6576 },
-  { name: "Terminal Tietê", latitude: -23.5163, longitude: -46.6252 },
-];
 type PlaceResult = MapPoint & { id: string; name: string; address: string; accuracy?: string };
 type Route = {
   distance: number;
@@ -59,8 +53,10 @@ export default function MapScreen() {
   const [routing, setRouting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [filter, setFilter] = useState("TODOS");
-  const [detail, setDetail] = useState<string | null>(null);
+  const [inspected, setInspected] = useState<MapPoint | null>(null);
+  const [localName, setLocalName] = useState("");
+  const [reportOpen, setReportOpen] = useState(false);
+  const news = useResource<{status:string;lastAttempt:string;items:{id:string;title:string;source:string;url:string;publishedAt:string}[]}>("/news");
   const [search, setSearch] = useState("");
   const [places, setPlaces] = useState<PlaceResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -99,11 +95,9 @@ export default function MapScreen() {
   const [body, setBody] = useState("");
   const [category, setCategory] = useState("PAVIMENTO");
   const [busy, setBusy] = useState(false);
-  const [simulation, setSimulation] = useState(false);
-  const [minimized, setMinimized] = useState(false);
   const [position, setPosition] = useState<DevicePosition | null>(null);
-  const [locating, setLocating] = useState(false);
-  const [locationError, setLocationError] = useState("");
+  const [, setLocating] = useState(false);
+  const [, setLocationError] = useState("");
   const [locationFocus, setLocationFocus] = useState(0);
   const locationRequest = useRef(0);
   const findMe = useCallback(async () => {
@@ -144,6 +138,7 @@ export default function MapScreen() {
       setError("Escolha um ponto dentro da região piloto de São Paulo.");
       return;
     }
+    setInspected(p); setLocalName(""); setReportOpen(false);
     setError("");
     if (mode === "report") {
       setPoint(p);
@@ -151,8 +146,7 @@ export default function MapScreen() {
       request.current++;
       setRouting(false);
       setRoute(null);
-      setSimulation(false);
-      if (mode === "origin") { manualOrigin.current = true; setOrigin(p); setOriginName(""); }
+        if (mode === "origin") { manualOrigin.current = true; setOrigin(p); setOriginName(""); }
       else { setDestination(p); setDestinationName(""); }
     }
   }
@@ -160,7 +154,6 @@ export default function MapScreen() {
     if (!origin || !destination) return;
     const id = ++request.current;
     setRouting(true);
-    setSimulation(false);
     setRoute(null);
     setError("");
     try {
@@ -209,11 +202,15 @@ export default function MapScreen() {
       setBusy(false);
     }
   }
+  const [checkedAt, setCheckedAt] = useState(() => Date.now());
+  useEffect(() => { const timer = setInterval(() => setCheckedAt(Date.now()), 60000); return () => clearInterval(timer); }, []);
   const reports = q.data ?? [];
-  const shown = reports.filter(
-    (r) => filter === "TODOS" || r.category === filter,
-  );
-  const selected = reports.find((r) => r.id === detail);
+  const shown = reports.filter(r => !r.validUntil || new Date(r.validUntil).getTime() > checkedAt);
+  const focus = inspected ?? destination ?? origin ?? position;
+  const nearby = focus ? shown.map(r => ({...r,distance:Math.hypot((r.latitude-focus.latitude)*111320,(r.longitude-focus.longitude)*111320*Math.cos(focus.latitude*Math.PI/180))})).filter(r => r.distance <= 1000).sort((a,b)=>a.distance-b.distance) : [];
+  const actualNearby = nearby.filter(r => !/demonstração|fictício|ficticia|fictício/i.test(r.title+" "+r.body));
+  const safety = actualNearby.filter(r => r.category === "SEGURANCA");
+  const pavement = actualNearby.filter(r => r.category === "PAVIMENTO");
   const contextual = route
     ? reports.filter((r) => nearRoute(r, route.geometry.coordinates))
     : [];
@@ -222,8 +219,8 @@ export default function MapScreen() {
       <MapCanvas
         height={mapHeight}
         data={{ routeMinutes: route ? Math.round(route.duration / 60) : undefined, reports: shown, placeFocus, position, locationFocus, origin, destination, selected: point, route: route?.geometry.coordinates ?? null }}
-        onPick={(point) => { if (search) { Keyboard.dismiss(); setSearch(""); setPlaces([]); setSearched(false); setSearching(false); searchRequest.current++; return; } if (!route || mode === "report") pick(point); setSheetOpen(true); }}
-        onReport={(id) => {setDetail(id); setSheetOpen(true);}}
+        onPick={(point) => { if (search) { Keyboard.dismiss(); setSearch(""); setPlaces([]); setSearched(false); setSearching(false); searchRequest.current++; return; } if (!route || mode === "report") pick(point); else { setInspected(point); setLocalName(""); } setSheetOpen(true); }}
+        onReport={(id) => { const report = reports.find(r => r.id === id); if (report) { setInspected(report); setLocalName(report.title); } setSheetOpen(true); }}
       />
       <View style={{position:"absolute",top:12+insets.top,left:12,right:12,maxWidth:520,alignSelf:"center",backgroundColor:"white",borderRadius:20,padding:14,boxShadow:"0 3px 18px #00000020"}}>
         <View style={{flexDirection:"row",alignItems:"center",gap:8}}>
@@ -247,7 +244,7 @@ export default function MapScreen() {
       <Feedback error={searchError} />
       {places.length > 0 ? <Text style={[styles.subtitle,{paddingTop:10}]}>Sugestões em São Paulo e região</Text> : null}
       {places.map((place) => <Pressable key={place.id} accessibilityRole="button" accessibilityLabel={`${place.name}, ${place.address}`} onPress={() => {
-          Keyboard.dismiss(); setSheetOpen(true); pick(place);
+          Keyboard.dismiss(); setSheetOpen(true); pick(place); setLocalName([place.name,place.address].filter(Boolean).join(" · "));
           if (mode === "origin") { setOriginName([place.name,place.address].filter(Boolean).join(" · ")); setMode("destination"); }
           else if (mode === "destination") setDestinationName([place.name,place.address].filter(Boolean).join(" · "));
           setPlaceFocus({ latitude: place.latitude, longitude: place.longitude, key: Date.now() });
@@ -265,106 +262,56 @@ export default function MapScreen() {
         </ScrollView>
       </View>
       {route && !sheetOpen && !search ? <Pressable accessibilityRole="button" accessibilityLabel="Ver detalhes do trajeto" onPress={() => setSheetOpen(true)} style={{position:"absolute",bottom:30,alignSelf:"center",paddingHorizontal:20,paddingVertical:14,borderRadius:24,backgroundColor:"#17211D"}}><Text style={{color:"white",fontWeight:"600"}}>{(route.distance/1000).toFixed(1)} km · {Math.round(route.duration/60)} min · Ver trajeto</Text></Pressable> : null}
-      {sheetOpen ? <View style={{position:"absolute",bottom:0,left:0,right:0,backgroundColor:"white",borderTopLeftRadius:24,borderTopRightRadius:24,maxHeight:mapHeight*0.53,boxShadow:"0 -4px 20px #00000016"}}>
+      {sheetOpen ? <View style={{position:"absolute",bottom:0,left:0,right:0,backgroundColor:"white",borderTopLeftRadius:24,borderTopRightRadius:24,maxHeight:mapHeight*0.65,boxShadow:"0 -4px 20px #00000016"}}>
         <Pressable accessibilityRole="button" accessibilityLabel={sheetOpen ? "Recolher painel do mapa" : "Abrir planejamento e relatos"} accessibilityState={{expanded:sheetOpen}} onPress={() => { Keyboard.dismiss(); setSheetOpen(!sheetOpen); }} style={{padding:16,gap:8,minHeight:80}}>
           <View style={{width:38,height:4,borderRadius:4,backgroundColor:"#CBD2CE",alignSelf:"center"}} />
           <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:8}}>
-            <Text style={{fontSize:21,fontWeight:"700",color:"#17211D",flexShrink:1}}>{route ? `${(route.distance/1000).toFixed(1)} km · ${Math.round(route.duration/60)} min` : "Para onde vamos?"}</Text>
+            <Text style={{fontSize:21,fontWeight:"700",color:"#17211D",flexShrink:1}}>{localName || "Informações do local"}</Text>
             <Text style={{fontSize:20,color:"#17211D"}}>{sheetOpen ? "⌄" : "⌃"}</Text>
           </View>
-          <Text numberOfLines={1} style={{fontSize:12,color:"#64716C"}}>{locating ? "Buscando sua posição…" : position ? "Posição no mapa · São Paulo e região" : "São Paulo · localização indisponível"}</Text>
+          <Text numberOfLines={1} style={{fontSize:12,color:"#64716C"}}>{focus ? "Relatos em até 1 km do ponto selecionado" : "Selecione um lugar para consultar"}</Text>
         </Pressable>
         {sheetOpen ? <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{padding:16,paddingTop:0,gap:12,paddingBottom:28}}>
-          <Feedback error={locationError} />
-          {position && !inPilot(position) ? <Text style={styles.subtitle}>Você está fora da região piloto. Trajetos e relatos estão limitados à área de São Paulo.</Text> : null}
-      <View style={styles.row}>
-        <Chip
-          label="Marcar origem"
-          selected={mode === "origin"}
-          onPress={() => { setMode("origin"); setRoute(null); }}
-        />
-        <Chip
-          label="Marcar destino"
-          selected={mode === "destination"}
-          onPress={() => { setMode("destination"); setRoute(null); }}
-        />
-        <Chip
-          label="Novo relato"
-          selected={mode === "report"}
-          onPress={() => setMode("report")}
-        />
-      </View>
-      <Text style={styles.subtitle}>
-        Toque no mapa para{" "}
-        {mode === "origin"
-          ? "definir a origem"
-          : mode === "destination"
-            ? "definir o destino"
-            : "marcar o local observado"}
-        .
-      </Text>
-      <View style={styles.row}>
-        {landmarks.map((p) => <Chip key={p.name} label={p.name} onPress={() => pick(p)} />)}
-      </View>
-      <Feedback error={error} success={success} />
-      {mode !== "report" ? (
-        <View style={styles.card}>
-          <Text style={styles.heading}>Seu trajeto</Text>
-          <Text style={styles.body}>
-            Origem:{" "}
-            {origin
-              ? originName || `${origin.latitude.toFixed(4)}, ${origin.longitude.toFixed(4)}`
-              : "selecione no mapa"}
-          </Text>
-          <Text style={styles.body}>
-            Destino:{" "}
-            {destination
-              ? destinationName || `${destination.latitude.toFixed(4)}, ${destination.longitude.toFixed(4)}`
-              : "selecione no mapa"}
-          </Text>
-          <Button
-            title={routing ? "Consultando percurso…" : "Consultar trajeto"}
-            disabled={!origin || !destination || routing}
-            onPress={calculate}
-          />
-          {route ? (
-            <>
-              <Text style={styles.heading}>
-                {(route.distance / 1000).toFixed(1)} km · cerca de{" "}
-                {Math.round(route.duration / 60)} min
-              </Text>
-              <Text style={styles.subtitle}>
-                Estimativa para carro via OSRM. Sem trânsito ao vivo ou
-                navegação curva a curva.
-              </Text>
-              <Text style={styles.body}>
-                {contextual.length
-                  ? `${contextual.length} relato(s) revisado(s) próximo(s) ao percurso.`
-                  : "Sem relatos revisados próximos ao percurso. Isso não significa ausência de problemas."}
-              </Text>
-              {contextual.map((r) => (
-                <Text key={r.id} style={styles.subtitle}>
-                  {r.title} · {when(r.observedAt)}
-                </Text>
-              ))}
-              <Button
-                title="Simular oferta com caixinha"
-                secondary
-                onPress={() => {
-                  setSimulation(true);
-                  setMinimized(false);
-                }}
-              />
-            </>
-          ) : null}
-        </View>
-      ) : user ? (
+          <Feedback error={error} success={success} />
+          <ResourceState {...q} />
+          <View style={[styles.card,{backgroundColor:"#F1F5F3"}]}>
+            <Text style={styles.heading}>O que sabemos daqui</Text>
+            <Text style={styles.body}>{q.loading ? "Consultando relatos…" : q.error ? "Não foi possível consultar os relatos agora." : actualNearby.length ? `${actualNearby.length} relato(s) revisado(s) nas proximidades.` : "Ainda não há relatos reais revisados próximos deste ponto."}</Text>
+            <Text style={styles.subtitle}>{nearby.length > actualNearby.length ? "Há exemplos de demonstração abaixo; não representam condições reais." : "A ausência de relatos não confirma boas condições."}</Text>
+          </View>
+          <View style={styles.card}>
+            <Text style={styles.heading}>Segurança</Text>
+            <Text style={styles.body}>{safety.length ? `${safety.length} registro(s) de segurança nas proximidades. Confira abaixo a data e a fonte.` : "Não há informações suficientes para avaliar a segurança deste local."}</Text>
+            <Text style={styles.subtitle}>Registros anteriores não confirmam ocorrência em andamento.</Text>
+          </View>
+          <View style={styles.card}>
+            <Text style={styles.heading}>Pavimento e buracos</Text>
+            <Text style={styles.body}>{pavement.length ? `${pavement.length} relato(s) sobre o pavimento nas proximidades.` : "Condição do pavimento ainda não informada pela comunidade."}</Text>
+          </View>
+          {nearby.map(r => <View key={r.id} style={styles.card}>
+            <Text style={styles.label}>{categories[r.category as keyof typeof categories] ?? r.category} · {Math.round(r.distance)} m do ponto</Text>
+            <Text style={styles.heading}>{r.title}</Text>
+            <Text style={styles.body}>{r.body}</Text>
+            <Text style={styles.subtitle}>{when(r.observedAt)} · {r.source || "Comunidade · relato revisado"}</Text>
+            <Text style={styles.subtitle}>Revisão não comprova o fato.{r.validUntil ? ` Válido até ${when(r.validUntil)}.` : ""}</Text>
+          </View>)}
+          <Text style={styles.heading}>Notícias de São Paulo e região</Text>
+          <Text style={styles.subtitle}>As notícias ainda não têm localização verificada por rua. São contexto regional, não ocorrências confirmadas neste ponto.</Text>
+          <ResourceState {...news} />
+          {news.data?.status === "UNAVAILABLE" ? <Text style={styles.subtitle}>Fonte indisponível: exibindo notícias salvas quando disponíveis.</Text> : null}
+          {news.data?.items.slice(0,3).map(n => <Pressable key={n.id} accessibilityRole="link" onPress={() => Linking.openURL(n.url).catch(e => setError(message(e)))} style={styles.card}>
+            <Text style={styles.label}>{n.source} · {when(n.publishedAt)}</Text>
+            <Text style={styles.heading}>{n.title}</Text><Text style={{color:"#087F71"}}>Ler na fonte ↗</Text>
+          </Pressable>)}
+          {!news.loading && !news.error && !news.data?.items.length ? <Text style={styles.body}>Nenhuma notícia recente disponível na coleta. Isso não indica ausência de ocorrências.</Text> : null}
+          <Button title={reportOpen ? "Fechar relato" : "Relatar uma situação neste local"} secondary disabled={!focus} onPress={() => { setPoint(reportOpen ? null : focus); setReportOpen(!reportOpen); }} />
+      {reportOpen ? (user ? (
         <View style={styles.card}>
           <Text style={styles.heading}>Relatar uma situação</Text>
           <Text style={styles.subtitle}>
             {point
               ? `Local selecionado: ${point.latitude.toFixed(4)}, ${point.longitude.toFixed(4)}`
-              : "Selecione o local no mapa ou nos pontos de referência."}
+              : "Selecione um local no mapa."}
           </Text>
           <View style={styles.row}>
             {Object.entries(categories).map(([k, v]) => (
@@ -402,106 +349,14 @@ export default function MapScreen() {
         </View>
       ) : (
         <SignInNotice />
-      )}
-      {simulation ? (
-        <View
-          style={[
-            styles.card,
-            {
-              backgroundColor: "#E0E9E0",
-              borderColor: "#087F71",
-              borderWidth: 2,
-            },
-          ]}
-        >
-          <Text style={styles.label}>
-            SIMULAÇÃO DE OFERTA • DENTRO DO SAFERIDE
-          </Text>
-          <Text style={styles.heading}>Origem e destino selecionados</Text>
-          <Text style={styles.subtitle}>
-            Este painel não está sobre a Uber e não aceita uma corrida real.
-          </Text>
-          <View style={[styles.card, { backgroundColor: "#153E38" }]}>
-            <Text style={[styles.heading, { color: "white" }]}>
-              SafeRide {minimized ? "· minimizado" : ""}
-            </Text>
-            {!minimized ? (
-              <Text style={{ color: "white", lineHeight: 22 }}>
-                {contextual.length
-                  ? contextual[0].title +
-                    " - " +
-                    (contextual[0].source ?? "Relato revisado") +
-                    " - " +
-                    when(contextual[0].observedAt)
-                  : "Sem informações revisadas próximas deste trajeto."}
-              </Text>
-            ) : null}
-            <Button
-              title={minimized ? "Expandir" : "Minimizar"}
-              onPress={() => setMinimized(!minimized)}
-            />
-          </View>
-          <Button
-            title="Fechar simulação"
-            secondary
-            onPress={() => setSimulation(false)}
-          />
-        </View>
-      ) : null}
-      <Text style={styles.heading}>Relatos revisados</Text>
-      <View style={styles.row}>
-        <Chip
-          label="Todos"
-          selected={filter === "TODOS"}
-          onPress={() => setFilter("TODOS")}
-        />
-        {Object.entries(categories).map(([k, v]) => (
-          <Chip
-            key={k}
-            label={v}
-            selected={filter === k}
-            onPress={() => setFilter(k)}
-          />
-        ))}
-      </View>
-      <Button title="Atualizar mapa e relatos" secondary onPress={q.refresh} />
-      <ResourceState {...q} />
-      {shown.map((r) => (
-        <View key={r.id} style={styles.card}>
-          <Text style={styles.label}>
-            {categories[r.category as keyof typeof categories]} ·{" "}
-            {when(r.observedAt)}
-          </Text>
-          <Text style={styles.heading}>{r.title}</Text>
-          <Button
-            title="Ver informações do relato"
-            secondary
-            onPress={() => setDetail(detail === r.id ? null : r.id)}
-          />
-          {selected?.id === r.id ? (
-            <>
-              <Text style={styles.body}>{r.body}</Text>
-              <Text style={styles.subtitle}>
-                {r.source}. Revisão não comprova o fato.{" "}
-                {r.category === "SEGURANCA"
-                  ? "Ocorrência registrada; não indica crime em andamento."
-                  : ""}
-              </Text>
-              {r.validUntil ? (
-                <Text style={styles.subtitle}>
-                  Revisão necessária até: {when(r.validUntil)}
-                </Text>
-              ) : null}
-            </>
-          ) : null}
-        </View>
-      ))}
-      {!q.loading && !q.error && shown.length === 0 ? (
-        <Text style={styles.subtitle}>
-          Nenhum relato revisado nesta seleção. O mapa não classifica regiões
-          como seguras ou perigosas.
-        </Text>
-      ) : null}
+      )) : null}
+
+          {origin && destination ? <View style={styles.card}>
+            <Text style={styles.heading}>Trajeto selecionado</Text>
+            <Text style={styles.subtitle}>De: {originName || "Ponto marcado no mapa"}</Text>
+            <Text style={styles.subtitle}>Para: {destinationName || "Ponto marcado no mapa"}</Text>
+            {route ? <Text style={styles.body}>{(route.distance/1000).toFixed(1)} km · cerca de {Math.round(route.duration/60)} min · {contextual.length} relato(s) próximo(s) ao percurso</Text> : <Button title={routing ? "Calculando…" : "Traçar percurso"} disabled={routing} onPress={calculate} />}
+          </View> : null}
           <Text style={styles.subtitle}>Protótipo acadêmico · fontes e detalhes nos relatos.</Text>
         </ScrollView> : null}
       </View> : null}

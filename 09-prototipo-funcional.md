@@ -28,3 +28,12 @@ A revisão visual identificou RSS regional desatualizado. O coletor foi substitu
 ## Atualização: localização do dispositivo
 
 Adicionados consulta de localização mediante permissão, ponto azul, círculo de precisão, centralização e uso como origem dentro da região piloto. TypeScript e ESLint passaram. Verificação isolada do adaptador web cobriu retorno de coordenadas, navegador sem suporte, permissão recusada e timeout; script Leaflet passou pela validação de sintaxe. A prévia integrada não retornou coordenadas reais durante a verificação; não houve validação do GPS em aparelho Android/iOS. Nenhuma posição fictícia foi usada para representar a posição do usuário.
+
+
+## Painel do local no mapa
+
+Ao selecionar um lugar, o painel prioriza segurança, pavimento e relatos revisados em até 1 km, com distância aproximada, data e fonte. Relatos fora da validade são excluídos. Exemplos identificados como demonstração/fictícios não entram nos resumos das condições reais. Ausência de informações não representa segurança ou pavimento em bom estado.
+
+As três primeiras notícias disponíveis da coleta regional aparecem com link à fonte; não são tratadas como notícias da rua selecionada. A vinculação geográfica de notícias ainda não está implementada.
+
+O formulário de relato só abre sob demanda. Foram retirados deste painel os atalhos de pontos fixos, filtros e simulação de oferta. O trajeto permanece como informação secundária quando origem e destino estão selecionados. O teste foi feito no navegador; validação física no celular continua pendente.
