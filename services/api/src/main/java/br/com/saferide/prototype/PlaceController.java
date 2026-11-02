@@ -21,11 +21,12 @@ public class PlaceController {
  private final Map<String,Cached> cache=new LinkedHashMap<>();
  private long lastRequest;
  record Cached(long time,List<Place> places){}
- public record Place(String id,String name,String address,double latitude,double longitude){}
+ public record Place(String id,String name,String address,double latitude,double longitude,String accuracy){}
  public PlaceController(ObjectMapper json,@Value("${places.url:https://photon.komoot.io/api/}") String endpoint){this.json=json;this.endpoint=endpoint;}
  @GetMapping("/places") public synchronized List<Place> search(@RequestParam String q){
   String term=q.strip().replaceAll("\\s+"," ");
   if(term.length()<3||term.length()>120)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Digite entre 3 e 120 caracteres.");
+  if(term.equalsIgnoreCase("Paulista"))term="Avenida Paulista";
   String key=term.toLowerCase(Locale.ROOT);long now=System.currentTimeMillis();var hit=cache.get(key);
   if(hit!=null&&now-hit.time()<3600000)return hit.places();
   if(now-lastRequest<1100)throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,"Aguarde um instante antes de buscar novamente.");
@@ -39,14 +40,7 @@ public class PlaceController {
     if(response.statusCode()!=200)throw new IllegalStateException();
     byte[] bytes=body.readNBytes(1000001);if(bytes.length>1000000)throw new IllegalStateException();
     JsonNode root=json.readTree(bytes);if(!root.path("features").isArray())throw new IllegalStateException();
-    for(var feature:root.path("features")){
-     var c=feature.path("geometry").path("coordinates");var a=feature.path("properties");
-     if(c.size()<2||!c.get(0).isNumber()||!c.get(1).isNumber())continue;
-     double lon=c.get(0).asDouble(),lat=c.get(1).asDouble();if(lat< -24.1||lat> -23.3||lon< -46.9||lon> -46.3)continue;
-     String name=a.path("name").asText(a.path("street").asText("Local encontrado"));
-     Set<String> address=new LinkedHashSet<>();for(String field:List.of("street","housenumber","district","city","state")){String v=a.path(field).asText("");if(!v.isBlank()&&!v.equals(name))address.add(v);}
-     places.add(new Place(a.path("osm_type").asText()+a.path("osm_id").asText()+":"+places.size(),name,String.join(", ",address),lat,lon));
-    }
+    places.addAll(PlaceResults.parse(root,term));
    }
    if(cache.size()>=200)cache.remove(cache.keySet().iterator().next());
    var result=List.copyOf(places);cache.put(key,new Cached(now,result));return result;

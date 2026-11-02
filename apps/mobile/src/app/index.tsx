@@ -34,7 +34,7 @@ const landmarks = [
   { name: "Parque Ibirapuera", latitude: -23.5874, longitude: -46.6576 },
   { name: "Terminal Tietê", latitude: -23.5163, longitude: -46.6252 },
 ];
-type PlaceResult = MapPoint & { id: string; name: string; address: string };
+type PlaceResult = MapPoint & { id: string; name: string; address: string; accuracy?: string };
 type Route = {
   distance: number;
   duration: number;
@@ -85,13 +85,7 @@ export default function MapScreen() {
       lastSearchAt.current = Date.now();
       setSearching(true);
       try {
-        const received = await api<PlaceResult[]>("/places?q=" + encodeURIComponent(term), { signal: controller.signal });
-        const labels = new Set<string>();
-        const results = received.filter((place) => {
-          const label = `${place.name}|${place.address}`.toLocaleLowerCase();
-          if (labels.has(label)) return false;
-          labels.add(label); return true;
-        });
+        const results = await api<PlaceResult[]>("/places?q=" + encodeURIComponent(term), { signal: controller.signal });
         if (id === searchRequest.current && !controller.signal.aborted) { if (placeCache.current.size >= 30) placeCache.current.delete(placeCache.current.keys().next().value!); placeCache.current.set(term.toLocaleLowerCase(), results); setPlaces(results); setSearched(true); }
       } catch (e) {
         if (id === searchRequest.current && !controller.signal.aborted) setSearchError(message(e));
@@ -228,7 +222,7 @@ export default function MapScreen() {
       <MapCanvas
         height={mapHeight}
         data={{ routeMinutes: route ? Math.round(route.duration / 60) : undefined, reports: shown, placeFocus, position, locationFocus, origin, destination, selected: point, route: route?.geometry.coordinates ?? null }}
-        onPick={(point) => { pick(point); setSheetOpen(true); }}
+        onPick={(point) => { if (search) { Keyboard.dismiss(); setSearch(""); setPlaces([]); setSearched(false); setSearching(false); searchRequest.current++; return; } if (!route || mode === "report") pick(point); setSheetOpen(true); }}
         onReport={(id) => {setDetail(id); setSheetOpen(true);}}
       />
       <View style={{position:"absolute",top:12+insets.top,left:12,right:12,maxWidth:520,alignSelf:"center",backgroundColor:"white",borderRadius:20,padding:14,boxShadow:"0 3px 18px #00000020"}}>
@@ -254,14 +248,15 @@ export default function MapScreen() {
       {places.length > 0 ? <Text style={[styles.subtitle,{paddingTop:10}]}>Sugestões em São Paulo e região</Text> : null}
       {places.map((place) => <Pressable key={place.id} accessibilityRole="button" accessibilityLabel={`${place.name}, ${place.address}`} onPress={() => {
           Keyboard.dismiss(); setSheetOpen(true); pick(place);
-          if (mode === "origin") { setOriginName(place.name); setMode("destination"); }
-          else if (mode === "destination") setDestinationName(place.name);
+          if (mode === "origin") { setOriginName([place.name,place.address].filter(Boolean).join(" · ")); setMode("destination"); }
+          else if (mode === "destination") setDestinationName([place.name,place.address].filter(Boolean).join(" · "));
           setPlaceFocus({ latitude: place.latitude, longitude: place.longitude, key: Date.now() });
           searchRequest.current++; setSearching(false); setSearch(""); setPlaces([]); setSearched(false);
         }} style={({pressed}) => ({flexDirection:"row",alignItems:"center",gap:12,paddingVertical:13,paddingHorizontal:8,borderBottomWidth:1,borderBottomColor:"#EDF0EE",backgroundColor:pressed?"#EDF5F2":"white",borderRadius:8})}>
         <Text style={{fontSize:22,color:"#087F71"}}>⌖</Text>
         <View style={{flex:1,gap:3}}><Text style={styles.heading} numberOfLines={1}>{place.name}</Text>
-        <Text style={styles.subtitle} numberOfLines={2}>{place.address}</Text></View>
+        <Text style={styles.subtitle} numberOfLines={2}>{place.address}</Text>
+        {place.accuracy ? <Text style={{fontSize:11,color:place.accuracy.includes("aproximado")?"#915F15":"#64716C"}}>{place.accuracy}</Text> : null}</View>
         <Text style={{fontSize:22,color:"#64716C"}}>›</Text>
       </Pressable>)}
       {searched && places.length === 0 ? <Text style={styles.subtitle}>Nenhum resultado na região piloto. Tente o nome completo, bairro ou número.</Text> : null}
@@ -269,6 +264,7 @@ export default function MapScreen() {
 
         </ScrollView>
       </View>
+      {route && !sheetOpen && !search ? <Pressable accessibilityRole="button" accessibilityLabel="Ver detalhes do trajeto" onPress={() => setSheetOpen(true)} style={{position:"absolute",bottom:30,alignSelf:"center",paddingHorizontal:20,paddingVertical:14,borderRadius:24,backgroundColor:"#17211D"}}><Text style={{color:"white",fontWeight:"600"}}>{(route.distance/1000).toFixed(1)} km · {Math.round(route.duration/60)} min · Ver trajeto</Text></Pressable> : null}
       {sheetOpen ? <View style={{position:"absolute",bottom:0,left:0,right:0,backgroundColor:"white",borderTopLeftRadius:24,borderTopRightRadius:24,maxHeight:mapHeight*0.53,boxShadow:"0 -4px 20px #00000016"}}>
         <Pressable accessibilityRole="button" accessibilityLabel={sheetOpen ? "Recolher painel do mapa" : "Abrir planejamento e relatos"} accessibilityState={{expanded:sheetOpen}} onPress={() => { Keyboard.dismiss(); setSheetOpen(!sheetOpen); }} style={{padding:16,gap:8,minHeight:80}}>
           <View style={{width:38,height:4,borderRadius:4,backgroundColor:"#CBD2CE",alignSelf:"center"}} />
@@ -285,12 +281,12 @@ export default function MapScreen() {
         <Chip
           label="Marcar origem"
           selected={mode === "origin"}
-          onPress={() => setMode("origin")}
+          onPress={() => { setMode("origin"); setRoute(null); }}
         />
         <Chip
           label="Marcar destino"
           selected={mode === "destination"}
-          onPress={() => setMode("destination")}
+          onPress={() => { setMode("destination"); setRoute(null); }}
         />
         <Chip
           label="Novo relato"
