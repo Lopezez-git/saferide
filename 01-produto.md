@@ -22,6 +22,8 @@ Os resultados indicam necessidades e interesse declarado entre os participantes.
 
 ## Proposta para a primeira versão
 
+A entrega atual é um protótipo local para apresentação. Além das quatro funções abaixo, a primeira versão inclui busca automática de notícias regionais e fallback para fontes alternativas, dados salvos e demonstração identificada. A lista regional não exige cadastro manual; ocorrências no mapa exigem localização suficiente e revisão. O [plano de notícias](05-integracao-noticias.md) detalha esse fluxo. Um piloto público fica para uma etapa posterior.
+
 Aplicação web responsiva com React no frontend e Java com Spring Boot no backend, conforme requisito confirmado pelo proprietário. Um município ou área piloto limita o esforço de levantamento e revisão de dados. A cidade ainda será escolhida.
 
 | Função | Comportamento esperado |

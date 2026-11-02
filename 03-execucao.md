@@ -2,7 +2,7 @@
 
 ## Organização das entregas
 
-Sequência proposta, sem datas fechadas: prazo, disponibilidade e integrantes ainda precisam ser informados. As etapas podem virar milestones; cada linha do backlog pode virar uma issue.
+Sequência proposta, sem datas fechadas: prazo, disponibilidade e integrantes ainda precisam ser informados. A entrega atual é um protótipo local para apresentação, incluindo coleta automática de notícias e fallback. O piloto público e sua operação são evolução posterior. As etapas podem virar milestones; cada linha do backlog pode virar uma issue.
 
 | Etapa | Entrega verificável | Condição para avançar |
 | --- | --- | --- |
@@ -35,18 +35,20 @@ P0 é necessário para a demonstração completa. P1 é necessário para o pilot
 
 ## Entregas adicionais de notícias
 
-Estas tarefas complementam o backlog conforme o [plano do módulo](05-integracao-noticias.md). A coleta automática permanece como evolução; os IDs ainda não representam issues criadas.
+Estas tarefas complementam o backlog conforme o [plano do módulo](05-integracao-noticias.md). Coleta automática e fallback são requisitos da demonstração local; os IDs ainda não representam issues criadas.
 
 | ID | Etapa | Tarefa | Dependência | Critério de aceite |
 | --- | --- | --- | --- | --- |
-| SR-15 | MVP manual | Modelar notícias, ocorrências e evidências | SR-03 | Persistência separa publicação de acontecimento e aceita múltiplas fontes sem duplicar ocorrência |
-| SR-16 | MVP manual | Criar cadastro e revisão administrativa | SR-08, SR-15 | Apenas moderador publica; local, datas, evidência, próxima revisão e histórico obrigatórios |
-| SR-17 | MVP manual | Integrar ocorrências ao mapa e painel | SR-07, SR-16 | Consulta espacial retorna ocorrências pertinentes com precisão, fonte e datas, sem duplicações |
-| SR-18 | MVP manual | Verificar atualização e jornada de notícias | SR-17 | Prazos não encerram eventos; retirada, permissões, duplicidades e falhas verificadas ponta a ponta |
-| SR-19 | Piloto real | Validar fontes e operação editorial | SR-18 | Fontes, atribuição, cobertura e responsáveis por revisão registrados antes de usar notícias reais |
-| SR-20 | Evolução | Automatizar coleta RSS/API | SR-19 | Coleta permitida alimenta fila, evita duplicação e registra falhas; nenhuma publicação automática |
+| SR-15 | MVP local | Modelar notícias, ocorrências, evidências e execuções | SR-03 | Banco local separa publicações e acontecimentos, registra coleta e preserva datas |
+| SR-16 | MVP local | Criar revisão de ocorrências | SR-08, SR-15 | Apenas moderador publica ocorrência no mapa; local, evidência e histórico obrigatórios |
+| SR-17 | MVP local | Integrar ocorrências ao mapa e painel | SR-07, SR-16, SR-20 | Ocorrências da coleta revisadas aparecem com precisão, fonte e datas, sem duplicações |
+| SR-18 | MVP local | Verificar jornada completa de notícias | SR-17, SR-21, SR-22 | Coleta, alternativa, cache, demo, recuperação e permissões testados ponta a ponta |
+| SR-19 | MVP local | Selecionar cidade e fontes principal/alternativas | SR-01 | Acesso permitido, formato, cobertura, limites e atribuição verificados antes de coletar |
+| SR-20 | MVP local | Implementar coleta automática e lista regional | SR-15, SR-19 | Coleta sem cadastro manual, filtra, deduplica, persiste e mostra notícias; localização incerta fica fora do mapa |
+| SR-21 | MVP local | Implementar fallback e estados de atualização | SR-20 | Limites por ciclo, alternativa, dados salvos e resultados parciais; erros não apagam dados nem renovam datas |
+| SR-22 | MVP local | Preparar demonstração e simulação de falha | SR-21, SR-08 | Exemplos separados, botão restrito e reversível, roteiro offline com mapa e percursos locais |
 
-A demonstração integrada inclui SR-18 além de SR-11; o piloto com notícias reais depende também de SR-19. Distribuir esses trabalhos entre as frentes abaixo e revisar prazo do grupo para acomodar o módulo.
+A demonstração integrada inclui SR-18 além de SR-11. SR-19 antecede a implementação dos coletores. Distribuir os trabalhos entre as frentes abaixo e revisar o prazo do grupo; tarefas de operação de piloto público não bloqueiam a apresentação local.
 
 ## Divisão sugerida por frente
 
@@ -74,6 +76,9 @@ Uma tarefa está concluída quando atende ao critério de aceite, passou por rev
 4. Enviar um relato com usuário de teste e verificar que permanece pendente.
 5. Aprovar com o moderador e conferir sua exibição na consulta.
 6. Explicar quais dados são fictícios ou reais, limitações e próximos testes.
+7. Atualizar notícias automaticamente e mostrar fontes, datas e lista regional.
+8. Simular falha na coleta e demonstrar fontes alternativas ou notícias salvas com aviso.
+9. Demonstrar ausência de cache com exemplos separados, desativar a simulação e verificar a recuperação sem duplicações.
 
 ## Principais dependências
 

@@ -28,11 +28,19 @@ O levantamento inicial de 14 respostas foi realizado com motoristas. A ampliaç�
 
 ## Notícias e informações locais
 
-O SafeRide também terá um módulo para relacionar notícias e comunicados sobre obras, interdições e alagamentos a locais e trajetos. A primeira entrega prevista usa cadastro manual de links e revisão por moderador; a coleta por RSS ou API fica para uma etapa posterior.
+O SafeRide buscará automaticamente notícias e comunicados sobre obras, interdições e alagamentos em fontes RSS/API selecionadas para a região. A busca faz parte da primeira versão e não exige cadastro manual de links. Notícias elegíveis aparecem na lista regional; a associação a ocorrências no mapa exige localização suficiente e revisão.
 
 Cada ocorrência poderá reunir várias notícias como evidências, evitando marcadores duplicados. No mapa e no painel, o usuário verá resumo, localização com sua precisão, fonte, data do acontecimento e última verificação. Informação desatualizada será sinalizada; o vencimento de um prazo não confirma que o problema terminou.
 
-O Spring Boot cuidará da organização, revisão, permissões e consultas; o React apresentará o formulário administrativo e os registros no mapa e no painel. As fontes ainda precisam ser escolhidas e validadas. Consulte o [plano de integração de notícias](05-integracao-noticias.md) para fluxo, modelo de dados, API e critérios de aceite.
+O Spring Boot cuidará da coleta, organização, revisão, permissões e consultas; o React apresentará notícias, estado da atualização, mapa e painel. As fontes e a cidade ainda precisam ser escolhidas e validadas. Consulte o [plano de integração de notícias](05-integracao-noticias.md) para fluxo, modelo de dados, API e critérios de aceite.
+
+## Execução local e fallback
+
+O foco é um protótipo funcional para apresentação, com React, Spring Boot e banco local. Não é necessário contratar hospedagem para essa entrega. Buscar notícias novas exige internet; os custos e limites de fontes e mapas precisam ser verificados antes da escolha.
+
+Em caso de falha, o sistema tenta fontes alternativas com limite de tempo e tentativas. Se todas falharem, mostra as últimas notícias salvas localmente, indicando a data e a indisponibilidade da atualização. Sem dados salvos, oferece ativação explícita de um modo de demonstração com exemplos identificados e separados dos dados reais.
+
+O perfil de demonstração terá um botão administrativo para simular falha na coleta e mostrar a recuperação. Uma notícia sem localização precisa pode permanecer na lista regional, sem marcador inventado. Para apresentar sem internet, preparar também mapa e percursos demonstrativos locais; o fallback das notícias não substitui os serviços externos de mapas e rotas.
 
 ## Situação atual
 
@@ -45,7 +53,7 @@ Planejamento inicial em 2 de novembro de 2026. Este repositório contém documen
 3. [Plano de execução](03-execucao.md): entregas, tarefas e critérios de aceite.
 4. [Decisões do grupo](04-decisoes.md): perguntas que faltam resolver.
 5. [Como colaborar](CONTRIBUTING.md): rotina de branches, revisão e entregas.
-6. [Integração de notícias](05-integracao-noticias.md): cadastro, verificação, ocorrências, mapa e evolução da coleta.
+6. [Integração de notícias](05-integracao-noticias.md): busca automática, fontes alternativas, dados locais, demonstração e ocorrências no mapa.
 
 ## Primeiro objetivo
 
