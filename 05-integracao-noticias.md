@@ -2,7 +2,7 @@
 
 ## Objetivo e escopo
 
-Integrar notícias e comunicados sobre obras, interdições e alagamentos ao mapa e ao painel contextual do SafeRide, apoiando motoristas e entregadores. Este documento define o funcionamento planejado; o módulo ainda não foi implementado.
+Integrar notícias e comunicados sobre obras, interdições, alagamentos e ocorrências de segurança, incluindo assaltos, ao mapa, painel e caixinha flutuante do SafeRide, apoiando motoristas e entregadores. Este documento define o funcionamento planejado; o módulo ainda não foi implementado.
 
 A primeira entrega é um protótipo local para apresentação, com busca automática de notícias na internet por RSS ou API e fallback. Não depende de cadastrar links manualmente. A cidade, as fontes e suas condições de uso ainda precisam ser escolhidas e verificadas; nenhum serviço pago está contratado. IA e sugestões de links pelos membros são opcionais para evolução. Notícias não alteram automaticamente o trajeto nem geram uma classificação de segurança de bairros.
 
@@ -174,3 +174,9 @@ O cartão deve indicar quando estiver desatualizado. Nunca apresentar o horário
 ## Decisões pendentes
 
 Escolher cidade, fonte principal e alternativas; validar RSS/APIs e condições de uso; definir responsáveis e frequência de revisão por categoria; ajustar limites de coleta e política de histórico; escolher banco local e operações espaciais; preparar exemplos, mapa e percursos para a apresentação offline. Busca automática e fallback já são requisitos da primeira versão.
+
+## Alertas junto da oferta
+
+O [plano de caixinha e alertas](07-caixinha-alertas.md) define como ocorrências revisadas são apresentadas sobre o app de ofertas. Uma notícia elegível na lista não gera automaticamente alerta. Assaltos noticiados são ocorrências registradas com fonte e data, não evidência de crime em andamento. Revisar dados pessoais, localização, atualidade e contradições antes de destacar; sem data suficiente, não apresentar como atual. Se só houver bairro, indicar contexto regional, sem inventar marcador exato.
+
+Consultar ofertas usa dados persistidos e revisados, sem aguardar o ciclo de coleta. Datas e status são preservados no fallback. O ID e versão da oferta impedem mostrar respostas antigas em uma nova solicitação. O prazo de relevância de assalto controla sua exibição, não significa que o crime continua durante o prazo.

@@ -37,9 +37,9 @@ A comunidade inclui também feed com publicações e comentários sobre locais, 
 
 Cadastro e moderação são funções de suporte necessárias aos relatos. A consulta pode ser pública; publicar exige autenticação. Isso é uma proposta de acesso a validar pelo grupo.
 
-## Modelo de uso a decidir
+## Modelo de uso adotado
 
-O grupo decidirá entre aplicativo independente, integração proposta a Uber/99/iFood ou modelo híbrido. O protótipo acadêmico mantém React Native e Spring Boot. Uma integração poderá ser demonstrada com ofertas fictícias se escolhida pelo grupo; não existe acesso real garantido às plataformas. A jornada manual abaixo é uma hipótese para consulta no app, não a escolha definitiva do modelo. Ver [decisões pendentes](04-decisoes.md).
+Proposta integrada com caixinha flutuante sobre um aplicativo de ofertas, conforme o [plano de alertas](07-caixinha-alertas.md). No protótipo Android: oferta fictícia → consulta de contexto → cartão com informação revisada → decisão no simulador. A consulta manual abaixo continua como apoio dentro do SafeRide. Comunidade e detalhes ficam no app próprio; não há integração real com Uber/99/iFood.
 
 ## Jornada do motorista
 
@@ -80,7 +80,7 @@ flowchart LR
 
 O perfil permite múltiplas plataformas de trabalho, incluindo opções de outra plataforma e trabalho independente. As informações são autodeclaradas, editáveis e públicas na comunidade, conforme o [plano de perfis](06-comunidade-perfis.md). Não representam vínculo verificado nem alteram as regras de moderação dos relatos.
 
-Categorias iniciais propostas: pavimento, obra/interdição e condição de acesso. A prioridade é informação observável sobre o território. Comentários estão incluídos no feed. Fotos, avaliações de passageiros e acusações contra pessoas ficam fora do MVP. As categorias do feed incluem também dicas de trabalho, dúvidas e conversa geral, conforme o plano da comunidade.
+Categorias previstas: pavimento, obra/interdição, alagamentos/obstáculos, condição de acesso e ocorrências de segurança, incluindo assaltos registrados, conforme 07-caixinha-alertas.md. A prioridade é informação observável sobre o território. Comentários estão incluídos no feed. Fotos, avaliações de passageiros e acusações contra pessoas ficam fora do MVP. As categorias do feed incluem também dicas de trabalho, dúvidas e conversa geral, conforme o plano da comunidade.
 
 Cada registro exibe a data da observação e sua fonte. Relato comunitário é apresentado como relato, mesmo depois da revisão; moderação não equivale a comprovação factual. Registros contraditórios podem coexistir com datas e autoria pública pseudonimizada.
 
@@ -88,7 +88,7 @@ Ausência de registros aparece como “Sem informações disponíveis para esta 
 
 ## Fora da primeira versão
 
-Integração com plataformas de corrida, precificação, navegação curva a curva, acompanhamento contínuo da localização, rastreamento de passageiros, previsão de crimes, pontuação de segurança, inteligência artificial, chat e gamificação.
+Conexão real com plataformas de corrida (a integração acadêmica é simulada), precificação, navegação curva a curva, acompanhamento contínuo da localização, rastreamento de passageiros, previsão de crimes, pontuação de segurança, inteligência artificial, chat e gamificação.
 
 ## Validação da proposta
 
