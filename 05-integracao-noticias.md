@@ -184,9 +184,9 @@ Consultar ofertas usa dados persistidos e revisados, sem aguardar o ciclo de col
 
 ### Notícias do local selecionado no mapa
 
-O painel consulta `GET /api/v1/news/local?place=...&city=...` com o nome e a cidade do resultado selecionado na busca. O RSS do Google Notícias pesquisa o lugar e a cidade; a API exige menção ao lugar no título, aceita apenas os veículos cadastrados e datas informadas nos últimos sete dias. A consulta considera abreviação Av./Avenida e acentuação. Ela não comprova coordenadas da ocorrência nem substitui a leitura da fonte.
+O painel consulta `GET /api/v1/news/local?place=...&city=...&street=...&district=...` com o nome, a cidade, a via e o bairro do resultado selecionado na busca. O RSS do Google Notícias pesquisa o lugar e a cidade; a API exige menção ao estabelecimento, via ou bairro no título, indicando o alcance de cada resultado, aceita apenas os veículos cadastrados e datas informadas nos últimos 30 dias (histórico, sem afirmar situação ativa). A consulta considera abreviação Av./Avenida e acentuação. Ela não comprova coordenadas da ocorrência nem substitui a leitura da fonte.
 
-O cache em memória dura 15 minutos e é separado por lugar e cidade. Na falha, só resultados recentes desse mesmo lugar podem ser reaproveitados. Uma busca vazia não é substituída pelo feed geral de São Paulo. Ao trocar o local, a interface descarta resultados anteriores e cancela a consulta pendente. Um ponto escolhido por toque sem nome/cidade identificados pede a seleção de um endereço na busca; geocodificação reversa automática ainda não está implementada.
+O cache em memória dura 15 minutos e é separado por lugar, cidade, via e bairro. Na falha, só resultados recentes desse mesmo lugar podem ser reaproveitados. Uma busca vazia não é substituída pelo feed geral de São Paulo. Ao trocar o local, a interface descarta resultados anteriores e cancela a consulta pendente. Um ponto escolhido por toque sem nome/cidade identificados pede a seleção de um endereço na busca; geocodificação reversa automática ainda não está implementada.
 
 
 ### Relevância para o motorista
@@ -194,3 +194,10 @@ O cache em memória dura 15 minutos e é separado por lugar e cidade. Na falha, 
 Além do lugar/cidade, o painel exige sinais explícitos no título de segurança (assalto, roubo, tiroteio), acidentes viários, alagamentos e outros impactos climáticos, pavimento, obras na via ou interrupções do trânsito. A consulta RSS também inclui temas do trajeto. Política, shows, gastronomia e notícias gerais não entram apenas por citarem o local; uma interdição causada por um evento pode entrar porque afeta o deslocamento. Cada resultado local informa seu tema. O mesmo filtro temático é aplicado ao feed regional e aos registros já salvos ao listar notícias.
 
 A classificação inicial usa regras conservadoras sobre títulos, não leitura integral nem confirmação de incidentes. Pode deixar de fora matérias relevantes e ainda requer aprimoramento para ambiguidades. Na ausência de resultado elegível, o painel permanece vazio; não inventa alertas nem conclui que a região é segura.
+
+
+### Cobertura do estabelecimento e do entorno
+
+A busca considera nome do estabelecimento (incluindo Shopping escrito junto), via e bairro retornados pelo geocodificador. Resultados indicam `LOCAL`, `STREET` ou `DISTRICT` e `matchedPlace`. Uma notícia do bairro não é atribuída às coordenadas do estabelecimento nem ao raio de 1 km dos relatos. Não buscamos indiscriminadamente toda a cidade. A janela local de 30 dias apresenta histórico publicado, não alertas ativos.
+
+Os cards Segurança e Pavimento combinam contagens separadas de relatos próximos e notícias temáticas do contexto selecionado. Não existe, nesta versão, conexão a estatísticas policiais ou a solicitações SP156 de tapa-buraco. A interface informa essa lacuna em vez de sugerir cobertura completa. GeoSampa/SP156 é uma fonte a integrar após validar camada, atualização, coordenadas e situação de atendimento; uma solicitação não equivale a um buraco ainda existente. Referência oficial: https://prefeitura.sp.gov.br/w/noticia/geosampa-recebe-dados-de-25-servicos-dos-canais-sp156

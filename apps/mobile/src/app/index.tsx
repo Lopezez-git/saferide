@@ -29,7 +29,7 @@ const categories = {
   ACESSO: "Acesso",
   SEGURANCA: "Segurança",
 };
-type PlaceResult = MapPoint & { id: string; name: string; address: string; accuracy?: string; city?: string };
+type PlaceResult = MapPoint & { id: string; name: string; address: string; accuracy?: string; city?: string; street?: string; district?: string };
 type Route = {
   distance: number;
   duration: number;
@@ -60,19 +60,21 @@ export default function MapScreen() {
   const [localName, setLocalName] = useState("");
   const [reportOpen, setReportOpen] = useState(false);
   const [newsVersion, setNewsVersion] = useState(0);
+  const [newsArea, setNewsArea] = useState({street:"",district:""});
   const [newsCity, setNewsCity] = useState("");
   const [newsPlace, setNewsPlace] = useState("");
-  type LocalNews = {place:string;status:string;lastAttempt:string;items:{id:string;title:string;source:string;url:string;publishedAt:string;topic:string}[]};
+  const newsKey = JSON.stringify([newsPlace,newsCity,newsArea.street,newsArea.district]);
+  type LocalNews = {place:string;status:string;lastAttempt:string;items:{id:string;title:string;source:string;url:string;publishedAt:string;topic:string;scope:string;matchedPlace:string}[]};
   const [localNews, setLocalNews] = useState<{place:string;data:LocalNews|null;error:string;loading:boolean}>({place:"",data:null,error:"",loading:false});
   useEffect(() => {
     if (!newsPlace) return;
     const controller = new AbortController();
-    api<LocalNews>("/news/local?place="+encodeURIComponent(newsPlace)+"&city="+encodeURIComponent(newsCity),{signal:controller.signal})
-      .then(data => {if(!controller.signal.aborted)setLocalNews({place:newsPlace+"::"+newsCity,data,error:"",loading:false});})
-      .catch(e => {if(!controller.signal.aborted)setLocalNews({place:newsPlace+"::"+newsCity,data:null,error:message(e),loading:false});});
+    api<LocalNews>("/news/local?place="+encodeURIComponent(newsPlace)+"&city="+encodeURIComponent(newsCity)+"&street="+encodeURIComponent(newsArea.street)+"&district="+encodeURIComponent(newsArea.district),{signal:controller.signal})
+      .then(data => {if(!controller.signal.aborted)setLocalNews({place:newsKey,data,error:"",loading:false});})
+      .catch(e => {if(!controller.signal.aborted)setLocalNews({place:newsKey,data:null,error:message(e),loading:false});});
     return () => controller.abort();
-  },[newsPlace,newsCity,newsVersion]);
-  const news = localNews.place === newsPlace+"::"+newsCity ? localNews : {data:null,error:"",loading:!!newsPlace};
+  },[newsPlace,newsCity,newsArea.street,newsArea.district,newsKey,newsVersion]);
+  const news = localNews.place === newsKey ? localNews : {data:null,error:"",loading:!!newsPlace};
 
   const [search, setSearch] = useState("");
   const [places, setPlaces] = useState<PlaceResult[]>([]);
@@ -228,6 +230,10 @@ export default function MapScreen() {
   const actualNearby = nearby.filter(r => !/demonstração|fictício|ficticia|fictício/i.test(r.title+" "+r.body));
   const safety = actualNearby.filter(r => r.category === "SEGURANCA");
   const pavement = actualNearby.filter(r => r.category === "PAVIMENTO");
+  const safetyNews = (news.data?.items || []).filter(n => n.topic === "Segurança");
+  const pavementNews = (news.data?.items || []).filter(n => n.topic === "Pavimento" || n.topic === "Obras na via");
+  const topicNews = topic === "safety" ? safetyNews : topic === "pavement" ? pavementNews : [];
+
   const contextual = route
     ? reports.filter((r) => nearRoute(r, route.geometry.coordinates))
     : [];
@@ -261,7 +267,7 @@ export default function MapScreen() {
       <Feedback error={searchError} />
       {places.length > 0 ? <Text style={[styles.subtitle,{paddingTop:10}]}>Sugestões em São Paulo e região</Text> : null}
       {places.map((place) => <Pressable key={place.id} accessibilityRole="button" accessibilityLabel={`${place.name}, ${place.address}`} onPress={() => {
-          Keyboard.dismiss(); setSheetOpen(true); pick(place); setNewsPlace(place.city ? place.name : ""); setNewsCity(place.city || ""); setLocalName([place.name,place.address].filter(Boolean).join(" · "));
+          Keyboard.dismiss(); setSheetOpen(true); pick(place); setNewsPlace(place.city ? place.name : ""); setNewsCity(place.city || ""); setNewsArea({street:place.street||"",district:place.district||""}); setLocalName([place.name,place.address].filter(Boolean).join(" · "));
           if (mode === "origin") { setOriginName([place.name,place.address].filter(Boolean).join(" · ")); setMode("destination"); }
           else if (mode === "destination") setDestinationName([place.name,place.address].filter(Boolean).join(" · "));
           setPlaceFocus({ latitude: place.latitude, longitude: place.longitude, key: Date.now() });
@@ -293,9 +299,9 @@ export default function MapScreen() {
           <ResourceState {...q} />
           <View style={{flexDirection:"row",flexWrap:"wrap",gap:10}}>
             {([
-              {id:"safety",title:"Segurança",color:"#A76A12",bg:"#FFF5E3",text:q.loading?"Consultando…":q.error?"Dados indisponíveis":safety.length?`${safety.length} registro(s) próximo(s)`:"Sem dados suficientes",caption:"Ocorrências relatadas"},
-              {id:"pavement",title:"Pavimento",color:"#B5532A",bg:"#FFF0E9",text:q.loading?"Consultando…":q.error?"Dados indisponíveis":pavement.length?`${pavement.length} relato(s) próximo(s)`:"Condição não informada",caption:"Buracos e condições da via"},
-              {id:"news",title:"Notícias",color:"#2563B5",bg:"#EBF3FF",text:news.loading?"Consultando…":news.error?"Fonte indisponível":!newsPlace?"Selecione um endereço":news.data?.status==="UNAVAILABLE"?"Consulta indisponível":`${news.data?.items.length ?? 0} notícia(s) deste local`,caption:"Segurança e condições do trajeto"},
+              {id:"safety",title:"Segurança",color:"#A76A12",bg:"#FFF5E3",text:q.loading?"Consultando…":q.error?"Dados indisponíveis":safety.length||safetyNews.length?`${safety.length} relato(s) · ${safetyNews.length} notícia(s)`:news.loading?"Consultando notícias…":news.error||news.data?.status==="UNAVAILABLE"?"Notícias indisponíveis":"Sem registros nas fontes",caption:"Relatos e notícias · veja o alcance"},
+              {id:"pavement",title:"Pavimento",color:"#B5532A",bg:"#FFF0E9",text:q.loading?"Consultando…":q.error?"Dados indisponíveis":pavement.length||pavementNews.length?`${pavement.length} relato(s) · ${pavementNews.length} notícia(s)`:news.loading?"Consultando notícias…":news.error||news.data?.status==="UNAVAILABLE"?"Notícias indisponíveis":"Sem registros nas fontes",caption:"Pavimento e obras · sem vistoria"},
+              {id:"news",title:"Notícias",color:"#2563B5",bg:"#EBF3FF",text:news.loading?"Consultando…":news.error?"Fonte indisponível":!newsPlace?"Selecione um endereço":news.data?.status==="UNAVAILABLE"?"Consulta indisponível":`${news.data?.items.length ?? 0} notícia(s) do local e entorno`,caption:"Segurança e condições do trajeto"},
               {id:"community",title:"Comunidade",color:"#7952B3",bg:"#F4EEFF",text:q.loading?"Consultando…":q.error?"Dados indisponíveis":actualNearby.length?`${actualNearby.length} relato(s) do local`:"Sem relatos reais aqui",caption:"Experiências de motoristas"},
             ] as const).map(card => <Pressable key={card.id} accessibilityRole="button" accessibilityState={{selected:topic===card.id}} accessibilityLabel={`${card.title}: ${card.text}`} onPress={() => setTopic(card.id)} style={({pressed}) => ({width:"48%",flexGrow:1,minHeight:142,padding:13,gap:6,borderRadius:18,backgroundColor:card.bg,borderWidth:2,borderColor:topic===card.id?card.color:"transparent",opacity:pressed?0.8:1})}>
               <Svg width={27} height={27} viewBox="0 0 24 24" fill="none" stroke={card.color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" accessible={false}>
@@ -310,8 +316,8 @@ export default function MapScreen() {
             </Pressable>)}
           </View>
           <Text style={styles.subtitle}>Toque em um card para ver os detalhes. As cores identificam assuntos, não níveis de risco.</Text>
-          {topic === "safety" ? <><Text style={styles.heading}>Segurança nas proximidades</Text><Text style={styles.body}>{safety.length?"Confira a data e a fonte de cada registro abaixo.":"Ainda não temos dados suficientes para avaliar este local."}</Text><Text style={styles.subtitle}>Ausência de relatos não significa lugar seguro. Registros anteriores não confirmam ocorrência em andamento.</Text></> : null}
-          {topic === "pavement" ? <><Text style={styles.heading}>Condições do pavimento</Text><Text style={styles.body}>{pavement.length?"Veja as observações compartilhadas abaixo.":"Ainda não há informações reais sobre buracos ou pavimento neste ponto."}</Text></> : null}
+          {topic === "safety" ? <><Text style={styles.heading}>Segurança nas proximidades</Text><Text style={styles.body}>{safety.length||safetyNews.length?"Confira a data e a fonte de cada registro abaixo.":news.error||news.data?.status==="UNAVAILABLE"?"A consulta de notícias está indisponível; não foi possível verificar a cobertura de segurança.":"Não encontramos relatos ou notícias de segurança nas fontes consultadas. Estatísticas policiais ainda não estão integradas."}</Text><Text style={styles.subtitle}>Ausência de relatos não significa lugar seguro. Registros anteriores não confirmam ocorrência em andamento.</Text></> : null}
+          {topic === "pavement" ? <><Text style={styles.heading}>Condições do pavimento</Text><Text style={styles.body}>{pavement.length||pavementNews.length?"Relatos e notícias de pavimento ou obras, com o local indicado abaixo.":news.error||news.data?.status==="UNAVAILABLE"?"A consulta de notícias está indisponível; não foi possível verificar a cobertura de pavimento.":"Não encontramos relatos ou notícias sobre pavimento nas fontes consultadas. A base pública de solicitações de tapa-buraco ainda não está integrada."}</Text></> : null}
           {topic === "community" ? <><Text style={styles.heading}>Quem passa por aqui</Text><Text style={styles.body}>{actualNearby.length?"Relatos de motoristas próximos do ponto selecionado.":"A comunidade ainda não tem relatos reais deste local. Compartilhe o que você observou para ajudar quem passa por aqui."}</Text><Button title="Abrir comunidade" secondary onPress={() => router.push("/community")} /></> : null}
           {(topic === "news" ? [] : actualNearby.filter(r => topic === "community" || r.category === (topic === "safety" ? "SEGURANCA" : "PAVIMENTO"))).map(r => <View key={r.id} style={styles.card}>
             <Text style={styles.label}>{categories[r.category as keyof typeof categories] ?? r.category} · {Math.round(r.distance)} m do ponto</Text>
@@ -320,15 +326,20 @@ export default function MapScreen() {
             <Text style={styles.subtitle}>{when(r.observedAt)} · {r.source || "Comunidade · relato revisado"}</Text>
             <Text style={styles.subtitle}>Revisão não comprova o fato.{r.validUntil ? ` Válido até ${when(r.validUntil)}.` : ""}</Text>
           </View>)}
+          {topicNews.map(n => <Pressable key={n.id} accessibilityRole="link" onPress={() => Linking.openURL(n.url).catch(e => setError(message(e)))} style={styles.card}>
+            <Text style={styles.label}>{n.topic} · {n.source} · {when(n.publishedAt)}</Text>
+            <Text style={styles.subtitle}>{n.scope === "LOCAL" ? "Local mencionado" : n.scope === "STREET" ? "Na via de acesso, sem trecho confirmado" : "Contexto do bairro, não do ponto"}: {n.matchedPlace}</Text>
+            <Text style={styles.heading}>{n.title}</Text><Text style={styles.subtitle}>Notícia publicada; não confirma situação ativa.</Text><Text style={{color:"#087F71"}}>Ler na fonte ↗</Text>
+          </Pressable>)}
           {topic === "news" ? <>
           <Text style={styles.heading}>Notícias de {newsPlace || "um local identificado"}{newsCity && newsPlace ? " · "+newsCity : ""}</Text>
-          <View style={[styles.card,{backgroundColor:"#EBF3FF"}]}><Text style={styles.heading}>De onde vêm as notícias?</Text><Text style={styles.body}>Busca específica por {newsPlace || "nome do local"} no Google Notícias. Filtramos títulos que mencionam esse lugar e situações de segurança, trânsito, clima ou pavimento. Fontes: G1, Agência Brasil, Agência SP, CNN Brasil ou Band.</Text><Text style={styles.subtitle}>Consulta ao selecionar o local · cache de 15 minutos · últimos 7 dias. Cada matéria identifica o veículo de origem.</Text>{news.data?.lastAttempt ? <Text style={styles.subtitle}>Última tentativa: {when(news.data.lastAttempt)}</Text> : null}</View>
+          <View style={[styles.card,{backgroundColor:"#EBF3FF"}]}><Text style={styles.heading}>De onde vêm as notícias?</Text><Text style={styles.body}>Busca específica por {newsPlace || "nome do local"} no Google Notícias. Também consultamos {newsArea.street || "a via, quando identificada"} e {newsArea.district || "o bairro, quando identificado"}. Filtramos títulos que mencionam um desses locais e situações de segurança, trânsito, clima ou pavimento. Fontes: G1, Agência Brasil, Agência SP, CNN Brasil ou Band.</Text><Text style={styles.subtitle}>Consulta ao selecionar o local · cache de 15 minutos · últimos 30 dias, como histórico. Cada matéria identifica o veículo de origem.</Text>{news.data?.lastAttempt ? <Text style={styles.subtitle}>Última tentativa: {when(news.data.lastAttempt)}</Text> : null}</View>
           <Text style={styles.subtitle}>Uma menção ao local não confirma a ocorrência no ponto exato nem uma situação em andamento. Não exibimos notícias gerais de São Paulo como substituição.</Text>
-          <ResourceState {...news} refresh={() => { if (newsPlace) {setLocalNews({place:newsPlace+"::"+newsCity,data:null,error:"",loading:true});setNewsVersion(v=>v+1);} }} />
+          <ResourceState {...news} refresh={() => { if (newsPlace) {setLocalNews({place:newsKey,data:null,error:"",loading:true});setNewsVersion(v=>v+1);} }} />
           {news.data?.status === "UNAVAILABLE" ? <Text style={styles.subtitle}>Consulta indisponível: somente resultados anteriores deste mesmo local, quando disponíveis.</Text> : null}
-          {news.data?.items.slice(0,3).map(n => <Pressable key={n.id} accessibilityRole="link" onPress={() => Linking.openURL(n.url).catch(e => setError(message(e)))} style={styles.card}>
+          {news.data?.items.slice(0,10).map(n => <Pressable key={n.id} accessibilityRole="link" onPress={() => Linking.openURL(n.url).catch(e => setError(message(e)))} style={styles.card}>
             <Text style={styles.label}>{n.topic} · {n.source} · {when(n.publishedAt)}</Text>
-            <Text style={styles.heading}>{n.title}</Text><Text style={{color:"#087F71"}}>Ler na fonte ↗</Text>
+            <Text style={styles.subtitle}>{n.scope === "LOCAL" ? "Local mencionado" : n.scope === "STREET" ? "Via de acesso · trecho não confirmado" : "Bairro · não é ocorrência neste ponto"}: {n.matchedPlace}</Text><Text style={styles.heading}>{n.title}</Text><Text style={{color:"#087F71"}}>Ler na fonte ↗</Text>
           </Pressable>)}
           {!news.loading && !news.error && news.data?.status !== "UNAVAILABLE" && !news.data?.items.length ? <Text style={styles.body}>{newsPlace ? "Nenhuma notícia recente sobre segurança ou condições do trajeto foi encontrada neste local. Isso não indica ausência de ocorrências." : "Busque e selecione um endereço para consultar notícias desse lugar. Um ponto sem nome no mapa não permite identificar a rua com confiança."}</Text> : null}
           </> : null}

@@ -31,7 +31,7 @@ public final class PlaceResults {
    for(String field:List.of("street","housenumber","district","city","state")){String v=a.path(field).asText("");if(!v.isBlank())address.add(v);}
    String accuracy=!number.isEmpty()?(exactNumber&&relevant?"Número encontrado na base":"Resultado aproximado — confira o número"):house.isBlank()?(a.path("osm_key").asText().equals("highway")?"Trecho de via — escolha o ponto no mapa":"Local sem número informado"):"Endereço informado na base";
    String id=a.path("osm_type").asText()+a.path("osm_id").asText()+":"+lat+":"+lon;
-   candidates.add(new Candidate(new PlaceController.Place(id,name,String.join(", ",address),lat,lon,accuracy,a.path("city").asText("")), (relevant?100:0)+(exactNumber?20:0),relevant));
+   candidates.add(new Candidate(new PlaceController.Place(id,name,String.join(", ",address),lat,lon,accuracy,a.path("city").asText(""),street,a.path("district").asText("")), (relevant?100:0)+(exactNumber?20:0),relevant));
   }
   boolean hasRelevant=candidates.stream().anyMatch(Candidate::relevant);
   candidates.sort(Comparator.comparingInt(Candidate::score).reversed());

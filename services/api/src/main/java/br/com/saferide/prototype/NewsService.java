@@ -23,9 +23,10 @@ public class NewsService {
  private volatile String status="WAITING",lastAttempt="";
  private static final Set<String> PUBLISHERS=Set.of("g1.globo.com","agenciabrasil.ebc.com.br","agenciasp.sp.gov.br","www.agenciasp.sp.gov.br","www.cnnbrasil.com.br","www.band.uol.com.br","www.band.com.br");
  public NewsService(JdbcTemplate db){this.db=db;}
- public static Optional<Instant> publication(String date,Instant now){
+ public static Optional<Instant> publication(String date,Instant now){return publication(date,now,7);}
+ public static Optional<Instant> publication(String date,Instant now,int days){
   try{Instant time;try{time=Instant.parse(date);}catch(Exception ignored){time=ZonedDateTime.parse(date,DateTimeFormatter.RFC_1123_DATE_TIME).toInstant();}
-   return time.isAfter(now.plusSeconds(300))||time.isBefore(now.minus(Duration.ofDays(7)))?Optional.empty():Optional.of(time);
+   return time.isAfter(now.plusSeconds(300))||time.isBefore(now.minus(Duration.ofDays(days)))?Optional.empty():Optional.of(time);
   }catch(Exception e){return Optional.empty();}
  }
  @Scheduled(initialDelay=3000,fixedDelay=900000)

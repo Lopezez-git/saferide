@@ -21,21 +21,35 @@ public class LocalNewsController {
  private final Map<String,Result> cache=new LinkedHashMap<>();
  private long lastRequest;
  private static final Set<String> PUBLISHERS=Set.of("g1.globo.com","agenciabrasil.ebc.com.br","agenciasp.sp.gov.br","www.agenciasp.sp.gov.br","www.cnnbrasil.com.br","www.band.uol.com.br","www.band.com.br");
- public record Item(String id,String title,String url,String source,String publishedAt,String topic){}
+ public record Item(String id,String title,String url,String source,String publishedAt,String topic,String scope,String matchedPlace){}
  public record Result(String place,String status,String lastAttempt,List<Item> items){}
- private static String normalize(String value){return Normalizer.normalize(value,Normalizer.Form.NFD).replaceAll("\\p{M}","").toLowerCase(Locale.ROOT).replaceAll("\\bav\\.?\\s+","avenida ").replaceAll("[^a-z0-9 ]"," ").replaceAll("\\s+"," ").strip();}
+ private static String normalize(String value){return Normalizer.normalize(value.replaceAll("(?iu)([\\p{L}])(shopping)","$1 $2"),Normalizer.Form.NFD).replaceAll("\\p{M}","").toLowerCase(Locale.ROOT).replaceAll("\\bav\\.?\\s+","avenida ").replaceAll("[^a-z0-9 ]"," ").replaceAll("\\s+"," ").strip();}
  public static boolean mentions(String title,String place){String p=normalize(place);return p.length()>=4&&!Set.of("sao paulo","sp","capital paulista").contains(p)&&(" "+normalize(title)+" ").contains(" "+p+" ");}
- @GetMapping("/news/local") public synchronized Result local(@RequestParam String place,@RequestParam(defaultValue="São Paulo") String city){
+ public record Area(String name,String scope) {}
+ public static Area matchArea(String headline,String place,String street,String district){
+  for(var area:List.of(new Area(place,"LOCAL"),new Area(street,"STREET"),new Area(district,"DISTRICT")))if(mentions(headline,area.name()))return area;
+  return null;
+ }
+ private static String cleanArea(String value){
+  value=value.strip();
+  if(value.length()>160||(!value.isEmpty()&&!value.matches("[\\p{L}\\p{N} .,'’/()&-]+")))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Endereço inválido.");
+  return value;
+ }
+ @GetMapping("/news/local") public synchronized Result local(@RequestParam String place,@RequestParam(defaultValue="São Paulo") String city,@RequestParam(defaultValue="") String street,@RequestParam(defaultValue="") String district){
+  street=cleanArea(street);district=cleanArea(district);
   city=city.strip();
   if(city.length()<2||city.length()>100||!city.matches("[\\p{L} .-]+"))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Cidade inválida.");
   place=place.strip().replaceAll("\\s+"," ");
   if(place.length()<4||place.length()>160||!place.matches("[\\p{L}\\p{N} .,'’/()&-]+")||Set.of("sao paulo","sp","capital paulista").contains(normalize(place)))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Selecione uma rua ou um lugar específico.");
-  long now=System.currentTimeMillis();String key=normalize(city)+"::"+normalize(place);var hit=cache.get(key);
+  long now=System.currentTimeMillis();String key=normalize(city)+"::"+normalize(place)+"::"+normalize(street)+"::"+normalize(district);var hit=cache.get(key);
   if(hit!=null&&Instant.parse(hit.lastAttempt()).toEpochMilli()>now-900000)return hit;
   if(now-lastRequest<1200)throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,"Aguarde um instante e tente novamente.");
   lastRequest=now;Instant collected=Instant.now();List<Item> found=new ArrayList<>();
   try{
-   String query=URLEncoder.encode("\""+place+"\" \""+city+"\" (assalto OR roubo OR acidente OR alagamento OR interdição OR trânsito OR buraco OR obras OR tiroteio) when:7d",StandardCharsets.UTF_8);
+   Set<String> terms=new LinkedHashSet<>();
+   for(String term:List.of(place,street,district))if(term.length()>=4)terms.add("\""+term+"\"");
+   if(place.toLowerCase(Locale.ROOT).contains(" shopping"))terms.add("\""+place.replaceAll("(?iu) shopping","Shopping")+"\"");
+   String query=URLEncoder.encode("("+String.join(" OR ",terms)+") \""+city+"\" (assalto OR roubo OR acidente OR alagamento OR interdição OR trânsito OR buraco OR obras OR tiroteio) when:30d",StandardCharsets.UTF_8);
    var request=HttpRequest.newBuilder(URI.create("https://news.google.com/rss/search?q="+query+"&hl=pt-BR&gl=BR&ceid=BR:pt-419")).timeout(Duration.ofSeconds(10)).header("User-Agent","SafeRideAcademicPrototype/0.1 (+https://github.com/Lopezez-git/saferide)").GET().build();
    var response=http.send(request,HttpResponse.BodyHandlers.ofInputStream());
    try(var input=response.body()){
@@ -47,18 +61,19 @@ public class LocalNewsController {
      Element item=(Element)items.item(i);String title=text(item,"title"),url=text(item,"link");
      // Match the headline before the publisher suffix, never just the source name.
      String headline=title.contains(" - ")?title.substring(0,title.lastIndexOf(" - ")):title;
-     if(title.length()>300||url.length()>1000||!mentions(headline,place)||!NewsRelevance.relevant(title))continue;
-     var time=NewsService.publication(text(item,"pubDate"),collected);if(time.isEmpty())continue;
+     Area area=matchArea(headline,place,street,district);
+     if(title.length()>300||url.length()>1000||area==null||!NewsRelevance.relevant(title))continue;
+     var time=NewsService.publication(text(item,"pubDate"),collected,30);if(time.isEmpty())continue;
      var uri=URI.create(url);if(!"https".equals(uri.getScheme())||!"news.google.com".equals(uri.getHost()))continue;
      var nodes=item.getElementsByTagName("source");if(nodes.getLength()==0)continue;Element publisher=(Element)nodes.item(0);
      if(!PUBLISHERS.contains(URI.create(publisher.getAttribute("url")).getHost()))continue;
-     if(urls.add(url))found.add(new Item(AuthService.hash(url),title,url,publisher.getTextContent().strip()+" · via Google Notícias",time.get().toString(),NewsRelevance.topic(headline)));
+     if(urls.add(url))found.add(new Item(AuthService.hash(url),title,url,publisher.getTextContent().strip()+" · via Google Notícias",time.get().toString(),NewsRelevance.topic(headline),area.scope(),area.name()));
     }
    }
    found.sort(Comparator.comparing(Item::publishedAt).reversed());
    var result=new Result(place,found.isEmpty()?"NO_LOCAL_ITEMS":"UPDATED",collected.toString(),List.copyOf(found));
    if(cache.size()>=100)cache.remove(cache.keySet().iterator().next());cache.put(key,result);return result;
-  }catch(Exception e){if(e instanceof InterruptedException)Thread.currentThread().interrupt();return new Result(place,"UNAVAILABLE",collected.toString(),hit==null?List.of():hit.items().stream().filter(n->Instant.parse(n.publishedAt()).isAfter(collected.minus(Duration.ofDays(7)))).toList());}
+  }catch(Exception e){if(e instanceof InterruptedException)Thread.currentThread().interrupt();return new Result(place,"UNAVAILABLE",collected.toString(),hit==null?List.of():hit.items().stream().filter(n->Instant.parse(n.publishedAt()).isAfter(collected.minus(Duration.ofDays(30)))).toList());}
  }
  private static String text(Element e,String name){var n=e.getElementsByTagName(name).item(0);return n==null?"":n.getTextContent().strip();}
 }

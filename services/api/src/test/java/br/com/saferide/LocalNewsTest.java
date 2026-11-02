@@ -14,6 +14,14 @@ class LocalNewsTest {
   String title="Assalto na Rua Augusta";
   assertThat(NewsRelevance.relevant(title)&&LocalNewsController.mentions(title,"Avenida Paulista")).isFalse();
  }
+ @Test void identifiesPlaceStreetAndDistrictWithoutConfusingTheirScopes(){
+  String place="Morumbi Shopping",street="Avenida Roque Petroni Júnior",district="Vila Cordeiro";
+  assertThat(LocalNewsController.matchArea("Assalto no MorumbiShopping",place,street,district).scope()).isEqualTo("LOCAL");
+  assertThat(LocalNewsController.matchArea("Obras na Avenida Roque Petroni Júnior",place,street,district).scope()).isEqualTo("STREET");
+  assertThat(LocalNewsController.matchArea("Roubo na Vila Cordeiro",place,street,district).scope()).isEqualTo("DISTRICT");
+  assertThat(LocalNewsController.matchArea("Roubo em São Paulo",place,street,district)).isNull();
+  assertThat(LocalNewsController.matchArea("Assalto no Shopping Town Morumbi",place,street,district)).isNull();
+ }
  @Test void requiresSelectedPlaceInsteadOfGenericCity(){
   assertThat(LocalNewsController.mentions("Assalto em São Paulo", "Avenida Paulista")).isFalse();
   assertThat(LocalNewsController.mentions("Obra na Rua Augusta", "Avenida Paulista")).isFalse();
