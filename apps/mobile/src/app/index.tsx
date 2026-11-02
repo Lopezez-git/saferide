@@ -70,16 +70,28 @@ export default function MapScreen() {
   const [placeFocus, setPlaceFocus] = useState<(MapPoint & { key: number }) | null>(null);
   const [originName, setOriginName] = useState("");
   const [destinationName, setDestinationName] = useState("");
-  async function searchPlaces() {
-    if (search.trim().length < 3) return;
+  const lastSearchAt = useRef(0);
+  useFocusEffect(useCallback(() => {
+    const term = search.trim();
+    if (term.length < 3) return;
     const id = ++searchRequest.current;
-    setSearching(true); setSearchError(""); setSearched(false); setPlaces([]);
-    try {
-      const results = await api<PlaceResult[]>("/places?q=" + encodeURIComponent(search.trim()));
-      if (id === searchRequest.current) { setPlaces(results); setSearched(true); }
-    } catch(e) { if (id === searchRequest.current) setSearchError(message(e)); }
-    finally { if (id === searchRequest.current) setSearching(false); }
-  }
+    const controller = new AbortController();
+    // Debounce typing and keep this device below the shared provider limit.
+    const delay = Math.max(500, 1200 - (Date.now() - lastSearchAt.current));
+    const timer = setTimeout(async () => {
+      lastSearchAt.current = Date.now();
+      setSearching(true);
+      try {
+        const results = await api<PlaceResult[]>("/places?q=" + encodeURIComponent(term), { signal: controller.signal });
+        if (id === searchRequest.current && !controller.signal.aborted) { setPlaces(results); setSearched(true); }
+      } catch (e) {
+        if (id === searchRequest.current && !controller.signal.aborted) setSearchError(message(e));
+      } finally {
+        if (id === searchRequest.current && !controller.signal.aborted) setSearching(false);
+      }
+    }, delay);
+    return () => { clearTimeout(timer); controller.abort(); searchRequest.current++; };
+  }, [search]));
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [category, setCategory] = useState("PAVIMENTO");
@@ -221,9 +233,10 @@ export default function MapScreen() {
         placeholder="Ex.: Avenida Paulista, MASP, Rua Augusta"
         maxLength={120}
         returnKeyType="search"
-        onSubmitEditing={searchPlaces}
+        onSubmitEditing={() => Keyboard.dismiss()}
       />
-      {search.trim().length >= 3 ? <Button title={searching ? "Buscando…" : "Buscar"} disabled={searching} onPress={searchPlaces} /> : null}
+      {searching ? <Text accessibilityLiveRegion="polite" style={styles.subtitle}>Buscando sugestões…</Text> : null}
+      {search.length > 0 && search.trim().length < 3 ? <Text style={styles.subtitle}>Digite pelo menos 3 caracteres.</Text> : null}
       <Feedback error={searchError} />
       {places.map((place) => <View key={place.id} style={styles.card}>
         <Text style={styles.heading}>{place.name}</Text>
