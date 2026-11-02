@@ -10,7 +10,8 @@ import {
   SignInNotice,
 } from "../components/ui";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useFocusEffect } from "expo-router";
+import Svg, { Path, Circle } from "react-native-svg";
+import { useFocusEffect, useRouter } from "expo-router";
 import MapCanvas from "../components/MapCanvas";
 import { MapPoint } from "../components/mapHtml";
 import { useResource } from "../lib/useResource";
@@ -36,6 +37,8 @@ type Route = {
 };
 export default function MapScreen() {
   const { token, user } = useSession();
+  const router = useRouter();
+  const [topic, setTopic] = useState<"safety" | "pavement" | "news" | "community">("news");
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const manualOrigin = useRef(false);
@@ -274,28 +277,38 @@ export default function MapScreen() {
         {sheetOpen ? <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{padding:16,paddingTop:0,gap:12,paddingBottom:28}}>
           <Feedback error={error} success={success} />
           <ResourceState {...q} />
-          <View style={[styles.card,{backgroundColor:"#F1F5F3"}]}>
-            <Text style={styles.heading}>O que sabemos daqui</Text>
-            <Text style={styles.body}>{q.loading ? "Consultando relatos…" : q.error ? "Não foi possível consultar os relatos agora." : actualNearby.length ? `${actualNearby.length} relato(s) revisado(s) nas proximidades.` : "Ainda não há relatos reais revisados próximos deste ponto."}</Text>
-            <Text style={styles.subtitle}>{nearby.length > actualNearby.length ? "Há exemplos de demonstração abaixo; não representam condições reais." : "A ausência de relatos não confirma boas condições."}</Text>
+          <View style={{flexDirection:"row",flexWrap:"wrap",gap:10}}>
+            {([
+              {id:"safety",title:"Segurança",color:"#A76A12",bg:"#FFF5E3",text:q.loading?"Consultando…":q.error?"Dados indisponíveis":safety.length?`${safety.length} registro(s) próximo(s)`:"Sem dados suficientes",caption:"Ocorrências relatadas"},
+              {id:"pavement",title:"Pavimento",color:"#B5532A",bg:"#FFF0E9",text:q.loading?"Consultando…":q.error?"Dados indisponíveis":pavement.length?`${pavement.length} relato(s) próximo(s)`:"Condição não informada",caption:"Buracos e condições da via"},
+              {id:"news",title:"Notícias",color:"#2563B5",bg:"#EBF3FF",text:news.loading?"Consultando…":news.error?"Fonte indisponível":`${news.data?.items.length ?? 0} notícia(s) na região`,caption:"Imprensa · São Paulo"},
+              {id:"community",title:"Comunidade",color:"#7952B3",bg:"#F4EEFF",text:q.loading?"Consultando…":q.error?"Dados indisponíveis":actualNearby.length?`${actualNearby.length} relato(s) do local`:"Sem relatos reais aqui",caption:"Experiências de motoristas"},
+            ] as const).map(card => <Pressable key={card.id} accessibilityRole="button" accessibilityState={{selected:topic===card.id}} accessibilityLabel={`${card.title}: ${card.text}`} onPress={() => setTopic(card.id)} style={({pressed}) => ({width:"48%",flexGrow:1,minHeight:142,padding:13,gap:6,borderRadius:18,backgroundColor:card.bg,borderWidth:2,borderColor:topic===card.id?card.color:"transparent",opacity:pressed?0.8:1})}>
+              <Svg width={27} height={27} viewBox="0 0 24 24" fill="none" stroke={card.color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" accessible={false}>
+                {card.id==="safety" ? <Path d="M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3zm0 5v5m0 3h.01" /> : null}
+                {card.id==="pavement" ? <Path d="M7 3L3 21M17 3l4 18M12 3v4m0 4v3m0 4v3" /> : null}
+                {card.id==="news" ? <Path d="M4 3h16v18H4V3zm4 4h8v5H8V7zm0 9h8m-8 3h5" /> : null}
+                {card.id==="community" ? <><Circle cx="9" cy="8" r="3"/><Path d="M3 21v-2a6 6 0 0112 0v2M16 5a3 3 0 010 6m2 3a5 5 0 013 5v2"/></> : null}
+              </Svg>
+              <Text style={{fontSize:16,fontWeight:"700",color:"#17211D"}}>{card.title}</Text>
+              <Text style={{fontSize:13,fontWeight:"600",color:card.color}}>{card.text}</Text>
+              <Text style={{fontSize:11,color:"#596860"}}>{card.caption}</Text>
+            </Pressable>)}
           </View>
-          <View style={styles.card}>
-            <Text style={styles.heading}>Segurança</Text>
-            <Text style={styles.body}>{safety.length ? `${safety.length} registro(s) de segurança nas proximidades. Confira abaixo a data e a fonte.` : "Não há informações suficientes para avaliar a segurança deste local."}</Text>
-            <Text style={styles.subtitle}>Registros anteriores não confirmam ocorrência em andamento.</Text>
-          </View>
-          <View style={styles.card}>
-            <Text style={styles.heading}>Pavimento e buracos</Text>
-            <Text style={styles.body}>{pavement.length ? `${pavement.length} relato(s) sobre o pavimento nas proximidades.` : "Condição do pavimento ainda não informada pela comunidade."}</Text>
-          </View>
-          {nearby.map(r => <View key={r.id} style={styles.card}>
+          <Text style={styles.subtitle}>Toque em um card para ver os detalhes. As cores identificam assuntos, não níveis de risco.</Text>
+          {topic === "safety" ? <><Text style={styles.heading}>Segurança nas proximidades</Text><Text style={styles.body}>{safety.length?"Confira a data e a fonte de cada registro abaixo.":"Ainda não temos dados suficientes para avaliar este local."}</Text><Text style={styles.subtitle}>Ausência de relatos não significa lugar seguro. Registros anteriores não confirmam ocorrência em andamento.</Text></> : null}
+          {topic === "pavement" ? <><Text style={styles.heading}>Condições do pavimento</Text><Text style={styles.body}>{pavement.length?"Veja as observações compartilhadas abaixo.":"Ainda não há informações reais sobre buracos ou pavimento neste ponto."}</Text></> : null}
+          {topic === "community" ? <><Text style={styles.heading}>Quem passa por aqui</Text><Text style={styles.body}>{actualNearby.length?"Relatos de motoristas próximos do ponto selecionado.":"A comunidade ainda não tem relatos reais deste local. Compartilhe o que você observou para ajudar quem passa por aqui."}</Text><Button title="Abrir comunidade" secondary onPress={() => router.push("/community")} /></> : null}
+          {(topic === "news" ? [] : actualNearby.filter(r => topic === "community" || r.category === (topic === "safety" ? "SEGURANCA" : "PAVIMENTO"))).map(r => <View key={r.id} style={styles.card}>
             <Text style={styles.label}>{categories[r.category as keyof typeof categories] ?? r.category} · {Math.round(r.distance)} m do ponto</Text>
             <Text style={styles.heading}>{r.title}</Text>
             <Text style={styles.body}>{r.body}</Text>
             <Text style={styles.subtitle}>{when(r.observedAt)} · {r.source || "Comunidade · relato revisado"}</Text>
             <Text style={styles.subtitle}>Revisão não comprova o fato.{r.validUntil ? ` Válido até ${when(r.validUntil)}.` : ""}</Text>
           </View>)}
+          {topic === "news" ? <>
           <Text style={styles.heading}>Notícias de São Paulo e região</Text>
+          <View style={[styles.card,{backgroundColor:"#EBF3FF"}]}><Text style={styles.heading}>De onde vêm as notícias?</Text><Text style={styles.body}>RSS da Agência Brasil e busca no Google Notícias. Veículos aceitos: G1, Agência Brasil, Agência SP, CNN Brasil e Band.</Text><Text style={styles.subtitle}>Coleta a cada 15 minutos · matérias dos últimos 7 dias. Google Notícias reúne links; o veículo indicado em cada matéria é a fonte.</Text>{news.data?.lastAttempt ? <Text style={styles.subtitle}>Última tentativa: {when(news.data.lastAttempt)}</Text> : null}</View>
           <Text style={styles.subtitle}>As notícias ainda não têm localização verificada por rua. São contexto regional, não ocorrências confirmadas neste ponto.</Text>
           <ResourceState {...news} />
           {news.data?.status === "UNAVAILABLE" ? <Text style={styles.subtitle}>Fonte indisponível: exibindo notícias salvas quando disponíveis.</Text> : null}
@@ -304,6 +317,7 @@ export default function MapScreen() {
             <Text style={styles.heading}>{n.title}</Text><Text style={{color:"#087F71"}}>Ler na fonte ↗</Text>
           </Pressable>)}
           {!news.loading && !news.error && !news.data?.items.length ? <Text style={styles.body}>Nenhuma notícia recente disponível na coleta. Isso não indica ausência de ocorrências.</Text> : null}
+          </> : null}
           <Button title={reportOpen ? "Fechar relato" : "Relatar uma situação neste local"} secondary disabled={!focus} onPress={() => { setPoint(reportOpen ? null : focus); setReportOpen(!reportOpen); }} />
       {reportOpen ? (user ? (
         <View style={styles.card}>
