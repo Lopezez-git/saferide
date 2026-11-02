@@ -44,7 +44,9 @@ Se a rota falhar, manter consulta por região e explicar a falha. Se uma fonte e
 
 | Entidade | Campos essenciais |
 | --- | --- |
-| Perfil | ID, identificador de autenticação, nome público, papel, criação |
+| Perfil | ID, identificador de autenticação, nome público, papel, atividade, veículo, trabalho independente, outra plataforma, criação e atualização |
+| Plataforma | ID estável, nome de exibição e status ativo |
+| Plataforma do perfil | IDs de perfil e plataforma, com unicidade do par e múltiplas plataformas por perfil |
 | Relato | ID, autor, categoria, descrição, ponto ou trecho, data da observação, criação, atualização, validade, status |
 | Fonte pública | ID, nome, endereço de origem, condições de uso, cobertura, frequência esperada, última importação bem-sucedida |
 | Registro público | ID, fonte, identificador externo, categoria, geometria, observação, atualização, validade, conteúdo normalizado |
@@ -52,6 +54,8 @@ Se a rota falhar, manter consulta por região e explicar a falha. Se uma fonte e
 | Ação de moderação | ID, moderador, relato ou denúncia, ação, motivo, data |
 
 Consultas de trajetos não precisam ser persistidas no MVP. Credenciais de autenticação ficam a cargo do mecanismo escolhido; não armazenar senhas em campos do perfil.
+
+O [plano de comunidade e perfis](06-comunidade-perfis.md) detalha seleção múltipla de plataformas, edição pelo proprietário, campos públicos e contratos propostos. Plataforma de trabalho é autodeclarada e não determina o papel de autorização do usuário.
 
 ## Ciclo de vida do relato
 

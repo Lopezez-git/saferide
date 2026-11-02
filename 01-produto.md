@@ -65,10 +65,12 @@ flowchart LR
 | Resultado | Mapa, percurso e painel que também funciona como lista acessível |
 | Detalhe do registro | Categoria, descrição, localização, fonte, datas e opção de denunciar |
 | Envio de relato | Local ou trecho, categoria, data da observação e descrição curta |
-| Minha conta | Autenticação, meus relatos, status e exclusão dos meus relatos |
+| Minha conta | Autenticação, edição do perfil com plataformas de trabalho, atividade e veículo, meus relatos, status e exclusão dos meus relatos |
 | Moderação | Fila de relatos e denúncias, publicação, rejeição e retirada com motivo |
 
 ## Regras de conteúdo
+
+O perfil permite múltiplas plataformas de trabalho, incluindo opções de outra plataforma e trabalho independente. As informações são autodeclaradas, editáveis e públicas na comunidade, conforme o [plano de perfis](06-comunidade-perfis.md). Não representam vínculo verificado nem alteram as regras de moderação dos relatos.
 
 Categorias iniciais propostas: pavimento, obra/interdição e condição de acesso. A prioridade é informação observável sobre o território. Fotos, comentários, avaliações de passageiros e acusações contra pessoas ficam fora do MVP.
 

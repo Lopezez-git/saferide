@@ -2,6 +2,8 @@
 
 ## Base confirmada
 
+- Perfil com plataformas de trabalho autodeclaradas e editáveis, permitindo múltipla seleção e opções de outra plataforma e trabalho independente; atividade e veículo ficam separados.
+
 - Entrega focada em protótipo local para apresentação, sem exigir implantação pública.
 - Busca automática de notícias na primeira versão, sem cadastro manual obrigatório.
 - Fallback com fontes alternativas, notícias salvas e modo demonstrativo explicitamente identificado.
@@ -39,6 +41,8 @@
 9. O repositório será mantido privado ou poderá ser publicado depois? Qual licença será adotada se for aberto?
 
 ## Registro de mudanças
+
+Os detalhes de perfil estão em [Comunidade e perfis](06-comunidade-perfis.md). Feed, comentários e demais interações propostas ainda não têm escopo aprovado.
 
 Para cada decisão relevante, adicionar data, contexto, decisão, responsável e consequência. Não transformar sugestão em requisito sem registrar a decisão do grupo.
 

@@ -22,7 +22,9 @@ A comunidade é uma parte central do SafeRide: os próprios profissionais contri
 
 No MVP, a participação acontece por relatos associados a locais e percursos, com autenticação para envio, fonte, data e moderação. Os relatos podem abordar condições do pavimento, obras, acesso a estabelecimentos, pontos de embarque e retirada e dificuldades no caminho.
 
-Como evolução proposta, o perfil e os relatos poderão identificar o tipo de atividade e veículo, permitindo filtrar informações relevantes para cada profissional. Feed, comentários e outras interações entre membros ainda precisam ter seu escopo definido pelo grupo.
+O perfil informará as plataformas em que o profissional trabalha, com múltipla seleção: por exemplo, Uber, 99 e iFood no mesmo perfil. Haverá opções para outra plataforma e trabalho independente, além de atividade e veículo em campos separados. Essas informações serão autodeclaradas e editáveis, sem conexão com as contas externas. Consulte o [plano de comunidade e perfis](06-comunidade-perfis.md).
+
+As plataformas serão exibidas junto à identificação do autor para contextualizar suas contribuições. Feed, comentários, filtros e outras interações entre membros ainda precisam ter seu escopo definido pelo grupo.
 
 O levantamento inicial de 14 respostas foi realizado com motoristas. A ampliação para entregadores e outras atividades deverá incluir validação das necessidades desses públicos. Os documentos detalhados vinculados abaixo ainda partem desse recorte inicial e deverão acompanhar a ampliação do produto.
 
@@ -54,6 +56,7 @@ Planejamento inicial em 2 de novembro de 2026. Este repositório contém documen
 4. [Decisões do grupo](04-decisoes.md): perguntas que faltam resolver.
 5. [Como colaborar](CONTRIBUTING.md): rotina de branches, revisão e entregas.
 6. [Integração de notícias](05-integracao-noticias.md): busca automática, fontes alternativas, dados locais, demonstração e ocorrências no mapa.
+7. [Comunidade e perfis](06-comunidade-perfis.md): plataformas de trabalho, atividade, veículo, edição e apresentação pública.
 
 ## Primeiro objetivo
 
@@ -64,7 +67,7 @@ Dados fictícios devem ser identificados como demonstração. A aplicação só 
 ## Organização prevista
 
 ```text
-01-*.md a 05-*.md    Planejamento, decisões e integração de notícias
+01-*.md a 06-*.md    Planejamento, notícias e comunidade
 .github/              Modelos de tarefas e revisão
 apps/web/             Frontend React, quando implementado
 services/api/         Backend Java com Spring Boot

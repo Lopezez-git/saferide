@@ -52,6 +52,20 @@ A demonstração integrada inclui SR-18 além de SR-11. SR-19 antecede a impleme
 
 ## Divisão sugerida por frente
 
+### Entregas de perfil da comunidade
+
+Conforme o [plano de perfis](06-comunidade-perfis.md), adicionar ao MVP local:
+
+| ID | Tarefa | Dependência | Critério de aceite |
+| --- | --- | --- | --- |
+| SR-23 | Modelar catálogo e plataformas do perfil | SR-08 | Usuário pode ter várias plataformas, atividade e veículo separados; API pública não expõe campos privados |
+| SR-24 | Criar edição de perfil em React | SR-23 | Selecionar Uber e iFood, salvar, recarregar, editar e remover; tratar erros e seleção vazia |
+| SR-25 | Apresentar perfil nas contribuições e verificar permissões | SR-24, SR-09 | Nome e plataformas atualizados nos relatos; outro usuário não consegue editar o perfil; informação identificada como autodeclarada |
+
+Essas tarefas não aprovam automaticamente feed ou comentários. Incluir no roteiro de apresentação a edição de um perfil fictício com duas plataformas e sua identificação em um relato.
+
+### Responsabilidades por frente
+
 | Frente | Responsabilidade | Entrega compartilhável |
 | --- | --- | --- |
 | Produto e pesquisa | Escopo, entrevistas e validação | Decisões e resultados dos testes |
