@@ -6,7 +6,7 @@ Uma aplicação responsiva acessa uma API com regras de negócio e um banco com 
 
 ```mermaid
 flowchart TD
-    U[Aplicação web] --> API[API do SafeRide]
+    U[Frontend React] --> API[API Java com Spring Boot]
     U --> M[Camada visual do mapa]
     API --> DB[Banco de dados]
     API --> GEO[Busca de endereços e rotas]
@@ -15,7 +15,17 @@ flowchart TD
     PUB[Importação revisada de fontes públicas] --> DB
 ```
 
-A linguagem, framework, banco, hospedagem e fornecedores ainda não estão fechados. A escolha deve considerar familiaridade do grupo, exigências da disciplina, cobertura da cidade piloto, limites, custo e direitos de uso. Não criar dependência de contas da Advanced.
+React no frontend e Java com Spring Boot no backend são requisitos confirmados. Banco, hospedagem, fornecedores, versões e ferramentas de build ainda serão definidos. Essas escolhas devem considerar familiaridade do grupo, exigências da disciplina, cobertura da cidade piloto, limites, custo e direitos de uso. Não criar dependência de contas da Advanced.
+
+## Responsabilidades de cada aplicação
+
+O frontend React, em `apps/web/`, reúne as telas de consulta, mapa, painel contextual, envio de relatos e moderação. Ele apresenta os estados de carregamento e erro e consome a API por HTTP com JSON.
+
+O backend Java com Spring Boot, em `services/api/`, concentra validação, autorização, regras dos relatos, moderação, consultas de contexto e acesso ao banco. As integrações que exigem credenciais privadas ficam no backend. A interface nunca é a única responsável por verificar permissões.
+
+Manter os dois componentes no mesmo repositório, com configuração e instruções de execução próprias. Separar no backend a entrada HTTP, os serviços de negócio, a persistência e os adaptadores externos. Definir os contratos da API antes de dividir a implementação entre integrantes.
+
+A primeira entrega técnica deve demonstrar uma chamada do React a um endpoint do Spring Boot. Versões, ferramenta de build do frontend, gerenciador de dependências Java, banco e mecanismo de autenticação permanecem pendentes; não são necessários para fechar o planejamento funcional.
 
 ## Como formar o painel
 

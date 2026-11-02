@@ -2,6 +2,8 @@
 
 ## Base confirmada
 
+- Stack obrigatória: React no frontend e Java com Spring Boot no backend.
+
 - Nome do produto: SafeRide.
 - Objetivo: oferecer contexto de região e percurso para apoiar a avaliação da corrida.
 - Quatro funções: mapa, relatos, trajetos e painel contextual.
@@ -22,10 +24,10 @@
 
 ## Pendências que afetam o desenvolvimento
 
-1. Qual é o prazo da entrega e existem requisitos de linguagem, plataforma ou banco?
+1. Qual é o prazo da entrega e existem exigências adicionais de versões, ferramentas ou banco, além de React e Spring Boot?
 2. Quem compõe o grupo, quais são os usuários do GitHub e quantas horas cada pessoa pode dedicar?
 3. Qual cidade ou área deve ser usada no piloto?
-4. Quais tecnologias o grupo já domina?
+4. Qual é a experiência de cada integrante com React e Spring Boot, para dividir as tarefas?
 5. Há orçamento para serviços? Qual o teto mensal autorizado?
 6. Qual fonte pública concreta atende à área piloto e pode ser reutilizada?
 7. Quem revisará os relatos e com qual frequência?
@@ -40,3 +42,4 @@ Para cada decisão relevante, adicionar data, contexto, decisão, responsável e
 | --- | --- | --- |
 | 2026-11-02 | Manter SafeRide separado de projetos e recursos da Advanced | Solicitação do proprietário |
 | 2026-11-02 | Usar a conta pessoal lopezez-git como destino do repositório | Confirmação do proprietário |
+| 2026-11-02 | Usar React no frontend e Java com Spring Boot no backend | Requisito do proprietário |

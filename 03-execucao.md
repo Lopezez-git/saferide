@@ -6,7 +6,7 @@ Sequência proposta, sem datas fechadas: prazo, disponibilidade e integrantes ai
 
 | Etapa | Entrega verificável | Condição para avançar |
 | --- | --- | --- |
-| 1 Alinhamento | Cidade piloto, stack, responsáveis, fontes candidatas e escopo revisado | Grupo registra as decisões |
+| 1 Alinhamento | Cidade piloto, configuração da stack React e Spring Boot, responsáveis, fontes candidatas e escopo revisado | Grupo registra as decisões |
 | 2 Protótipo | Telas navegáveis com dados fictícios | Jornada de consulta compreensível e revisada |
 | 3 Consulta funcional | Mapa, endereços, rota e contexto com base demonstrativa | Percurso completo e estados de erro funcionando |
 | 4 Comunidade | Autenticação, relato e moderação persistidos | Controle de acesso e publicação verificados |
@@ -18,9 +18,9 @@ P0 é necessário para a demonstração completa. P1 é necessário para o pilot
 
 | ID | Prioridade | Tarefa | Dependência | Critério de aceite |
 | --- | --- | --- | --- | --- |
-| SR-01 | P0 | Fechar decisões iniciais | — | Cidade, stack, integrantes e prazo registrados |
+| SR-01 | P0 | Fechar decisões iniciais | — | Cidade, versões e ferramentas para React e Spring Boot, integrantes e prazo registrados |
 | SR-02 | P0 | Desenhar telas e estados | SR-01 | Jornada de consulta, envio e revisão navegável |
-| SR-03 | P0 | Preparar projeto e configuração | SR-01 | Outro integrante consegue iniciar o projeto seguindo README, sem segredos no Git |
+| SR-03 | P0 | Preparar frontend React e backend Spring Boot | SR-01 | Outro integrante inicia frontend e backend seguindo README; uma chamada React → API Spring Boot funciona, sem segredos no Git |
 | SR-04 | P0 | Preparar base demonstrativa | SR-01 | Exemplos recentes, antigos, sem dados e contraditórios, todos fictícios |
 | SR-05 | P0 | Implementar mapa e busca | SR-02, SR-03 | Seleção confirmada dos dois pontos; erro de endereço tratado |
 | SR-06 | P0 | Implementar consulta de rota | SR-05 | Geometria correta e falha do provedor tratada |

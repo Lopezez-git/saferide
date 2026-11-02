@@ -22,7 +22,7 @@ Os resultados indicam necessidades e interesse declarado entre os participantes.
 
 ## Proposta para a primeira versão
 
-Aplicação web responsiva como ponto de partida, sujeita à validação das exigências acadêmicas e das habilidades do grupo. Um município ou área piloto limita o esforço de levantamento e revisão de dados. A cidade ainda será escolhida.
+Aplicação web responsiva com React no frontend e Java com Spring Boot no backend, conforme requisito confirmado pelo proprietário. Um município ou área piloto limita o esforço de levantamento e revisão de dados. A cidade ainda será escolhida.
 
 | Função | Comportamento esperado |
 | --- | --- |
