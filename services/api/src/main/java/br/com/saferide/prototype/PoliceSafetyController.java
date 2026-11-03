@@ -1,0 +1,45 @@
+package br.com.saferide.prototype;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.context.annotation.Profile;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+import java.time.Instant;
+import java.util.*;
+
+@CrossOrigin(origins={"http://localhost:8081","http://127.0.0.1:8081"})
+@RestController @Profile("prototype") @RequestMapping("/api/v1/safety")
+public class PoliceSafetyController {
+ private final JsonNode dataset;
+ public PoliceSafetyController(ObjectMapper mapper) {
+  JsonNode loaded;
+  try(var input=new ClassPathResource("data/ssp-vehicles.json").getInputStream()){loaded=mapper.readTree(input);}
+  catch(Exception e){loaded=null;}
+  dataset=loaded;
+ }
+ public static double distance(double lat,double lon,double lat2,double lon2){
+  double a=Math.pow(Math.sin(Math.toRadians(lat2-lat)/2),2)+Math.cos(Math.toRadians(lat))*Math.cos(Math.toRadians(lat2))*Math.pow(Math.sin(Math.toRadians(lon2-lon)/2),2);
+  return 6371000*2*Math.atan2(Math.sqrt(a),Math.sqrt(Math.max(0,1-a)));
+ }
+ public static Map<String,Integer> countsWithin(JsonNode cells,double lat,double lon){
+  Map<String,Integer> counts=new TreeMap<>();
+  for(var cell:cells)if(distance(lat,lon,cell.path("latitude").asDouble(),cell.path("longitude").asDouble())<=1000)counts.merge(cell.path("category").asText(),cell.path("count").asInt(),Integer::sum);
+  return counts;
+ }
+ @GetMapping("/police") public Map<String,Object> local(@RequestParam double latitude,@RequestParam double longitude){
+  if(!Double.isFinite(latitude)||!Double.isFinite(longitude)||latitude< -24.1||latitude> -23.3||longitude< -46.9||longitude> -46.3)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Fora da área piloto.");
+  if(dataset==null)return Map.of("status","UNAVAILABLE","message","Base SSP não carregada.");
+  var counts=countsWithin(dataset.path("cells"),latitude,longitude);
+  Map<String,Object> result=new LinkedHashMap<>();
+  result.put("status","AVAILABLE");result.put("scope","RADIUS");result.put("radiusMeters",1000);result.put("city",dataset.path("city").asText());
+  result.put("total",counts.values().stream().mapToInt(Integer::intValue).sum());result.put("categories",counts);
+  for(String key:List.of("source","sourceUrl","importedAt","periodStart","periodEnd"))result.put(key,dataset.path(key).asText());
+  result.put("coverage","Boletins com veículos roubados ou furtados, coordenadas válidas e local do fato em São Paulo. Não cobre todos os crimes.");
+  result.put("methodology","Tratamento exploratório SafeRide da base bruta da SSP; deduplicação por delegacia, ano e número do BO, última versão. Não é indicador oficial de criminalidade nem alerta em tempo real.");
+  result.put("stale",Instant.parse(dataset.path("importedAt").asText()).isBefore(Instant.now().minusSeconds(30L*86400)));
+  return result;
+ }
+}

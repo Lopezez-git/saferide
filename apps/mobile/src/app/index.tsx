@@ -244,6 +244,19 @@ export default function MapScreen() {
   const reports = q.data ?? [];
   const shown = reports.filter(r => !r.validUntil || new Date(r.validUntil).getTime() > checkedAt);
   const focus = inspected ?? destination ?? origin ?? position;
+  type PoliceData = {status:string;total?:number;categories?:Record<string,number>;periodStart?:string;periodEnd?:string;sourceUrl?:string;importedAt?:string;coverage?:string;methodology?:string;stale?:boolean};
+  const policeKey=focus ? `${focus.latitude},${focus.longitude}` : "";
+  const [policeResult,setPoliceResult]=useState<{key:string;data:PoliceData|null;error:string}>({key:"",data:null,error:""});
+  useEffect(() => {
+    if(!policeKey)return;
+    const [latitude,longitude]=policeKey.split(",");const controller=new AbortController();
+    api<PoliceData>(`/safety/police?latitude=${latitude}&longitude=${longitude}`,{signal:controller.signal})
+      .then(data=>{if(!controller.signal.aborted)setPoliceResult({key:policeKey,data,error:""});})
+      .catch(e=>{if(!controller.signal.aborted)setPoliceResult({key:policeKey,data:null,error:message(e)});});
+    return ()=>controller.abort();
+  },[policeKey]);
+  const police=policeResult.key===policeKey?policeResult.data:null;
+  const policeError=policeResult.key===policeKey?policeResult.error:"";
   const nearby = focus ? shown.map(r => ({...r,distance:Math.hypot((r.latitude-focus.latitude)*111320,(r.longitude-focus.longitude)*111320*Math.cos(focus.latitude*Math.PI/180))})).filter(r => r.distance <= 1000).sort((a,b)=>a.distance-b.distance) : [];
   const actualNearby = nearby.filter(r => !/demonstração|fictício|ficticia|fictício/i.test(r.title+" "+r.body));
   const safety = actualNearby.filter(r => r.category === "SEGURANCA");
@@ -319,7 +332,7 @@ export default function MapScreen() {
           <ResourceState {...q} />
           <View style={{flexDirection:"row",flexWrap:"wrap",gap:10}}>
             {([
-              {id:"safety",title:"Segurança",color:"#A76A12",bg:"#FFF5E3",text:q.loading?"Consultando…":q.error?"Dados indisponíveis":safety.length||safetyNews.length?`${safety.length} relato(s) · ${safetyNews.length} notícia(s)`:news.loading?"Consultando notícias…":news.error||news.data?.status==="UNAVAILABLE"?"Notícias indisponíveis":"Sem registros nas fontes",caption:"Relatos e notícias · veja o alcance"},
+              {id:"safety",title:"Segurança",color:"#A76A12",bg:"#FFF5E3",text:police?.status==="AVAILABLE"?`${police.total} BO(s) em até 1 km`:policeError||police?.status==="UNAVAILABLE"?"Base policial indisponível":policeKey?"Consultando SSP…":"Selecione um local",caption:police?.status==="AVAILABLE"?`Veículos · ${police.periodStart} a ${police.periodEnd}`:"SSP · veículos roubados/furtados"},
               {id:"pavement",title:"Pavimento",color:"#B5532A",bg:"#FFF0E9",text:q.loading?"Consultando…":q.error?"Dados indisponíveis":pavement.length||pavementNews.length?`${pavement.length} relato(s) · ${pavementNews.length} notícia(s)`:news.loading?"Consultando notícias…":news.error||news.data?.status==="UNAVAILABLE"?"Notícias indisponíveis":"Sem registros nas fontes",caption:"Pavimento e obras · sem vistoria"},
               {id:"news",title:"Notícias",color:"#2563B5",bg:"#EBF3FF",text:news.loading?"Consultando…":news.error?"Fonte indisponível":!newsPlace?"Selecione um endereço":news.data?.status==="UNAVAILABLE"?"Consulta indisponível":`${news.data?.items.length ?? 0} notícia(s) do local e entorno`,caption:"Segurança e condições do trajeto"},
               {id:"community",title:"Comunidade",color:"#7952B3",bg:"#F4EEFF",text:q.loading?"Consultando…":q.error?"Dados indisponíveis":actualNearby.length?`${actualNearby.length} relato(s) do local`:"Sem relatos reais aqui",caption:"Experiências de motoristas"},
@@ -336,7 +349,21 @@ export default function MapScreen() {
             </Pressable>)}
           </View>
           <Text style={styles.subtitle}>Toque em um card para ver os detalhes. As cores identificam assuntos, não níveis de risco.</Text>
-          {topic === "safety" ? <><Text style={styles.heading}>Segurança nas proximidades</Text><Text style={styles.body}>{safety.length||safetyNews.length?"Confira a data e a fonte de cada registro abaixo.":news.error||news.data?.status==="UNAVAILABLE"?"A consulta de notícias está indisponível; não foi possível verificar a cobertura de segurança.":"Não encontramos relatos ou notícias de segurança nas fontes consultadas. Estatísticas policiais ainda não estão integradas."}</Text><Text style={styles.subtitle}>Ausência de relatos não significa lugar seguro. Registros anteriores não confirmam ocorrência em andamento.</Text></> : null}
+          {topic === "safety" ? <>
+            <Text style={styles.heading}>Histórico policial · raio de 1 km</Text>
+            {police?.status === "AVAILABLE" ? <View style={[styles.card,{backgroundColor:"#FFF5E3"}]}>
+              <Text style={styles.heading}>{police.total} boletim(ns) com veículos subtraídos</Text>
+              <Text style={styles.body}>Período dos fatos na base: {police.periodStart} a {police.periodEnd} · São Paulo</Text>
+              {Object.entries(police.categories || {}).map(([name,count])=><Text key={name} style={styles.body}>{name}: {count}</Text>)}
+              <Text style={styles.subtitle}>{police.coverage}</Text>
+              <Text style={styles.subtitle}>{police.methodology}</Text>
+              <Text style={styles.subtitle}>Base importada em {police.importedAt ? when(police.importedAt) : "—"}{police.stale ? " · atualização pendente" : ""}. Coordenadas aproximadas; registros sem localização válida não entram na contagem.</Text>
+              {police.sourceUrl ? <Pressable accessibilityRole="link" onPress={()=>Linking.openURL(police.sourceUrl!).catch(e=>setError(message(e)))}><Text style={{color:"#087F71",fontWeight:"700",paddingVertical:8}}>Consultar base original da SSP-SP ↗</Text></Pressable> : null}
+            </View> : <Text style={styles.body}>{policeError||police?.status==="UNAVAILABLE"?"Não foi possível consultar a base policial. Isso não significa ausência de ocorrências.":"Consultando histórico da SSP-SP…"}</Text>}
+            <Text style={styles.subtitle}>Essa contagem não classifica o lugar como seguro ou perigoso. Zero registros nesta base não significa ausência de violência.</Text>
+            <Text style={styles.heading}>Notícias e relatos locais</Text>
+            <Text style={styles.body}>{safety.length} relato(s) da comunidade · {safetyNews.length} notícia(s) de segurança no contexto selecionado.</Text>
+          </> : null}
           {topic === "pavement" ? <><Text style={styles.heading}>Condições do pavimento</Text><Text style={styles.body}>{pavement.length||pavementNews.length?"Relatos e notícias de pavimento ou obras, com o local indicado abaixo.":news.error||news.data?.status==="UNAVAILABLE"?"A consulta de notícias está indisponível; não foi possível verificar a cobertura de pavimento.":"Não encontramos relatos ou notícias sobre pavimento nas fontes consultadas. A base pública de solicitações de tapa-buraco ainda não está integrada."}</Text></> : null}
           {topic === "community" ? <><Text style={styles.heading}>Quem passa por aqui</Text><Text style={styles.body}>{actualNearby.length?"Relatos de motoristas próximos do ponto selecionado.":"A comunidade ainda não tem relatos reais deste local. Compartilhe o que você observou para ajudar quem passa por aqui."}</Text><Button title="Abrir comunidade" secondary onPress={() => router.push("/community")} /></> : null}
           {(topic === "news" ? [] : actualNearby.filter(r => topic === "community" || r.category === (topic === "safety" ? "SEGURANCA" : "PAVIMENTO"))).map(r => <View key={r.id} style={styles.card}>

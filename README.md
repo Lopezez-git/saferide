@@ -88,3 +88,8 @@ As pastas apps/mobile e services/api contêm a base inicial. Nenhuma implantaç�
 ## Começar a desenvolver
 
 Consulte [08-execucao-local.md](08-execucao-local.md) para executar API, app e configurar o MySQL. Mapa é a tela inicial, agora interativo, com seleção de pontos e rota. Comunidade e Perfil têm ações persistentes; veja [fluxos verificados](09-prototipo-funcional.md).
+
+
+### Histórico policial no mapa
+
+O card Segurança já consulta uma base agregada de boletins da SSP-SP sobre veículos roubados/furtados em São Paulo, por raio de 1 km. Exibe período dos fatos, contagens e fonte, sem classificar automaticamente o local como seguro/perigoso. A fotografia inicial cobre janeiro–setembro de 2026 e não é um alerta em tempo real. Consulte [integração SSP, metodologia e atualização](11-integracao-ssp.md).

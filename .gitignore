@@ -22,3 +22,7 @@ local.properties
 
 # Generated agent-specific preferences
 .claude/
+
+# Python import tooling
+__pycache__/
+*.pyc
