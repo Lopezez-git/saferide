@@ -305,7 +305,7 @@ export default function MapScreen() {
   const accessSummary = !focus ? "Selecione um local"
     : accessError || accessData?.status === "UNAVAILABLE" ? "Base SP156 indisponível"
     : !accessData ? "Consultando SP156…"
-    : accessData.totalRequests ? `${accessData.totalRequests} pedidos no arquivo`
+    : accessData.totalRequests ? `${accessData.totalRequests} solicitações à Prefeitura`
     : q.loading && !q.data ? "Consultando relatos…"
     : q.error && !q.data ? "Relatos indisponíveis"
     : newsPlace && news.loading ? "Consultando fontes…"
@@ -445,7 +445,8 @@ export default function MapScreen() {
             <Text style={styles.heading}>Trânsito e acesso no entorno</Text>
             <Text style={styles.body}>Solicitações públicas sobre circulação, acesso, alagamentos, árvores e reparos estruturais, além de relatos revisados e notícias locais.</Text>
             {accessData?.status==="AVAILABLE" ? <View style={[styles.card,{backgroundColor:"#EBF3FF"}]}>
-              <Text style={styles.heading}>{accessData.totalRequests} solicitações SP156 · {accessOpen} abertas ou em andamento na publicação</Text>
+              <Text style={styles.heading}>{accessData.totalRequests} solicitações à Prefeitura sobre vias e acesso</Text>
+              <Text style={styles.body}>{accessOpen} constavam abertas ou em andamento na publicação do SP156.</Text>
               <Text style={styles.body}>{accessData.categories?.ACESSO ?? 0} de circulação/acesso · {accessData.categories?.ALAGAMENTO ?? 0} de alagamento · {accessData.categories?.OBSTACULO ?? 0} de árvore/galho · {accessData.categories?.ESTRUTURA ?? 0} de reparos estruturais.</Text>
               <Text style={styles.subtitle}>Pedidos abertos entre {shortDate(accessData.periodStart)} e {shortDate(accessData.periodEnd)}. Status da publicação de {shortDate(accessData.sourceUpdatedAt)}{accessData.stale?" · atualização pendente":""}.</Text>
               <Text style={styles.subtitle}>{accessData.meaning} Ausência de pedidos não confirma via livre.</Text>
