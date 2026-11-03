@@ -4,8 +4,8 @@ from unittest.mock import patch
 import import_ssp_vehicles as importer
 class ImportTest(unittest.TestCase):
  def test_excel_hour_buckets_and_missing_hour(self):
-  self.assertEqual(importer.time_window("0.25"),"06-12")
-  self.assertEqual(importer.time_window("0.75"),"18-24")
+  self.assertEqual(importer.time_window("0.25"),"06")
+  self.assertEqual(importer.time_window("0.75"),"18")
   self.assertIsNone(importer.time_window("NULL"))
   self.assertIsNone(importer.time_window("1.5"))
  def test_dedup_latest_version_recovered_and_ambiguous_locations(self):

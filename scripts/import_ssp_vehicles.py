@@ -12,8 +12,7 @@ def time_window(value):
     try:
         fraction=float(value)
         if not math.isfinite(fraction) or not 0 <= fraction < 1:return None
-        hour=int(fraction*24)
-        return ("00-06","06-12","12-18","18-24")[hour//6]
+        return f"{int(fraction*24):02d}"
     except (TypeError,ValueError):return None
 def rows(path):
     with zipfile.ZipFile(path) as z:

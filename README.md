@@ -10,7 +10,7 @@ Uma solução de contexto territorial, com protótipo mobile e uma comunidade de
 
 O SafeRide complementa a avaliação de valor, distância e tempo. Não garante segurança, não determina quais corridas ou entregas aceitar e não classifica bairros como seguros ou perigosos.
 
-O protótipo consulta um histórico de veículos subtraídos da SSP-SP no entorno do ponto selecionado. A consulta separa os BOs pela **hora declarada do fato** em quatro faixas de seis horas; inicia pela faixa atual de São Paulo e permite trocar de horário. Registros sem hora confiável aparecem à parte. São dados históricos, sem taxa de risco ou aviso policial em tempo real. Veja [fonte, método e limitações](11-integracao-ssp.md).
+O protótipo consulta um histórico de veículos subtraídos da SSP-SP no entorno do ponto selecionado. O card usa automaticamente a **hora atual de São Paulo** para mostrar BOs registrados nessa mesma hora em meses anteriores, sem exigir escolha de horário. Registros sem hora confiável aparecem à parte. São dados históricos, sem taxa de risco ou aviso policial em tempo real. Veja [fonte, método e limitações](11-integracao-ssp.md).
 
 ## Modelo do produto e caixinha flutuante
 

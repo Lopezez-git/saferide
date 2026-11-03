@@ -33,7 +33,7 @@ public class PoliceSafetyController {
  }
  public static Map<String,Object> timeBreakdown(JsonNode cells,double lat,double lon){
   Map<String,Object> windows=new LinkedHashMap<>();
-  for(String window:List.of("00-06","06-12","12-18","18-24"))windows.put(window,new TreeMap<String,Integer>());
+  for(int hour=0;hour<24;hour++)windows.put(String.format(Locale.ROOT,"%02d",hour),new TreeMap<String,Integer>());
   int unknown=0;
   for(var cell:cells){
    if(distance(lat,lon,cell.path("latitude").asDouble(),cell.path("longitude").asDouble())>1000)continue;
@@ -54,7 +54,7 @@ public class PoliceSafetyController {
   var times=timeBreakdown(dataset.path("cells"),latitude,longitude);
   result.putAll(times);
   int hour=ZonedDateTime.now(ZoneId.of("America/Sao_Paulo")).getHour();
-  result.put("currentTimeWindow",List.of("00-06","06-12","12-18","18-24").get(hour/6));
+  result.put("currentTimeWindow",String.format(Locale.ROOT,"%02d",hour));
   result.put("timeZone","America/Sao_Paulo");
   for(String key:List.of("source","sourceUrl","importedAt","periodStart","periodEnd"))result.put(key,dataset.path(key).asText());
   result.put("coverage","Boletins com veículos roubados ou furtados, coordenadas válidas e local do fato em São Paulo. Não cobre todos os crimes.");
