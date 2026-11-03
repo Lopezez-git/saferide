@@ -49,6 +49,28 @@ npm run web
 
 A prévia para apresentação fica em http://localhost:8081. É a interface React Native renderizada no navegador, não uma build Android instalada. API aceita CORS somente dessa origem local e 127.0.0.1:8081; não exige liberar o MySQL na rede.
 
+### Testar no Android com Expo Go pela rede Wi-Fi
+
+O celular e o PC devem estar na mesma rede Wi-Fi. Para o app consultar a API, use o IPv4 do Wi-Fi do PC no backend e no Expo, em vez de `127.0.0.1`. Em dois terminais PowerShell, a partir da raiz do repositório:
+
+```powershell
+$wifiIp = (Get-NetIPAddress -InterfaceAlias 'Wi-Fi' -AddressFamily IPv4 | Select-Object -First 1).IPAddress
+# Terminal da API: configure também as variáveis do MySQL descritas acima.
+$env:API_BIND_ADDRESS = $wifiIp
+$env:SPRING_PROFILES_ACTIVE = 'mysql,prototype'
+mvn -f services/api/pom.xml spring-boot:run
+```
+
+```powershell
+$wifiIp = (Get-NetIPAddress -InterfaceAlias 'Wi-Fi' -AddressFamily IPv4 | Select-Object -First 1).IPAddress
+$env:EXPO_PUBLIC_API_URL = "http://${wifiIp}:8080"
+$env:REACT_NATIVE_PACKAGER_HOSTNAME = $wifiIp
+cd apps/mobile
+npx expo start --go --lan
+```
+
+Instale o [Expo Go para Android compatível com SDK 58](https://expo.dev/go) e escaneie o QR code mostrado pelo Expo. Se o Windows bloquear a conexão, libere as portas TCP 8080 e 8081 **apenas para a rede Wi-Fi local**. O MySQL continua acessível só em `127.0.0.1:3307`; não abra sua porta na rede. O endereço IP pode mudar ao reconectar o Wi-Fi, exigindo reiniciar os dois servidores. O acesso pelo QR e o GPS precisam ser confirmados no aparelho físico.
+
 No Android, configurar o SDK e dispositivo autorizado, depois:
 
 ```powershell
