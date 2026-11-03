@@ -14,7 +14,7 @@ O protótipo consulta um histórico de veículos subtraídos da SSP-SP no entorn
 
 O card **Pavimento** também consulta solicitações públicas de tapa-buraco do SP156 no raio de 1 km. Mostra quantos pedidos constavam abertos ou finalizados na data da publicação, com rua, data e fonte. Pedido não comprova um buraco ativo; ausência de pedidos não comprova via em boas condições. Veja [fonte, importação e limitações do SP156](12-integracao-sp156.md).
 
-O painel do mapa reúne quatro assuntos: **Segurança, Pavimento, Trânsito e acesso, Comunidade**. O card **Trânsito e acesso** reúne relatos territoriais revisados sobre obras, alagamentos e dificuldades de acesso no raio de 1 km, além de notícias locais sobre trânsito, acidentes, clima e obras. Notícias são exibidas como fontes datadas, não como uma categoria própria nem como confirmação de bloqueio ativo. No protótipo, esse card ainda não consulta uma base oficial de interdições em tempo real.
+O painel do mapa reúne quatro assuntos: **Segurança, Pavimento, Trânsito e acesso, Comunidade**. O card **Trânsito e acesso** consulta solicitações públicas do SP156 sobre circulação, alagamentos, árvores e reparos estruturais no raio de 1 km, além de relatos revisados e notícias locais sobre trânsito, acidentes, clima e obras. Cada origem mantém fonte e data próprias. Solicitações e notícias não confirmam bloqueio ativo; o protótipo ainda não consulta uma base oficial de interdições em tempo real. Veja [fonte, recorte e limites dessa integração](13-integracao-sp156-acesso.md).
 
 ## Modelo do produto e caixinha flutuante
 

@@ -10,6 +10,7 @@ React Native/Expo SDK 58, Expo Router e TypeScript; Spring Boot 3.5.7/Java 21; M
 - Mapa OpenStreetMap/Leaflet com seleção de pontos, filtros e lista de relatos revisados.
 - Histórico SSP-SP de veículos subtraídos no raio de 1 km, agregado pela hora declarada do fato. O card usa automaticamente a hora atual de São Paulo, sem seletor; BOs sem horário confiável aparecem separados. É histórico, não alerta em tempo real ou classificação de segurança. O backend precisa ser reiniciado após reimportar a base.
 - Solicitações públicas de tapa-buraco do SP156, abertas no 3º trimestre de 2026, com localização, status na publicação de 13/10/2026 e data. O card Pavimento consulta o raio de 1 km. Pedidos não são vistoria; zero pedidos não significa via em boas condições. Fonte, importação e limitações em 12-integracao-sp156.md.
+- Solicitações públicas do SP156 sobre circulação/acesso, alagamento, queda de árvore ou galho e reparos estruturais no card Trânsito e acesso, também em raio de 1 km. Status corresponde à publicação de 13/10/2026; pedido não confirma condição atual da via. Fonte, atualização e limites em 13-integracao-sp156-acesso.md.
 - Consulta de rota para carro via serviço de demonstração OSRM; distância e duração estimadas, sem trânsito ao vivo.
 - Envio de relato observado agora, pendência de revisão, aprovação/rejeição/retirada pelo moderador e trilha da decisão.
 - Contexto próximo à rota: distância aproximada de até 300 m; não comprova que o registro é na mesma via.

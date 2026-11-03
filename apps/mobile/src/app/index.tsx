@@ -273,6 +273,20 @@ export default function MapScreen() {
   const pavementData=pavementResult.key===policeKey?pavementResult.data:null;
   const pavementError=pavementResult.key===policeKey?pavementResult.error:"";
   const pavementOpen=(pavementData?.statuses?.Aberto ?? 0)+(pavementData?.statuses?.["Em andamento"] ?? 0);
+  type AccessRequest = {openedAt:string;finishedAt?:string|null;street:string;number:string;service:string;category:string;status:string;distanceMeters:number;sameDetailsCount?:number};
+  type AccessData = {status:string;totalRequests?:number;statuses?:Record<string,number>;categories?:Record<string,number>;items?:AccessRequest[];sourceUrl?:string;sourceUpdatedAt?:string;periodStart?:string;periodEnd?:string;stale?:boolean;meaning?:string};
+  const [accessResult,setAccessResult]=useState<{key:string;data:AccessData|null;error:string}>({key:"",data:null,error:""});
+  useEffect(() => {
+    if(!policeKey)return;
+    const [latitude,longitude]=policeKey.split(",");const controller=new AbortController();
+    api<AccessData>(`/access/requests?latitude=${latitude}&longitude=${longitude}`,{signal:controller.signal})
+      .then(data=>{if(!controller.signal.aborted)setAccessResult({key:policeKey,data,error:""});})
+      .catch(e=>{if(!controller.signal.aborted)setAccessResult({key:policeKey,data:null,error:message(e)});});
+    return ()=>controller.abort();
+  },[policeKey]);
+  const accessData=accessResult.key===policeKey?accessResult.data:null;
+  const accessError=accessResult.key===policeKey?accessResult.error:"";
+  const accessOpen=(accessData?.statuses?.Aberto ?? 0)+(accessData?.statuses?.["Em Andamento"] ?? 0)+(accessData?.statuses?.["Em andamento"] ?? 0);
   const activeTime = police?.currentTimeWindow;
   const timeCategories = activeTime ? police?.windows?.[activeTime] : undefined;
   const timeTotal = Object.values(timeCategories ?? {}).reduce((sum,count)=>sum+count,0);
@@ -289,6 +303,9 @@ export default function MapScreen() {
   const topicNews = topic === "safety" ? safetyNews : topic === "pavement" ? pavementNews : topic === "access" ? accessNews : [];
   const topicReports = topic === "community" ? actualNearby : topic === "safety" ? safety : topic === "pavement" ? pavement : accessReports;
   const accessSummary = !focus ? "Selecione um local"
+    : accessError || accessData?.status === "UNAVAILABLE" ? "Base SP156 indisponível"
+    : !accessData ? "Consultando SP156…"
+    : accessData.totalRequests ? `${accessData.totalRequests} pedidos no arquivo`
     : q.loading && !q.data ? "Consultando relatos…"
     : q.error && !q.data ? "Relatos indisponíveis"
     : newsPlace && news.loading ? "Consultando fontes…"
@@ -367,7 +384,7 @@ export default function MapScreen() {
             {([
               {id:"safety",title:"Segurança",color:"#3B6467",bg:"#EFF5F3",text:police?.status==="AVAILABLE"?(hasTimeData?`Histórico ${timeLabel} · ${timeTotal} ${timeTotal===1?"BO":"BOs"}`:"Recorte horário indisponível"):policeError||police?.status==="UNAVAILABLE"?"Base policial indisponível":policeKey?"Consultando SSP…":"Selecione um local",caption:police?.status==="AVAILABLE"?"Hora atual · SSP-SP · veículos · 1 km":"SSP · veículos roubados/furtados"},
               {id:"pavement",title:"Pavimento",color:"#B5532A",bg:"#FFF0E9",text:pavementData?.status==="AVAILABLE"?(pavementOpen?`${pavementOpen} pedidos abertos no arquivo`:pavementData.totalRequests?`${pavementData.totalRequests} pedidos SP156`:"Sem pedidos nesta base"):pavementError||pavementData?.status==="UNAVAILABLE"?"Base SP156 indisponível":policeKey?"Consultando SP156…":"Selecione um local",caption:pavementData?.status==="AVAILABLE"?`SP156 · 1 km · status em ${shortDate(pavementData.sourceUpdatedAt)}`:"Pedidos de tapa-buraco · sem vistoria"},
-              {id:"access",title:"Trânsito e acesso",color:"#2563B5",bg:"#EBF3FF",text:accessSummary,caption:"Obras, bloqueios, alagamentos e acesso"},
+              {id:"access",title:"Trânsito e acesso",color:"#2563B5",bg:"#EBF3FF",text:accessSummary,caption:accessData?.status==="AVAILABLE"?`SP156 · 1 km · status em ${shortDate(accessData.sourceUpdatedAt)}`:"Obras, alagamentos e acesso"},
               {id:"community",title:"Comunidade",color:"#7952B3",bg:"#F4EEFF",text:q.loading?"Consultando…":q.error?"Dados indisponíveis":actualNearby.length?`${actualNearby.length} relato(s) do local`:"Sem relatos reais aqui",caption:"Experiências de motoristas"},
             ] as const).map(card => <Pressable key={card.id} accessibilityRole="button" accessibilityState={{selected:topic===card.id}} accessibilityLabel={`${card.title}: ${card.text}`} onPress={() => setTopic(card.id)} style={({pressed}) => ({width:"48%",flexGrow:1,minHeight:142,padding:13,gap:6,borderRadius:18,backgroundColor:card.bg,borderWidth:2,borderColor:topic===card.id?card.color:"transparent",opacity:pressed?0.8:1})}>
               <Svg width={27} height={27} viewBox="0 0 24 24" fill="none" stroke={card.color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" accessible={false}>
@@ -426,11 +443,25 @@ export default function MapScreen() {
           {topic === "community" ? <><Text style={styles.heading}>Quem passa por aqui</Text><Text style={styles.body}>{actualNearby.length?"Relatos de motoristas próximos do ponto selecionado.":"A comunidade ainda não tem relatos reais deste local. Compartilhe o que você observou para ajudar quem passa por aqui."}</Text><Button title="Abrir comunidade" secondary onPress={() => router.push("/community")} /></> : null}
           {topic === "access" ? <>
             <Text style={styles.heading}>Trânsito e acesso no entorno</Text>
-            <Text style={styles.body}>Registros próximos ao ponto selecionado: obras, interdições, alagamentos e dificuldades de acesso. Relatos revisados e notícias aparecem separadamente abaixo, com fonte e data.</Text>
+            <Text style={styles.body}>Solicitações públicas sobre circulação, acesso, alagamentos, árvores e reparos estruturais, além de relatos revisados e notícias locais.</Text>
+            {accessData?.status==="AVAILABLE" ? <View style={[styles.card,{backgroundColor:"#EBF3FF"}]}>
+              <Text style={styles.heading}>{accessData.totalRequests} solicitações SP156 · {accessOpen} abertas ou em andamento na publicação</Text>
+              <Text style={styles.body}>{accessData.categories?.ACESSO ?? 0} de circulação/acesso · {accessData.categories?.ALAGAMENTO ?? 0} de alagamento · {accessData.categories?.OBSTACULO ?? 0} de árvore/galho · {accessData.categories?.ESTRUTURA ?? 0} de reparos estruturais.</Text>
+              <Text style={styles.subtitle}>Pedidos abertos entre {shortDate(accessData.periodStart)} e {shortDate(accessData.periodEnd)}. Status da publicação de {shortDate(accessData.sourceUpdatedAt)}{accessData.stale?" · atualização pendente":""}.</Text>
+              <Text style={styles.subtitle}>{accessData.meaning} Ausência de pedidos não confirma via livre.</Text>
+              {accessData.sourceUrl ? <Pressable accessibilityRole="link" onPress={()=>Linking.openURL(accessData.sourceUrl!).catch(e=>setError(message(e)))}><Text style={{color:"#2563B5",fontWeight:"700",paddingVertical:8}}>Consultar dados originais do SP156 ↗</Text></Pressable> : null}
+            </View> : <Text style={styles.body}>{accessError||accessData?.status==="UNAVAILABLE"?"Base pública SP156 indisponível. Relatos e notícias ainda podem aparecer abaixo.":"Consultando solicitações do SP156…"}</Text>}
+            {accessData?.items?.length ? <Text style={styles.heading}>Solicitações próximas · {(accessData.totalRequests ?? 0) > accessData.items.length ? `${accessData.items.length} mais recentes` : "lista disponível"}</Text> : null}
+            {accessData?.items?.map((item,index)=><View key={`${item.openedAt}-${item.street}-${item.number}-${index}`} style={styles.card}>
+              <Text style={styles.label}>SP156 · {item.status} · {item.distanceMeters} m do ponto</Text>
+              <Text style={styles.heading}>{item.service} · {item.street}{item.number?`, ${item.number}`:""}</Text>
+              <Text style={styles.subtitle}>Pedido aberto em {shortDate(item.openedAt)}{item.finishedAt?` · protocolo encerrado em ${shortDate(item.finishedAt)}`:""}</Text>
+              {(item.sameDetailsCount ?? 1)>1?<Text style={styles.subtitle}>{item.sameDetailsCount} registros publicados com os mesmos dados; podem se referir ao mesmo problema.</Text>:null}
+            </View>)}
             <Text style={styles.subtitle}>Notícia é uma fonte, não confirmação de bloqueio atual. Relatos têm validade limitada; ausência de registros não confirma via livre.</Text>
             {newsPlace ? <ResourceState {...news} refresh={() => {setLocalNews({place:newsKey,data:null,error:"",loading:true});setNewsVersion(v=>v+1);}} /> : <Text style={styles.subtitle}>Para consultar notícias, busque e selecione um endereço. Um toque sem nome no mapa permite consultar relatos próximos, mas não identifica a rua para a busca de notícias.</Text>}
             {news.data?.status === "UNAVAILABLE" ? <Text style={styles.subtitle}>Busca de notícias indisponível; resultados anteriores deste mesmo local podem aparecer com a data original.</Text> : null}
-            {!q.loading && !q.error && !news.loading && !news.error && news.data?.status !== "UNAVAILABLE" && accessReports.length === 0 && accessNews.length === 0 ? <Text style={styles.body}>Sem informações disponíveis para este local nas fontes consultadas. Isso não significa que o trajeto esteja livre de problemas.</Text> : null}
+            {!q.loading && !q.error && !news.loading && !news.error && news.data?.status !== "UNAVAILABLE" && accessData?.status === "AVAILABLE" && !accessData.totalRequests && accessReports.length === 0 && accessNews.length === 0 ? <Text style={styles.body}>Sem informações disponíveis para este local nas fontes consultadas. Isso não significa que o trajeto esteja livre de problemas.</Text> : null}
           </> : null}
           {topic === "access" && accessReports.length > 0 ? <Text style={styles.heading}>Relatos revisados · até 1 km</Text> : null}
           {topicReports.map(r => <View key={r.id} style={styles.card}>
