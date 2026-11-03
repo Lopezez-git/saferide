@@ -16,6 +16,8 @@ O card **Pavimento** também consulta solicitações públicas de tapa-buraco do
 
 O painel do mapa reúne quatro assuntos: **Segurança, Pavimento, Trânsito e acesso, Comunidade**. Após traçar uma viagem, o card **Trânsito e acesso** consulta uma estimativa de atraso entre origem e destino pela TomTom e resume o resultado como trânsito tranquilo, moderado ou congestionado, com duração, atraso e horário da consulta. Isso exige uma chave pessoal configurada no backend; sem ela ou com falha, o card informa indisponibilidade, sem inventar um estado de trânsito. Veja [fonte, critérios e configuração](14-transito-da-viagem.md). Nos detalhes, continuam separados os pedidos históricos do SP156 sobre circulação, alagamentos, árvores e reparos estruturais, os relatos revisados e as notícias locais. Essas fontes não confirmam bloqueio ativo; veja [fonte e limites do SP156](13-integracao-sp156-acesso.md).
 
+A linha do trajeto usa OSRM e sua duração não inclui trânsito ao vivo. Para vias com o mesmo nome em bairros diferentes, o usuário precisa escolher o trecho correto. O mapa distingue o ponto cadastrado do destino do fim da via acessível a carros. Veja a [auditoria da rota Avenida Curió, Campanário → Morumbi Shopping](15-auditoria-rota-curio-morumbi.md).
+
 ## Modelo do produto e caixinha flutuante
 
 A proposta escolhida é fornecer contexto junto de ofertas de plataformas como Uber, 99 e iFood por uma caixinha flutuante do SafeRide sobre o aplicativo utilizado. O cartão pode ser movido, minimizado ou fechado, sem bloquear aceitar/recusar. Comunidade e detalhes ficam no app SafeRide.

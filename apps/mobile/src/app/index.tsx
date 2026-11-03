@@ -22,6 +22,7 @@ import { locate, DevicePosition } from "../lib/location";
 
 const inPilot = (p: MapPoint) => p.latitude >= -24.1 && p.latitude <= -23.3 && p.longitude >= -46.9 && p.longitude <= -46.3;
 const shortDate = (iso?: string | null) => iso && /^\d{4}-\d{2}-\d{2}$/.test(iso) ? `${iso.slice(8,10)}/${iso.slice(5,7)}/${iso.slice(0,4)}` : "—";
+const distanceMeters = (a: MapPoint, b: MapPoint) => Math.hypot((a.latitude-b.latitude)*111320,(a.longitude-b.longitude)*111320*Math.cos(a.latitude*Math.PI/180));
 
 const categories = {
   OBRA: "Obras",
@@ -87,6 +88,8 @@ export default function MapScreen() {
   const [placeFocus, setPlaceFocus] = useState<(MapPoint & { key: number }) | null>(null);
   const [originName, setOriginName] = useState("");
   const [destinationName, setDestinationName] = useState("");
+  const [originAccuracy, setOriginAccuracy] = useState("");
+  const [destinationAccuracy, setDestinationAccuracy] = useState("");
   const lastSearchAt = useRef(0);
   const placeCache = useRef(new Map<string, PlaceResult[]>());
   useFocusEffect(useCallback(() => {
@@ -167,8 +170,8 @@ export default function MapScreen() {
       request.current++;
       setRouting(false);
       setRoute(null);
-        if (mode === "origin") { manualOrigin.current = true; setOrigin(p); setOriginName(""); }
-      else { setDestination(p); setDestinationName(""); }
+        if (mode === "origin") { manualOrigin.current = true; setOrigin(p); setOriginName(""); setOriginAccuracy(""); }
+      else { setDestination(p); setDestinationName(""); setDestinationAccuracy(""); }
     }
   }
   function cancelRoute() {
@@ -177,6 +180,7 @@ export default function MapScreen() {
     setRoute(null);
     setDestination(null);
     setDestinationName("");
+    setDestinationAccuracy("");
     setPoint(null);
     setInspected(null);
     setLocalName("");
@@ -330,6 +334,8 @@ export default function MapScreen() {
   const contextual = route
     ? reports.filter((r) => nearRoute(r, route.geometry.coordinates))
     : [];
+  const routeEnd = route?.geometry.coordinates[route.geometry.coordinates.length - 1];
+  const destinationRoadGap = routeEnd && destination ? Math.round(distanceMeters(destination,{latitude:routeEnd[1],longitude:routeEnd[0]})) : 0;
   return (
     <View style={{flex:1,backgroundColor:"#E6E9E3"}} onLayout={(event) => setMapHeight(event.nativeEvent.layout.height)}>
       <MapCanvas
@@ -361,8 +367,8 @@ export default function MapScreen() {
       {places.length > 0 ? <Text style={[styles.subtitle,{paddingTop:10}]}>Sugestões em São Paulo e região</Text> : null}
       {places.map((place) => <Pressable key={place.id} accessibilityRole="button" accessibilityLabel={`${place.name}, ${place.address}`} onPress={() => {
           Keyboard.dismiss(); setSheetOpen(true); pick(place); setNewsPlace(place.city ? place.name : ""); setNewsCity(place.city || ""); setNewsArea({street:place.street||"",district:place.district||""}); setLocalName([place.name,place.address].filter(Boolean).join(" · "));
-          if (mode === "origin") { setOriginName([place.name,place.address].filter(Boolean).join(" · ")); setMode("destination"); }
-          else if (mode === "destination") setDestinationName([place.name,place.address].filter(Boolean).join(" · "));
+          if (mode === "origin") { setOriginName([place.name,place.address].filter(Boolean).join(" · ")); setOriginAccuracy(place.accuracy||""); setMode("destination"); }
+          else if (mode === "destination") { setDestinationName([place.name,place.address].filter(Boolean).join(" · ")); setDestinationAccuracy(place.accuracy||""); }
           setPlaceFocus({ latitude: place.latitude, longitude: place.longitude, key: Date.now() });
           searchRequest.current++; setSearching(false); setSearch(""); setPlaces([]); setSearched(false);
         }} style={({pressed}) => ({flexDirection:"row",alignItems:"center",gap:12,paddingVertical:13,paddingHorizontal:8,borderBottomWidth:1,borderBottomColor:"#EDF0EE",backgroundColor:pressed?"#EDF5F2":"white",borderRadius:8})}>
@@ -546,8 +552,11 @@ export default function MapScreen() {
           {origin && destination ? <View style={styles.card}>
             <Text style={styles.heading}>Trajeto selecionado</Text>
             <Text style={styles.subtitle}>De: {originName || "Ponto marcado no mapa"}</Text>
+            {originAccuracy.startsWith("Trecho") ? <Text style={styles.subtitle}>A origem é um trecho aproximado da avenida. Escolha um ponto no mapa ou informe o número para calcular desde o local exato.</Text> : null}
             <Text style={styles.subtitle}>Para: {destinationName || "Ponto marcado no mapa"}</Text>
-            {route ? <Text style={styles.body}>{(route.distance/1000).toFixed(1)} km · cerca de {Math.round(route.duration/60)} min · {contextual.length} relato(s) próximo(s) ao percurso</Text> : null}
+            {destinationAccuracy.startsWith("Trecho") ? <Text style={styles.subtitle}>O destino também é um trecho aproximado da via.</Text> : null}
+            {route ? <Text style={styles.body}>{(route.distance/1000).toFixed(1)} km · cerca de {Math.round(route.duration/60)} min pelo OSRM, sem trânsito ao vivo · {contextual.length} relato(s) próximo(s) ao percurso</Text> : null}
+            {destinationRoadGap >= 30 ? <Text style={styles.subtitle}>A linha termina na via acessível a carros, a cerca de {destinationRoadGap} m do ponto cadastrado do destino. Confirme o acesso no local.</Text> : null}
           </View> : null}
           <Text style={styles.subtitle}>Protótipo acadêmico · fontes e detalhes nos relatos.</Text>
         </ScrollView> : null}
@@ -555,7 +564,7 @@ export default function MapScreen() {
       {route && !search ? <View style={{position:"absolute",bottom:0,left:0,right:0,height:84,padding:12,gap:10,flexDirection:"row",backgroundColor:"white",borderTopWidth:1,borderTopColor:"#E1E8E5"}}>
         <Pressable accessibilityRole="button" accessibilityLabel="Ver detalhes do trajeto" onPress={() => setSheetOpen(true)} style={{flex:1,justifyContent:"center",paddingHorizontal:12,borderRadius:16,backgroundColor:"#17211D"}}>
           <Text style={{color:"white",fontWeight:"700",fontSize:16}}>{(route.distance/1000).toFixed(1)} km · {Math.round(route.duration/60)} min</Text>
-          <Text style={{color:"#E0EBE6",fontSize:12}}>Ver trajeto</Text>
+          <Text style={{color:"#E0EBE6",fontSize:12}}>Estimativa sem trânsito ao vivo · ver trajeto</Text>
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="Cancelar trajeto" onPress={cancelRoute} style={({pressed}) => ({minHeight:56,paddingHorizontal:16,borderRadius:16,flexDirection:"row",alignItems:"center",justifyContent:"center",gap:8,backgroundColor:pressed?"#F7D7D2":"#FFF0ED",borderWidth:1,borderColor:"#E9B5AD"})}>
           <Svg width={18} height={18} viewBox="0 0 24 24" stroke="#A33224" strokeWidth={2.5} strokeLinecap="round"><Path d="m6 6 12 12M18 6 6 18" /></Svg>
