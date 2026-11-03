@@ -332,7 +332,7 @@ export default function MapScreen() {
           <ResourceState {...q} />
           <View style={{flexDirection:"row",flexWrap:"wrap",gap:10}}>
             {([
-              {id:"safety",title:"Segurança",color:"#A76A12",bg:"#FFF5E3",text:police?.status==="AVAILABLE"?`${police.total} BO(s) em até 1 km`:policeError||police?.status==="UNAVAILABLE"?"Base policial indisponível":policeKey?"Consultando SSP…":"Selecione um local",caption:police?.status==="AVAILABLE"?`Veículos · ${police.periodStart} a ${police.periodEnd}`:"SSP · veículos roubados/furtados"},
+              {id:"safety",title:"Segurança",color:"#3B6467",bg:"#EFF5F3",text:police?.status==="AVAILABLE"?`${police.categories?.Roubo ?? 0} roubos · ${police.categories?.Furto ?? 0} furtos`:policeError||police?.status==="UNAVAILABLE"?"Base policial indisponível":policeKey?"Consultando SSP…":"Selecione um local",caption:police?.status==="AVAILABLE"?`Veículos · 1 km · ${police.periodStart} a ${police.periodEnd}`:"SSP · veículos roubados/furtados"},
               {id:"pavement",title:"Pavimento",color:"#B5532A",bg:"#FFF0E9",text:q.loading?"Consultando…":q.error?"Dados indisponíveis":pavement.length||pavementNews.length?`${pavement.length} relato(s) · ${pavementNews.length} notícia(s)`:news.loading?"Consultando notícias…":news.error||news.data?.status==="UNAVAILABLE"?"Notícias indisponíveis":"Sem registros nas fontes",caption:"Pavimento e obras · sem vistoria"},
               {id:"news",title:"Notícias",color:"#2563B5",bg:"#EBF3FF",text:news.loading?"Consultando…":news.error?"Fonte indisponível":!newsPlace?"Selecione um endereço":news.data?.status==="UNAVAILABLE"?"Consulta indisponível":`${news.data?.items.length ?? 0} notícia(s) do local e entorno`,caption:"Segurança e condições do trajeto"},
               {id:"community",title:"Comunidade",color:"#7952B3",bg:"#F4EEFF",text:q.loading?"Consultando…":q.error?"Dados indisponíveis":actualNearby.length?`${actualNearby.length} relato(s) do local`:"Sem relatos reais aqui",caption:"Experiências de motoristas"},
@@ -350,11 +350,12 @@ export default function MapScreen() {
           </View>
           <Text style={styles.subtitle}>Toque em um card para ver os detalhes. As cores identificam assuntos, não níveis de risco.</Text>
           {topic === "safety" ? <>
-            <Text style={styles.heading}>Histórico policial · raio de 1 km</Text>
-            {police?.status === "AVAILABLE" ? <View style={[styles.card,{backgroundColor:"#FFF5E3"}]}>
-              <Text style={styles.heading}>{police.total} boletim(ns) com veículos subtraídos</Text>
+            <Text style={styles.heading}>Histórico de veículos · raio de 1 km</Text>
+            {police?.status === "AVAILABLE" ? <View style={[styles.card,{backgroundColor:"#EFF5F3"}]}>
+              <Text style={styles.heading}>{police.categories?.Roubo ?? 0} roubos e {police.categories?.Furto ?? 0} furtos de veículos</Text>
+              <Text style={styles.subtitle}>{police.total} boletim(ns) com veículos subtraídos no raio consultado.</Text>
               <Text style={styles.body}>Período dos fatos na base: {police.periodStart} a {police.periodEnd} · São Paulo</Text>
-              {Object.entries(police.categories || {}).map(([name,count])=><Text key={name} style={styles.body}>{name}: {count}</Text>)}
+              <Text style={styles.body}>Este histórico não mede a segurança geral do local. Os números absolutos dependem também da circulação de veículos e não permitem comparar regiões sem outros dados.</Text>
               <Text style={styles.subtitle}>{police.coverage}</Text>
               <Text style={styles.subtitle}>{police.methodology}</Text>
               <Text style={styles.subtitle}>Base importada em {police.importedAt ? when(police.importedAt) : "—"}{police.stale ? " · atualização pendente" : ""}. Coordenadas aproximadas; registros sem localização válida não entram na contagem.</Text>

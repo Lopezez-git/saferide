@@ -34,3 +34,8 @@ Reinicie/recompile a API após a atualização. A rotina não está agendada aut
 ## Validação
 
 Testes cobrem deduplicação, última versão, veículos recuperados, coordenadas ambíguas/inválidas, distância em metros, isolamento do raio e acesso pelo navegador. Teste real inicial: ponto do Morumbi Shopping (-23.6234167, -46.6985436), 97 BOs elegíveis em 1 km (94 furto, 3 roubo). Trata-se do entorno, não de 97 fatos dentro do shopping nem de risco previsto.
+
+
+### Leitura no aplicativo
+
+O card mostra primeiro as naturezas dos BOs (roubo e furto de veículo), o raio e o período. O total continua disponível no detalhe. A cor é neutra porque a contagem bruta não é uma nota de perigo. No exemplo do Morumbi Shopping, o geocodificador situa o estabelecimento na Vila Cordeiro; a contagem é do entorno de 1 km, não do shopping ou de todo o bairro Morumbi. Sem denominador de circulação e comparação válida entre áreas, não classificamos a região como segura ou perigosa.
