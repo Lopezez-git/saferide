@@ -8,6 +8,7 @@ React Native/Expo SDK 58, Expo Router e TypeScript; Spring Boot 3.5.7/Java 21; M
 - Perfil editável, atividade, veículo e múltiplas plataformas autodeclaradas.
 - Feed com categorias, publicação, comentários e exclusão pelo autor; dados persistem no MySQL.
 - Mapa OpenStreetMap/Leaflet com seleção de pontos, filtros e lista de relatos revisados.
+- Histórico SSP-SP de veículos subtraídos no raio de 1 km, agregado pela hora declarada do fato em quatro faixas. A faixa atual usa o horário de São Paulo; BOs sem horário confiável aparecem separados. É histórico, não alerta em tempo real ou classificação de segurança. O backend precisa ser reiniciado após reimportar a base.
 - Consulta de rota para carro via serviço de demonstração OSRM; distância e duração estimadas, sem trânsito ao vivo.
 - Envio de relato observado agora, pendência de revisão, aprovação/rejeição/retirada pelo moderador e trilha da decisão.
 - Contexto próximo à rota: distância aproximada de até 300 m; não comprova que o registro é na mesma via.

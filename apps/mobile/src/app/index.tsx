@@ -21,6 +21,8 @@ import { nearRoute } from "../lib/spatial";
 import { locate, DevicePosition } from "../lib/location";
 
 const inPilot = (p: MapPoint) => p.latitude >= -24.1 && p.latitude <= -23.3 && p.longitude >= -46.9 && p.longitude <= -46.3;
+const timeWindows = ["00-06", "06-12", "12-18", "18-24"] as const;
+type TimeWindow = typeof timeWindows[number];
 
 const categories = {
   OBRA: "Obras",
@@ -39,6 +41,7 @@ export default function MapScreen() {
   const { token, user } = useSession();
   const router = useRouter();
   const [topic, setTopic] = useState<"safety" | "pavement" | "news" | "community">("news");
+  const [selectedTime, setSelectedTime] = useState<"NOW" | TimeWindow>("NOW");
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const manualOrigin = useRef(false);
@@ -244,8 +247,9 @@ export default function MapScreen() {
   const reports = q.data ?? [];
   const shown = reports.filter(r => !r.validUntil || new Date(r.validUntil).getTime() > checkedAt);
   const focus = inspected ?? destination ?? origin ?? position;
-  type PoliceData = {status:string;total?:number;categories?:Record<string,number>;periodStart?:string;periodEnd?:string;sourceUrl?:string;importedAt?:string;coverage?:string;methodology?:string;stale?:boolean};
+  type PoliceData = {status:string;total?:number;categories?:Record<string,number>;windows?:Record<TimeWindow,Record<string,number>>;unknownTimeTotal?:number;currentTimeWindow?:TimeWindow;timeZone?:string;periodStart?:string;periodEnd?:string;sourceUrl?:string;importedAt?:string;coverage?:string;methodology?:string;stale?:boolean};
   const policeKey=focus ? `${focus.latitude},${focus.longitude}` : "";
+  const policeHour=Math.floor(checkedAt/3600000);
   const [policeResult,setPoliceResult]=useState<{key:string;data:PoliceData|null;error:string}>({key:"",data:null,error:""});
   useEffect(() => {
     if(!policeKey)return;
@@ -254,9 +258,14 @@ export default function MapScreen() {
       .then(data=>{if(!controller.signal.aborted)setPoliceResult({key:policeKey,data,error:""});})
       .catch(e=>{if(!controller.signal.aborted)setPoliceResult({key:policeKey,data:null,error:message(e)});});
     return ()=>controller.abort();
-  },[policeKey]);
+  },[policeKey,policeHour]);
   const police=policeResult.key===policeKey?policeResult.data:null;
   const policeError=policeResult.key===policeKey?policeResult.error:"";
+  const activeTime = selectedTime === "NOW" ? police?.currentTimeWindow : selectedTime;
+  const timeCategories = activeTime ? police?.windows?.[activeTime] : undefined;
+  const timeTotal = Object.values(timeCategories ?? {}).reduce((sum,count)=>sum+count,0);
+  const timeLabel = activeTime ? `${activeTime.replace("-", "h–")}h` : "—";
+  const hasTimeData = !!police?.windows && !!activeTime;
   const nearby = focus ? shown.map(r => ({...r,distance:Math.hypot((r.latitude-focus.latitude)*111320,(r.longitude-focus.longitude)*111320*Math.cos(focus.latitude*Math.PI/180))})).filter(r => r.distance <= 1000).sort((a,b)=>a.distance-b.distance) : [];
   const actualNearby = nearby.filter(r => !/demonstração|fictício|ficticia|fictício/i.test(r.title+" "+r.body));
   const safety = actualNearby.filter(r => r.category === "SEGURANCA");
@@ -332,7 +341,7 @@ export default function MapScreen() {
           <ResourceState {...q} />
           <View style={{flexDirection:"row",flexWrap:"wrap",gap:10}}>
             {([
-              {id:"safety",title:"Segurança",color:"#3B6467",bg:"#EFF5F3",text:police?.status==="AVAILABLE"?`${police.categories?.Roubo ?? 0} roubos · ${police.categories?.Furto ?? 0} furtos`:policeError||police?.status==="UNAVAILABLE"?"Base policial indisponível":policeKey?"Consultando SSP…":"Selecione um local",caption:police?.status==="AVAILABLE"?`Veículos · 1 km · ${police.periodStart} a ${police.periodEnd}`:"SSP · veículos roubados/furtados"},
+              {id:"safety",title:"Segurança",color:"#3B6467",bg:"#EFF5F3",text:police?.status==="AVAILABLE"?(hasTimeData?`${timeTotal} BOs · ${timeLabel}`:"Recorte horário indisponível"):policeError||police?.status==="UNAVAILABLE"?"Base policial indisponível":policeKey?"Consultando SSP…":"Selecione um local",caption:police?.status==="AVAILABLE"?`SSP-SP · veículos · 1 km · ${police.periodStart} a ${police.periodEnd}`:"SSP · veículos roubados/furtados"},
               {id:"pavement",title:"Pavimento",color:"#B5532A",bg:"#FFF0E9",text:q.loading?"Consultando…":q.error?"Dados indisponíveis":pavement.length||pavementNews.length?`${pavement.length} relato(s) · ${pavementNews.length} notícia(s)`:news.loading?"Consultando notícias…":news.error||news.data?.status==="UNAVAILABLE"?"Notícias indisponíveis":"Sem registros nas fontes",caption:"Pavimento e obras · sem vistoria"},
               {id:"news",title:"Notícias",color:"#2563B5",bg:"#EBF3FF",text:news.loading?"Consultando…":news.error?"Fonte indisponível":!newsPlace?"Selecione um endereço":news.data?.status==="UNAVAILABLE"?"Consulta indisponível":`${news.data?.items.length ?? 0} notícia(s) do local e entorno`,caption:"Segurança e condições do trajeto"},
               {id:"community",title:"Comunidade",color:"#7952B3",bg:"#F4EEFF",text:q.loading?"Consultando…":q.error?"Dados indisponíveis":actualNearby.length?`${actualNearby.length} relato(s) do local`:"Sem relatos reais aqui",caption:"Experiências de motoristas"},
@@ -352,8 +361,19 @@ export default function MapScreen() {
           {topic === "safety" ? <>
             <Text style={styles.heading}>Histórico de veículos · raio de 1 km</Text>
             {police?.status === "AVAILABLE" ? <View style={[styles.card,{backgroundColor:"#EFF5F3"}]}>
+              {!hasTimeData ? <Text style={styles.body}>A API em execução ainda não disponibiliza horários; reinicie o backend atualizado para consultar esse recorte.</Text> : null}
+              {hasTimeData ? <>
+              <Text style={styles.body}>Faixa horária do fato · São Paulo</Text>
+              <View style={{flexDirection:"row",flexWrap:"wrap",gap:7}}>
+                <Chip label="Agora" selected={selectedTime==="NOW"} onPress={()=>setSelectedTime("NOW")} />
+                {timeWindows.map(window=><Chip key={window} label={`${window.replace("-","h–")}h`} selected={selectedTime===window} onPress={()=>setSelectedTime(window)} />)}
+              </View>
+              <Text style={styles.heading}>{timeTotal} BOs entre {timeLabel}</Text>
+              <Text style={styles.body}>{timeCategories?.Roubo ?? 0} roubos · {timeCategories?.Furto ?? 0} furtos de veículos com hora conhecida.</Text>
+              <Text style={styles.subtitle}>“Agora” seleciona a faixa atual em São Paulo; os fatos são históricos, não ocorrências em andamento. Zero nessa faixa não indica segurança.</Text>
+              </> : null}
               <Text style={styles.heading}>{police.categories?.Roubo ?? 0} roubos e {police.categories?.Furto ?? 0} furtos de veículos</Text>
-              <Text style={styles.subtitle}>{police.total} boletim(ns) com veículos subtraídos no raio consultado.</Text>
+              <Text style={styles.subtitle}>{police.total} BOs no período completo; {police.unknownTimeTotal ?? 0} sem hora confiável, incluídos apenas no total.</Text>
               <Text style={styles.body}>Período dos fatos na base: {police.periodStart} a {police.periodEnd} · São Paulo</Text>
               <Text style={styles.body}>Este histórico não mede a segurança geral do local. Os números absolutos dependem também da circulação de veículos e não permitem comparar regiões sem outros dados.</Text>
               <Text style={styles.subtitle}>{police.coverage}</Text>

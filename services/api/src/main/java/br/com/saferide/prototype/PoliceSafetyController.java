@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.*;
 
 @CrossOrigin(origins={"http://localhost:8081","http://127.0.0.1:8081"})
@@ -29,6 +31,19 @@ public class PoliceSafetyController {
   for(var cell:cells)if(distance(lat,lon,cell.path("latitude").asDouble(),cell.path("longitude").asDouble())<=1000)counts.merge(cell.path("category").asText(),cell.path("count").asInt(),Integer::sum);
   return counts;
  }
+ public static Map<String,Object> timeBreakdown(JsonNode cells,double lat,double lon){
+  Map<String,Object> windows=new LinkedHashMap<>();
+  for(String window:List.of("00-06","06-12","12-18","18-24"))windows.put(window,new TreeMap<String,Integer>());
+  int unknown=0;
+  for(var cell:cells){
+   if(distance(lat,lon,cell.path("latitude").asDouble(),cell.path("longitude").asDouble())>1000)continue;
+   String window=cell.path("timeWindow").asText("UNKNOWN");
+   if(!windows.containsKey(window)){unknown+=cell.path("count").asInt();continue;}
+   @SuppressWarnings("unchecked") Map<String,Integer> categories=(Map<String,Integer>)windows.get(window);
+   categories.merge(cell.path("category").asText(),cell.path("count").asInt(),Integer::sum);
+  }
+  return Map.of("windows",windows,"unknownTimeTotal",unknown);
+ }
  @GetMapping("/police") public Map<String,Object> local(@RequestParam double latitude,@RequestParam double longitude){
   if(!Double.isFinite(latitude)||!Double.isFinite(longitude)||latitude< -24.1||latitude> -23.3||longitude< -46.9||longitude> -46.3)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Fora da área piloto.");
   if(dataset==null)return Map.of("status","UNAVAILABLE","message","Base SSP não carregada.");
@@ -36,9 +51,14 @@ public class PoliceSafetyController {
   Map<String,Object> result=new LinkedHashMap<>();
   result.put("status","AVAILABLE");result.put("scope","RADIUS");result.put("radiusMeters",1000);result.put("city",dataset.path("city").asText());
   result.put("total",counts.values().stream().mapToInt(Integer::intValue).sum());result.put("categories",counts);
+  var times=timeBreakdown(dataset.path("cells"),latitude,longitude);
+  result.putAll(times);
+  int hour=ZonedDateTime.now(ZoneId.of("America/Sao_Paulo")).getHour();
+  result.put("currentTimeWindow",List.of("00-06","06-12","12-18","18-24").get(hour/6));
+  result.put("timeZone","America/Sao_Paulo");
   for(String key:List.of("source","sourceUrl","importedAt","periodStart","periodEnd"))result.put(key,dataset.path(key).asText());
   result.put("coverage","Boletins com veículos roubados ou furtados, coordenadas válidas e local do fato em São Paulo. Não cobre todos os crimes.");
-  result.put("methodology","Tratamento exploratório SafeRide da base bruta da SSP; deduplicação por delegacia, ano e número do BO, última versão. Não é indicador oficial de criminalidade nem alerta em tempo real.");
+  result.put("methodology","Tratamento exploratório SafeRide da base bruta da SSP; deduplicação por delegacia, ano e número do BO, última versão. A faixa horária usa a hora declarada do fato, não a hora do registro. Hora ausente ou conflitante fica fora das faixas. Não é indicador oficial de criminalidade nem alerta em tempo real.");
   result.put("stale",Instant.parse(dataset.path("importedAt").asText()).isBefore(Instant.now().minusSeconds(30L*86400)));
   return result;
  }

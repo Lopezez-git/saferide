@@ -7,6 +7,14 @@ SOURCE = "https://www.ssp.sp.gov.br/assets/estatistica/transparencia/baseDados/v
 NS = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
 def norm(value):
     return "".join(c for c in unicodedata.normalize("NFD", str(value)) if unicodedata.category(c) != "Mn").lower()
+def time_window(value):
+    """Excel stores time of day as a fraction; absent or invalid hours stay unknown."""
+    try:
+        fraction=float(value)
+        if not math.isfinite(fraction) or not 0 <= fraction < 1:return None
+        hour=int(fraction*24)
+        return ("00-06","06-12","12-18","18-24")[hour//6]
+    except (TypeError,ValueError):return None
 def rows(path):
     with zipfile.ZipFile(path) as z:
         strings=[]
@@ -39,7 +47,7 @@ def aggregate(path,year):
         version=int(float(row.get("VERSAO") or 0))
         current=bos.get(key)
         if current is None or version>current["version"]:
-            current={"version":version,"points":set(),"types":set()};bos[key]=current
+            current={"version":version,"points":set(),"types":set(),"hours":set()};bos[key]=current
         if version<current["version"]:continue
         status=norm(row.get("DESCR_OCORRENCIA_VEICULO",""));statuses[status]+=1
         kind="Roubo" if "roub" in status else "Furto" if "furt" in status else None
@@ -52,17 +60,22 @@ def aggregate(path,year):
             if not date.startswith(str(year)) or date>dt.date.today().isoformat():raise ValueError()
         except (ValueError,KeyError,OverflowError):counts["invalidDateOrPointRows"]+=1;continue
         current["points"].add((round(lat,4),round(lon,4),date[:7]));current["types"].add(kind)
+        window=time_window(row.get("HORA_OCORRENCIA"))
+        if window:current["hours"].add(window)
     cells=collections.Counter()
     for bo in bos.values():
         if len(bo["points"])>1:counts["ambiguousLocationBOs"]+=1;continue
         if not bo["points"]:continue
         lat,lon,month=next(iter(bo["points"]))
         kind="Roubo e furto" if len(bo["types"])>1 else next(iter(bo["types"]))
-        cells[(lat,lon,month,kind)]+=1;counts["includedBOs"]+=1
+        if len(bo["hours"])>1:counts["ambiguousHourBOs"]+=1
+        window=next(iter(bo["hours"])) if len(bo["hours"])==1 else "UNKNOWN"
+        if window=="UNKNOWN":counts["unknownHourBOs"]+=1
+        cells[(lat,lon,month,kind,window)]+=1;counts["includedBOs"]+=1
     if not cells:raise ValueError("No eligible BOs; refusing to replace dataset")
     print(json.dumps({"counts":counts,"vehicleStatuses":statuses},ensure_ascii=True))
     months=sorted({k[2] for k in cells})
-    return {"source":"SSP-SP · Veículos subtraídos", "sourceUrl":SOURCE.format(year=year),"importedAt":dt.datetime.now(dt.timezone.utc).isoformat(),"sha256":hashlib.sha256(Path(path).read_bytes()).hexdigest(),"year":year,"periodStart":months[0],"periodEnd":months[-1],"city":"São Paulo","counts":dict(counts),"cells":[{"latitude":a,"longitude":b,"month":m,"category":k,"count":v} for (a,b,m,k),v in sorted(cells.items())]}
+    return {"source":"SSP-SP · Veículos subtraídos", "sourceUrl":SOURCE.format(year=year),"importedAt":dt.datetime.now(dt.timezone.utc).isoformat(),"sha256":hashlib.sha256(Path(path).read_bytes()).hexdigest(),"year":year,"periodStart":months[0],"periodEnd":months[-1],"city":"São Paulo","counts":dict(counts),"cells":[{"latitude":a,"longitude":b,"month":m,"category":k,"timeWindow":w,"count":v} for (a,b,m,k,w),v in sorted(cells.items())]}
 def main():
     parser=argparse.ArgumentParser();parser.add_argument("--year",type=int,default=dt.date.today().year);parser.add_argument("--input",type=Path);parser.add_argument("--output",type=Path,required=True);a=parser.parse_args()
     if a.input is None:

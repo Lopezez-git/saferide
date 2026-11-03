@@ -18,4 +18,12 @@ class PoliceSafetyTest {
   mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/safety/police").param("latitude","NaN").param("longitude","-46.69")).andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isBadRequest());
  }
  @Test void geographicDistanceIsInMeters(){assertThat(PoliceSafetyController.distance(0,0,0,0.01)).isBetween(1110.0,1113.0);}
+ @Test void timeBreakdownDoesNotTreatMissingHourAsCurrentHour() throws Exception {
+  var cells=new ObjectMapper().readTree("[{\"latitude\":-23.62,\"longitude\":-46.69,\"category\":\"Furto\",\"timeWindow\":\"06-12\",\"count\":2},{\"latitude\":-23.62,\"longitude\":-46.69,\"category\":\"Roubo\",\"timeWindow\":\"UNKNOWN\",\"count\":3}]");
+  var breakdown=PoliceSafetyController.timeBreakdown(cells,-23.62,-46.69);
+  assertThat(breakdown).containsEntry("unknownTimeTotal",3);
+  @SuppressWarnings("unchecked") var windows=(java.util.Map<String,java.util.Map<String,Integer>>)breakdown.get("windows");
+  assertThat(windows).containsKey("06-12");
+  assertThat(windows.get("06-12")).containsEntry("Furto",2);
+ }
 }
