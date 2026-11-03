@@ -14,6 +14,8 @@ O protótipo consulta um histórico de veículos subtraídos da SSP-SP no entorn
 
 O card **Pavimento** também consulta solicitações públicas de tapa-buraco do SP156 no raio de 1 km. Mostra quantos pedidos constavam abertos ou finalizados na data da publicação, com rua, data e fonte. Pedido não comprova um buraco ativo; ausência de pedidos não comprova via em boas condições. Veja [fonte, importação e limitações do SP156](12-integracao-sp156.md).
 
+O painel do mapa reúne quatro assuntos: **Segurança, Pavimento, Trânsito e acesso, Comunidade**. O card **Trânsito e acesso** reúne relatos territoriais revisados sobre obras, alagamentos e dificuldades de acesso no raio de 1 km, além de notícias locais sobre trânsito, acidentes, clima e obras. Notícias são exibidas como fontes datadas, não como uma categoria própria nem como confirmação de bloqueio ativo. No protótipo, esse card ainda não consulta uma base oficial de interdições em tempo real.
+
 ## Modelo do produto e caixinha flutuante
 
 A proposta escolhida é fornecer contexto junto de ofertas de plataformas como Uber, 99 e iFood por uma caixinha flutuante do SafeRide sobre o aplicativo utilizado. O cartão pode ser movido, minimizado ou fechado, sem bloquear aceitar/recusar. Comunidade e detalhes ficam no app SafeRide.
@@ -42,11 +44,11 @@ O levantamento inicial de 14 respostas foi realizado com motoristas. A ampliaç�
 
 ## Notícias e informações locais
 
-No card **Notícias** do mapa, o protótipo consulta sob demanda o RSS do Google Notícias para o lugar selecionado e, quando disponíveis, a rua e o bairro. O backend faz buscas separadas por cada referência, aceita apenas veículos definidos no código e filtra títulos sobre segurança, trânsito, alagamentos, obras e pavimento publicados nos últimos 30 dias. Cada matéria traz fonte, data, link e a referência geográfica encontrada no título. O resultado fica em cache por 15 minutos; zero significa apenas que essa busca não encontrou matéria recente elegível. A aba geral de notícias tem uma coleta distinta e ainda não acompanha a seleção do mapa.
+Nos cards de assunto do mapa, o protótipo consulta sob demanda o RSS do Google Notícias para o lugar selecionado e, quando disponíveis, a rua e o bairro. O backend faz buscas separadas por cada referência, aceita apenas veículos definidos no código e filtra títulos sobre segurança, trânsito, alagamentos, obras e pavimento publicados nos últimos 30 dias. Cada matéria traz fonte, data, link e a referência geográfica encontrada no título. O resultado fica em cache por 15 minutos; zero significa apenas que essa busca não encontrou matéria recente elegível. A aba geral de notícias tem uma coleta distinta e ainda não acompanha a seleção do mapa.
 
 Cada ocorrência poderá reunir várias notícias como evidências, evitando marcadores duplicados. No mapa e no painel, o usuário verá resumo, localização com sua precisão, fonte, data do acontecimento e última verificação. Informação desatualizada será sinalizada; o vencimento de um prazo não confirma que o problema terminou.
 
-O Spring Boot executa a consulta local; o React Native exibe o card e as matérias. A busca por título não confirma que a ocorrência seja no ponto exato ou esteja ativa. Veja a [integração de notícias](05-integracao-noticias.md) para o que já funciona e o que ainda está planejado.
+O Spring Boot executa a consulta local; o React Native exibe as matérias dentro dos cards de assunto. A busca por título não confirma que a ocorrência seja no ponto exato ou esteja ativa. Veja a [integração de notícias](05-integracao-noticias.md) para o que já funciona e o que ainda está planejado.
 
 ## Execução local e fallback
 
