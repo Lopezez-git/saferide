@@ -21,6 +21,7 @@ import { nearRoute } from "../lib/spatial";
 import { locate, DevicePosition } from "../lib/location";
 
 const inPilot = (p: MapPoint) => p.latitude >= -24.1 && p.latitude <= -23.3 && p.longitude >= -46.9 && p.longitude <= -46.3;
+const shortDate = (iso?: string | null) => iso && /^\d{4}-\d{2}-\d{2}$/.test(iso) ? `${iso.slice(8,10)}/${iso.slice(5,7)}/${iso.slice(0,4)}` : "—";
 
 const categories = {
   OBRA: "Obras",
@@ -258,6 +259,20 @@ export default function MapScreen() {
   },[policeKey,policeHour]);
   const police=policeResult.key===policeKey?policeResult.data:null;
   const policeError=policeResult.key===policeKey?policeResult.error:"";
+  type PavementRequest = {openedAt:string;finishedAt?:string|null;street:string;number:string;service:string;status:string;distanceMeters:number;sameDetailsCount?:number};
+  type PavementData = {status:string;totalRequests?:number;statuses?:Record<string,number>;items?:PavementRequest[];sourceUrl?:string;sourceUpdatedAt?:string;periodStart?:string;periodEnd?:string;stale?:boolean;meaning?:string};
+  const [pavementResult,setPavementResult]=useState<{key:string;data:PavementData|null;error:string}>({key:"",data:null,error:""});
+  useEffect(() => {
+    if(!policeKey)return;
+    const [latitude,longitude]=policeKey.split(",");const controller=new AbortController();
+    api<PavementData>(`/pavement/requests?latitude=${latitude}&longitude=${longitude}`,{signal:controller.signal})
+      .then(data=>{if(!controller.signal.aborted)setPavementResult({key:policeKey,data,error:""});})
+      .catch(e=>{if(!controller.signal.aborted)setPavementResult({key:policeKey,data:null,error:message(e)});});
+    return ()=>controller.abort();
+  },[policeKey]);
+  const pavementData=pavementResult.key===policeKey?pavementResult.data:null;
+  const pavementError=pavementResult.key===policeKey?pavementResult.error:"";
+  const pavementOpen=(pavementData?.statuses?.Aberto ?? 0)+(pavementData?.statuses?.["Em andamento"] ?? 0);
   const activeTime = police?.currentTimeWindow;
   const timeCategories = activeTime ? police?.windows?.[activeTime] : undefined;
   const timeTotal = Object.values(timeCategories ?? {}).reduce((sum,count)=>sum+count,0);
@@ -338,8 +353,8 @@ export default function MapScreen() {
           <ResourceState {...q} />
           <View style={{flexDirection:"row",flexWrap:"wrap",gap:10}}>
             {([
-              {id:"safety",title:"Segurança",color:"#3B6467",bg:"#EFF5F3",text:police?.status==="AVAILABLE"?(hasTimeData?`Histórico ${timeLabel} · ${timeTotal} BOs`:"Recorte horário indisponível"):policeError||police?.status==="UNAVAILABLE"?"Base policial indisponível":policeKey?"Consultando SSP…":"Selecione um local",caption:police?.status==="AVAILABLE"?"Hora atual · SSP-SP · veículos · 1 km":"SSP · veículos roubados/furtados"},
-              {id:"pavement",title:"Pavimento",color:"#B5532A",bg:"#FFF0E9",text:q.loading?"Consultando…":q.error?"Dados indisponíveis":pavement.length||pavementNews.length?`${pavement.length} relato(s) · ${pavementNews.length} notícia(s)`:news.loading?"Consultando notícias…":news.error||news.data?.status==="UNAVAILABLE"?"Notícias indisponíveis":"Sem registros nas fontes",caption:"Pavimento e obras · sem vistoria"},
+              {id:"safety",title:"Segurança",color:"#3B6467",bg:"#EFF5F3",text:police?.status==="AVAILABLE"?(hasTimeData?`Histórico ${timeLabel} · ${timeTotal} ${timeTotal===1?"BO":"BOs"}`:"Recorte horário indisponível"):policeError||police?.status==="UNAVAILABLE"?"Base policial indisponível":policeKey?"Consultando SSP…":"Selecione um local",caption:police?.status==="AVAILABLE"?"Hora atual · SSP-SP · veículos · 1 km":"SSP · veículos roubados/furtados"},
+              {id:"pavement",title:"Pavimento",color:"#B5532A",bg:"#FFF0E9",text:pavementData?.status==="AVAILABLE"?(pavementOpen?`${pavementOpen} pedidos abertos no arquivo`:pavementData.totalRequests?`${pavementData.totalRequests} pedidos SP156`:"Sem pedidos nesta base"):pavementError||pavementData?.status==="UNAVAILABLE"?"Base SP156 indisponível":policeKey?"Consultando SP156…":"Selecione um local",caption:pavementData?.status==="AVAILABLE"?`SP156 · 1 km · status em ${shortDate(pavementData.sourceUpdatedAt)}`:"Pedidos de tapa-buraco · sem vistoria"},
               {id:"news",title:"Notícias",color:"#2563B5",bg:"#EBF3FF",text:news.loading?"Consultando…":news.error?"Fonte indisponível":!newsPlace?"Selecione um endereço":news.data?.status==="UNAVAILABLE"?"Consulta indisponível":`${news.data?.items.length ?? 0} notícia(s) do local e entorno`,caption:"Segurança e condições do trajeto"},
               {id:"community",title:"Comunidade",color:"#7952B3",bg:"#F4EEFF",text:q.loading?"Consultando…":q.error?"Dados indisponíveis":actualNearby.length?`${actualNearby.length} relato(s) do local`:"Sem relatos reais aqui",caption:"Experiências de motoristas"},
             ] as const).map(card => <Pressable key={card.id} accessibilityRole="button" accessibilityState={{selected:topic===card.id}} accessibilityLabel={`${card.title}: ${card.text}`} onPress={() => setTopic(card.id)} style={({pressed}) => ({width:"48%",flexGrow:1,minHeight:142,padding:13,gap:6,borderRadius:18,backgroundColor:card.bg,borderWidth:2,borderColor:topic===card.id?card.color:"transparent",opacity:pressed?0.8:1})}>
@@ -361,7 +376,7 @@ export default function MapScreen() {
               {!hasTimeData ? <Text style={styles.body}>A API em execução ainda não disponibiliza horários; reinicie o backend atualizado para consultar esse recorte.</Text> : null}
               {hasTimeData ? <>
               <Text style={styles.body}>Horário atual em São Paulo · consulta automática</Text>
-              <Text style={styles.heading}>{timeTotal} BOs no histórico de {timeLabel}</Text>
+              <Text style={styles.heading}>{timeTotal} {timeTotal===1?"BO":"BOs"} no histórico de {timeLabel}</Text>
               <Text style={styles.body}>{timeCategories?.Roubo ?? 0} roubos · {timeCategories?.Furto ?? 0} furtos de veículos com hora conhecida.</Text>
               <Text style={styles.subtitle}>O horário muda sozinho quando a hora atual muda. Os BOs são de meses anteriores, não ocorrências em andamento. Zero neste horário não indica segurança.</Text>
               </> : null}
@@ -378,7 +393,24 @@ export default function MapScreen() {
             <Text style={styles.heading}>Notícias e relatos locais</Text>
             <Text style={styles.body}>{safety.length} relato(s) da comunidade · {safetyNews.length} notícia(s) de segurança no contexto selecionado.</Text>
           </> : null}
-          {topic === "pavement" ? <><Text style={styles.heading}>Condições do pavimento</Text><Text style={styles.body}>{pavement.length||pavementNews.length?"Relatos e notícias de pavimento ou obras, com o local indicado abaixo.":news.error||news.data?.status==="UNAVAILABLE"?"A consulta de notícias está indisponível; não foi possível verificar a cobertura de pavimento.":"Não encontramos relatos ou notícias sobre pavimento nas fontes consultadas. A base pública de solicitações de tapa-buraco ainda não está integrada."}</Text></> : null}
+          {topic === "pavement" ? <>
+            <Text style={styles.heading}>Solicitações de tapa-buraco · raio de 1 km</Text>
+            {pavementData?.status==="AVAILABLE" ? <View style={[styles.card,{backgroundColor:"#FFF0E9"}]}>
+              <Text style={styles.heading}>{pavementData.totalRequests} pedidos no SP156 · {pavementOpen} abertos ou em andamento na publicação</Text>
+              <Text style={styles.body}>Pedidos abertos entre {shortDate(pavementData.periodStart)} e {shortDate(pavementData.periodEnd)}. Status da publicação de {shortDate(pavementData.sourceUpdatedAt)}{pavementData.stale?" · atualização pendente":""}.</Text>
+              <Text style={styles.subtitle}>{pavementData.meaning}</Text>
+              <Text style={styles.subtitle}>Sem pedido registrado não significa que o pavimento esteja bom. A localização é aproximada e vários pedidos podem se referir ao mesmo problema.</Text>
+              {pavementData.sourceUrl ? <Pressable accessibilityRole="link" onPress={()=>Linking.openURL(pavementData.sourceUrl!).catch(e=>setError(message(e)))}><Text style={{color:"#B5532A",fontWeight:"700",paddingVertical:8}}>Consultar dados originais do SP156 ↗</Text></Pressable> : null}
+            </View> : <Text style={styles.body}>{pavementError||pavementData?.status==="UNAVAILABLE"?"Base pública SP156 indisponível. Isso não confirma pavimento em boas condições.":"Consultando solicitações do SP156…"}</Text>}
+            {pavementData?.items?.map((item,index)=><View key={`${item.openedAt}-${item.street}-${item.number}-${index}`} style={styles.card}>
+              <Text style={styles.label}>SP156 · {item.status} · {item.distanceMeters} m do ponto</Text>
+              <Text style={styles.heading}>{item.service} · {item.street}{item.number?`, ${item.number}`:""}</Text>
+              <Text style={styles.subtitle}>Pedido aberto em {shortDate(item.openedAt)}{item.finishedAt?` · protocolo encerrado em ${shortDate(item.finishedAt)}`:""}</Text>
+              {(item.sameDetailsCount ?? 1)>1?<Text style={styles.subtitle}>{item.sameDetailsCount} registros publicados com os mesmos dados; podem se referir ao mesmo problema.</Text>:null}
+            </View>)}
+            <Text style={styles.heading}>Relatos e notícias locais</Text>
+            <Text style={styles.body}>{pavement.length} relato(s) da comunidade · {pavementNews.length} notícia(s) de pavimento ou obras. Cada fonte tem data e alcance próprios.</Text>
+          </> : null}
           {topic === "community" ? <><Text style={styles.heading}>Quem passa por aqui</Text><Text style={styles.body}>{actualNearby.length?"Relatos de motoristas próximos do ponto selecionado.":"A comunidade ainda não tem relatos reais deste local. Compartilhe o que você observou para ajudar quem passa por aqui."}</Text><Button title="Abrir comunidade" secondary onPress={() => router.push("/community")} /></> : null}
           {(topic === "news" ? [] : actualNearby.filter(r => topic === "community" || r.category === (topic === "safety" ? "SEGURANCA" : "PAVIMENTO"))).map(r => <View key={r.id} style={styles.card}>
             <Text style={styles.label}>{categories[r.category as keyof typeof categories] ?? r.category} · {Math.round(r.distance)} m do ponto</Text>

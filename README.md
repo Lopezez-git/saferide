@@ -12,6 +12,8 @@ O SafeRide complementa a avaliação de valor, distância e tempo. Não garante 
 
 O protótipo consulta um histórico de veículos subtraídos da SSP-SP no entorno do ponto selecionado. O card usa automaticamente a **hora atual de São Paulo** para mostrar BOs registrados nessa mesma hora em meses anteriores, sem exigir escolha de horário. Registros sem hora confiável aparecem à parte. São dados históricos, sem taxa de risco ou aviso policial em tempo real. Veja [fonte, método e limitações](11-integracao-ssp.md).
 
+O card **Pavimento** também consulta solicitações públicas de tapa-buraco do SP156 no raio de 1 km. Mostra quantos pedidos constavam abertos ou finalizados na data da publicação, com rua, data e fonte. Pedido não comprova um buraco ativo; ausência de pedidos não comprova via em boas condições. Veja [fonte, importação e limitações do SP156](12-integracao-sp156.md).
+
 ## Modelo do produto e caixinha flutuante
 
 A proposta escolhida é fornecer contexto junto de ofertas de plataformas como Uber, 99 e iFood por uma caixinha flutuante do SafeRide sobre o aplicativo utilizado. O cartão pode ser movido, minimizado ou fechado, sem bloquear aceitar/recusar. Comunidade e detalhes ficam no app SafeRide.
