@@ -169,6 +169,24 @@ export default function MapScreen() {
       else { setDestination(p); setDestinationName(""); }
     }
   }
+  function cancelRoute() {
+    request.current++;
+    setRouting(false);
+    setRoute(null);
+    setDestination(null);
+    setDestinationName("");
+    setPoint(null);
+    setInspected(null);
+    setLocalName("");
+    setNewsPlace("");
+    setNewsCity("");
+    setNewsArea({street:"",district:""});
+    setReportOpen(false);
+    setSheetOpen(false);
+    setError("");
+    setMode(origin ? "destination" : "origin");
+    setPlaceFocus(origin ? {...origin,key:Date.now()} : null);
+  }
   async function calculate() {
     if (!origin || !destination) return;
     const id = ++request.current;
@@ -235,6 +253,7 @@ export default function MapScreen() {
   const topicNews = topic === "safety" ? safetyNews : topic === "pavement" ? pavementNews : [];
 
   const showRouteAction = !!origin && !!destination && !route && !search;
+  const showRouteFooter = showRouteAction || (!!route && !search);
   const contextual = route
     ? reports.filter((r) => nearRoute(r, route.geometry.coordinates))
     : [];
@@ -285,8 +304,8 @@ export default function MapScreen() {
 
         </ScrollView>
       </View>
-      {route && !sheetOpen && !search ? <Pressable accessibilityRole="button" accessibilityLabel="Ver detalhes do trajeto" onPress={() => setSheetOpen(true)} style={{position:"absolute",bottom:30,alignSelf:"center",paddingHorizontal:20,paddingVertical:14,borderRadius:24,backgroundColor:"#17211D"}}><Text style={{color:"white",fontWeight:"600"}}>{(route.distance/1000).toFixed(1)} km · {Math.round(route.duration/60)} min · Ver trajeto</Text></Pressable> : null}
-      {sheetOpen ? <View style={{position:"absolute",bottom:showRouteAction ? 84 : 0,left:0,right:0,backgroundColor:"white",borderTopLeftRadius:24,borderTopRightRadius:24,maxHeight:Math.max(160,mapHeight*0.65-(showRouteAction ? 84 : 0)),boxShadow:"0 -4px 20px #00000016"}}>
+
+      {sheetOpen ? <View style={{position:"absolute",bottom:showRouteFooter ? 84 : 0,left:0,right:0,backgroundColor:"white",borderTopLeftRadius:24,borderTopRightRadius:24,maxHeight:Math.max(160,mapHeight*0.65-(showRouteFooter ? 84 : 0)),boxShadow:"0 -4px 20px #00000016"}}>
         <Pressable accessibilityRole="button" accessibilityLabel={sheetOpen ? "Recolher painel do mapa" : "Abrir planejamento e relatos"} accessibilityState={{expanded:sheetOpen}} onPress={() => { Keyboard.dismiss(); setSheetOpen(!sheetOpen); }} style={{padding:16,gap:8,minHeight:80}}>
           <View style={{width:38,height:4,borderRadius:4,backgroundColor:"#CBD2CE",alignSelf:"center"}} />
           <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:8}}>
@@ -399,6 +418,16 @@ export default function MapScreen() {
           </View> : null}
           <Text style={styles.subtitle}>Protótipo acadêmico · fontes e detalhes nos relatos.</Text>
         </ScrollView> : null}
+      </View> : null}
+      {route && !search ? <View style={{position:"absolute",bottom:0,left:0,right:0,height:84,padding:12,gap:10,flexDirection:"row",backgroundColor:"white",borderTopWidth:1,borderTopColor:"#E1E8E5"}}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Ver detalhes do trajeto" onPress={() => setSheetOpen(true)} style={{flex:1,justifyContent:"center",paddingHorizontal:12,borderRadius:16,backgroundColor:"#17211D"}}>
+          <Text style={{color:"white",fontWeight:"700",fontSize:16}}>{(route.distance/1000).toFixed(1)} km · {Math.round(route.duration/60)} min</Text>
+          <Text style={{color:"#E0EBE6",fontSize:12}}>Ver trajeto</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Cancelar trajeto" onPress={cancelRoute} style={({pressed}) => ({minHeight:56,paddingHorizontal:16,borderRadius:16,flexDirection:"row",alignItems:"center",justifyContent:"center",gap:8,backgroundColor:pressed?"#F7D7D2":"#FFF0ED",borderWidth:1,borderColor:"#E9B5AD"})}>
+          <Svg width={18} height={18} viewBox="0 0 24 24" stroke="#A33224" strokeWidth={2.5} strokeLinecap="round"><Path d="m6 6 12 12M18 6 6 18" /></Svg>
+          <Text style={{color:"#A33224",fontWeight:"700",fontSize:14}}>Cancelar trajeto</Text>
+        </Pressable>
       </View> : null}
       {showRouteAction ? <View style={{position:"absolute",bottom:0,left:0,right:0,height:84,padding:12,backgroundColor:"white",borderTopWidth:1,borderTopColor:"#E1E8E5"}}>
         <Pressable accessibilityRole="button" accessibilityLabel={routing ? "Calculando percurso" : "Traçar percurso"} accessibilityState={{disabled:routing,busy:routing}} disabled={routing} onPress={calculate} style={({pressed}) => ({flex:1,minHeight:56,flexDirection:"row",alignItems:"center",justifyContent:"center",gap:12,borderRadius:16,backgroundColor:routing?"#526C63":pressed?"#075E54":"#087F71"})}>
