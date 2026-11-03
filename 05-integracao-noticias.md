@@ -2,7 +2,11 @@
 
 ## Objetivo e escopo
 
-Integrar notícias e comunicados sobre obras, interdições, alagamentos e ocorrências de segurança, incluindo assaltos, ao mapa, painel e caixinha flutuante do SafeRide, apoiando motoristas e entregadores. Este documento define o funcionamento planejado; o módulo ainda não foi implementado.
+Integrar notícias e comunicados sobre obras, interdições, alagamentos e ocorrências de segurança, incluindo assaltos, ao mapa, painel e caixinha flutuante do SafeRide, apoiando motoristas e entregadores. A consulta local no card do mapa já funciona; ocorrências revisadas e alertas automáticos na caixinha ainda estão planejados.
+
+## Consulta local implementada no card
+
+Ao selecionar um lugar no mapa, o app chama `GET /api/v1/news/local` com nome, cidade, rua e bairro disponíveis. O backend consulta o RSS do Google Notícias separadamente para cada referência geográfica, filtra títulos com menção literal ao lugar, rua ou bairro e com assunto pertinente à corrida, e aceita publicações dos últimos 30 dias de veículos definidos no código. Responde com fonte, data, link, assunto e alcance da menção (`LOCAL`, `STREET` ou `DISTRICT`). O resultado fica em memória por 15 minutos. Falha de consulta aparece como indisponibilidade; resposta vazia significa apenas que nenhuma matéria recente passou nesses filtros. A busca não prova a localização exata, a situação atual nem a segurança de uma área. A aba geral de notícias é uma coleta separada e ainda não segue o lugar selecionado.
 
 A primeira entrega é um protótipo local para apresentação, com busca automática de notícias na internet por RSS ou API e fallback. Não depende de cadastrar links manualmente. A cidade, as fontes e suas condições de uso ainda precisam ser escolhidas e verificadas; nenhum serviço pago está contratado. IA e sugestões de links pelos membros são opcionais para evolução. Notícias não alteram automaticamente o trajeto nem geram uma classificação de segurança de bairros.
 

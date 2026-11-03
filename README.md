@@ -42,11 +42,11 @@ O levantamento inicial de 14 respostas foi realizado com motoristas. A ampliaç�
 
 ## Notícias e informações locais
 
-O SafeRide buscará automaticamente notícias e comunicados sobre obras, interdições, alagamentos e ocorrências de segurança, incluindo assaltos, em fontes RSS/API selecionadas para a região. A busca faz parte da primeira versão e não exige cadastro manual de links. Notícias elegíveis aparecem na lista regional; a associação a ocorrências no mapa exige localização suficiente e revisão.
+No card **Notícias** do mapa, o protótipo consulta sob demanda o RSS do Google Notícias para o lugar selecionado e, quando disponíveis, a rua e o bairro. O backend faz buscas separadas por cada referência, aceita apenas veículos definidos no código e filtra títulos sobre segurança, trânsito, alagamentos, obras e pavimento publicados nos últimos 30 dias. Cada matéria traz fonte, data, link e a referência geográfica encontrada no título. O resultado fica em cache por 15 minutos; zero significa apenas que essa busca não encontrou matéria recente elegível. A aba geral de notícias tem uma coleta distinta e ainda não acompanha a seleção do mapa.
 
 Cada ocorrência poderá reunir várias notícias como evidências, evitando marcadores duplicados. No mapa e no painel, o usuário verá resumo, localização com sua precisão, fonte, data do acontecimento e última verificação. Informação desatualizada será sinalizada; o vencimento de um prazo não confirma que o problema terminou.
 
-O Spring Boot cuidará da coleta, organização, revisão, permissões e consultas; o React Native apresentará notícias, estado da atualização, mapa e painel. As fontes e a cidade ainda precisam ser escolhidas e validadas. Consulte o [plano de integração de notícias](05-integracao-noticias.md) para fluxo, modelo de dados, API e critérios de aceite.
+O Spring Boot executa a consulta local; o React Native exibe o card e as matérias. A busca por título não confirma que a ocorrência seja no ponto exato ou esteja ativa. Veja a [integração de notícias](05-integracao-noticias.md) para o que já funciona e o que ainda está planejado.
 
 ## Execução local e fallback
 

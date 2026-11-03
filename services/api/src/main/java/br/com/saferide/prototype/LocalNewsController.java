@@ -20,7 +20,7 @@ public class LocalNewsController {
  private final HttpClient http=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(4)).build();
  private final Map<String,Result> cache=new LinkedHashMap<>();
  private long lastRequest;
- private static final Set<String> PUBLISHERS=Set.of("g1.globo.com","agenciabrasil.ebc.com.br","agenciasp.sp.gov.br","www.agenciasp.sp.gov.br","www.cnnbrasil.com.br","www.band.uol.com.br","www.band.com.br");
+ private static final Set<String> PUBLISHERS=Set.of("g1.globo.com","agenciabrasil.ebc.com.br","agenciasp.sp.gov.br","www.agenciasp.sp.gov.br","www.cnnbrasil.com.br","www.band.uol.com.br","www.band.com.br","www.estadao.com.br","noticias.uol.com.br","www1.folha.uol.com.br","prefeitura.sp.gov.br","www.prefeitura.sp.gov.br","record.r7.com");
  public record Item(String id,String title,String url,String source,String publishedAt,String topic,String scope,String matchedPlace){}
  public record Result(String place,String status,String lastAttempt,List<Item> items){}
  private static String normalize(String value){return Normalizer.normalize(value.replaceAll("(?iu)([\\p{L}])(shopping)","$1 $2"),Normalizer.Form.NFD).replaceAll("\\p{M}","").toLowerCase(Locale.ROOT).replaceAll("\\bav\\.?\\s+","avenida ").replaceAll("[^a-z0-9 ]"," ").replaceAll("\\s+"," ").strip();}
@@ -47,29 +47,37 @@ public class LocalNewsController {
   lastRequest=now;Instant collected=Instant.now();List<Item> found=new ArrayList<>();
   try{
    Set<String> terms=new LinkedHashSet<>();
-   for(String term:List.of(place,street,district))if(term.length()>=4)terms.add("\""+term+"\"");
-   if(place.toLowerCase(Locale.ROOT).contains(" shopping"))terms.add("\""+place.replaceAll("(?iu) shopping","Shopping")+"\"");
-   String query=URLEncoder.encode("("+String.join(" OR ",terms)+") \""+city+"\" (assalto OR roubo OR acidente OR alagamento OR interdição OR trânsito OR buraco OR obras OR tiroteio) when:30d",StandardCharsets.UTF_8);
-   var request=HttpRequest.newBuilder(URI.create("https://news.google.com/rss/search?q="+query+"&hl=pt-BR&gl=BR&ceid=BR:pt-419")).timeout(Duration.ofSeconds(10)).header("User-Agent","SafeRideAcademicPrototype/0.1 (+https://github.com/Lopezez-git/saferide)").GET().build();
-   var response=http.send(request,HttpResponse.BodyHandlers.ofInputStream());
-   try(var input=response.body()){
-    if(response.statusCode()!=200)throw new IOException();byte[] bytes=input.readNBytes(2000001);if(bytes.length>2000000)throw new IOException();
-    var factory=DocumentBuilderFactory.newInstance();factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl",true);factory.setFeature("http://xml.org/sax/features/external-general-entities",false);factory.setFeature("http://xml.org/sax/features/external-parameter-entities",false);factory.setXIncludeAware(false);factory.setExpandEntityReferences(false);
-    var items=factory.newDocumentBuilder().parse(new ByteArrayInputStream(bytes)).getElementsByTagName("item");
-    Set<String> urls=new HashSet<>();
-    for(int i=0;i<Math.min(100,items.getLength());i++){
-     Element item=(Element)items.item(i);String title=text(item,"title"),url=text(item,"link");
-     // Match the headline before the publisher suffix, never just the source name.
-     String headline=title.contains(" - ")?title.substring(0,title.lastIndexOf(" - ")):title;
-     Area area=matchArea(headline,place,street,district);
-     if(title.length()>300||url.length()>1000||area==null||!NewsRelevance.relevant(title))continue;
-     var time=NewsService.publication(text(item,"pubDate"),collected,30);if(time.isEmpty())continue;
-     var uri=URI.create(url);if(!"https".equals(uri.getScheme())||!"news.google.com".equals(uri.getHost()))continue;
-     var nodes=item.getElementsByTagName("source");if(nodes.getLength()==0)continue;Element publisher=(Element)nodes.item(0);
-     if(!PUBLISHERS.contains(URI.create(publisher.getAttribute("url")).getHost()))continue;
-     if(urls.add(url))found.add(new Item(AuthService.hash(url),title,url,publisher.getTextContent().strip()+" · via Google Notícias",time.get().toString(),NewsRelevance.topic(headline),area.scope(),area.name()));
-    }
+   for(String term:List.of(place,street,district))if(term.length()>=4)terms.add(term);
+   if(place.toLowerCase(Locale.ROOT).contains(" shopping"))terms.add(place.replaceAll("(?iu) shopping","Shopping"));
+   Set<String> urls=new HashSet<>();
+   int successfulFeeds=0;
+   for(String term:terms){
+    String query=URLEncoder.encode("\""+term+"\" \""+city+"\" (assalto OR roubo OR acidente OR alagamento OR interdição OR trânsito OR buraco OR obras OR tiroteio) when:30d",StandardCharsets.UTF_8);
+    try{
+     var request=HttpRequest.newBuilder(URI.create("https://news.google.com/rss/search?q="+query+"&hl=pt-BR&gl=BR&ceid=BR:pt-419")).timeout(Duration.ofSeconds(8)).header("User-Agent","SafeRideAcademicPrototype/0.1 (+https://github.com/Lopezez-git/saferide)").GET().build();
+     var response=http.send(request,HttpResponse.BodyHandlers.ofInputStream());
+     try(var input=response.body()){
+      if(response.statusCode()!=200)throw new IOException("RSS HTTP "+response.statusCode());
+      byte[] bytes=input.readNBytes(2000001);if(bytes.length>2000000)throw new IOException("RSS acima do limite");
+      var factory=DocumentBuilderFactory.newInstance();factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl",true);factory.setFeature("http://xml.org/sax/features/external-general-entities",false);factory.setFeature("http://xml.org/sax/features/external-parameter-entities",false);factory.setXIncludeAware(false);factory.setExpandEntityReferences(false);
+      var items=factory.newDocumentBuilder().parse(new ByteArrayInputStream(bytes)).getElementsByTagName("item");
+      successfulFeeds++;
+      for(int i=0;i<Math.min(100,items.getLength());i++){
+       Element item=(Element)items.item(i);String title=text(item,"title"),url=text(item,"link");
+       // Match the headline before the publisher suffix, never just the source name.
+       String headline=title.contains(" - ")?title.substring(0,title.lastIndexOf(" - ")):title;
+       Area area=matchArea(headline,place,street,district);
+       if(title.length()>300||url.length()>1000||area==null||!NewsRelevance.relevant(title))continue;
+       var time=NewsService.publication(text(item,"pubDate"),collected,30);if(time.isEmpty())continue;
+       var uri=URI.create(url);if(!"https".equals(uri.getScheme())||!"news.google.com".equals(uri.getHost()))continue;
+       var nodes=item.getElementsByTagName("source");if(nodes.getLength()==0)continue;Element publisher=(Element)nodes.item(0);
+       if(!PUBLISHERS.contains(URI.create(publisher.getAttribute("url")).getHost()))continue;
+       if(urls.add(url))found.add(new Item(AuthService.hash(url),title,url,publisher.getTextContent().strip()+" · via Google Notícias",time.get().toString(),NewsRelevance.topic(headline),area.scope(),area.name()));
+      }
+     }
+    }catch(Exception sourceFailure){if(sourceFailure instanceof InterruptedException)Thread.currentThread().interrupt();}
    }
+   if(successfulFeeds==0)throw new IOException("Todas as consultas RSS falharam");
    found.sort(Comparator.comparing(Item::publishedAt).reversed());
    var result=new Result(place,found.isEmpty()?"NO_LOCAL_ITEMS":"UPDATED",collected.toString(),List.copyOf(found));
    if(cache.size()>=100)cache.remove(cache.keySet().iterator().next());cache.put(key,result);return result;
