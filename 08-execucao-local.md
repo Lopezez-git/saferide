@@ -11,7 +11,7 @@ React Native/Expo SDK 58, Expo Router e TypeScript; Spring Boot 3.5.7/Java 21; M
 - Histórico SSP-SP de veículos subtraídos no raio de 1 km, agregado pela hora declarada do fato. O card usa automaticamente a hora atual de São Paulo, sem seletor; BOs sem horário confiável aparecem separados. É histórico, não alerta em tempo real ou classificação de segurança. O backend precisa ser reiniciado após reimportar a base.
 - Solicitações públicas de tapa-buraco do SP156, abertas no 3º trimestre de 2026, com localização, status na publicação de 13/10/2026 e data. O card Pavimento consulta o raio de 1 km. Pedidos não são vistoria; zero pedidos não significa via em boas condições. Fonte, importação e limitações em 12-integracao-sp156.md.
 - Solicitações públicas do SP156 sobre circulação/acesso, alagamento, queda de árvore ou galho e reparos estruturais no card Trânsito e acesso, também em raio de 1 km. Status corresponde à publicação de 13/10/2026; pedido não confirma condição atual da via. Fonte, atualização e limites em 13-integracao-sp156-acesso.md.
-- Consulta de rota para carro via serviço de demonstração OSRM; distância e duração estimadas, sem trânsito ao vivo.
+- Consulta de rota para carro via serviço de demonstração OSRM; a linha desenhada e sua duração não consideram trânsito ao vivo. Após traçar a viagem, o card Trânsito e acesso pode consultar uma estimativa separada da TomTom, se `SAFERIDE_TOMTOM_API_KEY` estiver configurada no backend. Veja 14-transito-da-viagem.md.
 - Envio de relato observado agora, pendência de revisão, aprovação/rejeição/retirada pelo moderador e trilha da decisão.
 - Contexto próximo à rota: distância aproximada de até 300 m; não comprova que o registro é na mesma via.
 - Notícias RSS automáticas: Agência Brasil com filtro regional/temático; se falhar ou não tiver itens elegíveis, busca RSS do Google Notícias com lista de veículos permitidos. Exige São Paulo ou capital paulista no título e aceita somente publicações dos últimos sete dias, com data válida e não futura. Links agregados são identificados como via Google Notícias. Filtro é preliminar: pode abranger o estado/região; não confirma município, não verifica o fato nem geolocaliza a notícia. O RSS regional antigo do g1 foi descartado após retornar matéria de 2018.
@@ -30,6 +30,8 @@ $env:DB_HOST='127.0.0.1'
 $env:DB_PORT='3306'
 $env:DB_USER='saferide_app'
 # Defina DB_PASSWORD localmente, sem publicar o valor.
+# Opcional: defina SAFERIDE_TOMTOM_API_KEY com sua chave pessoal da Routing API
+# para habilitar a estimativa de trânsito da viagem.
 mvn -f services/api/pom.xml spring-boot:run
 ```
 

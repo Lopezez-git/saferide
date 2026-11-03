@@ -53,6 +53,7 @@ export default function MapScreen() {
   const [destination, setDestination] = useState<MapPoint | null>(null);
   const [point, setPoint] = useState<MapPoint | null>(null);
   const [route, setRoute] = useState<Route | null>(null);
+  const [routeRevision, setRouteRevision] = useState(0);
   const request = useRef(0);
   const [routing, setRouting] = useState(false);
   const [error, setError] = useState("");
@@ -204,7 +205,7 @@ export default function MapScreen() {
           toLon: destination.longitude,
         },
       });
-      if (id === request.current) { setRoute(r); setSheetOpen(false); Keyboard.dismiss(); }
+      if (id === request.current) { setRoute(r); setRouteRevision(value=>value+1); setSheetOpen(false); Keyboard.dismiss(); }
     } catch (e) {
       if (id === request.current) setError(message(e));
     } finally {
@@ -287,6 +288,19 @@ export default function MapScreen() {
   const accessData=accessResult.key===policeKey?accessResult.data:null;
   const accessError=accessResult.key===policeKey?accessResult.error:"";
   const accessOpen=(accessData?.statuses?.Aberto ?? 0)+(accessData?.statuses?.["Em Andamento"] ?? 0)+(accessData?.statuses?.["Em andamento"] ?? 0);
+  type TrafficData = {status:string;condition:string;travelTimeSeconds:number;delaySeconds:number;checkedAt:string;source:string;message:string};
+  const trafficKey=route&&origin&&destination?`${origin.latitude},${origin.longitude}:${destination.latitude},${destination.longitude}:${routeRevision}`:"";
+  const [trafficResult,setTrafficResult]=useState<{key:string;data:TrafficData|null;error:string}>({key:"",data:null,error:""});
+  useEffect(() => {
+    if(!trafficKey||!origin||!destination)return;
+    const controller=new AbortController();
+    api<TrafficData>("/traffic/route",{method:"POST",body:{fromLat:origin.latitude,fromLon:origin.longitude,toLat:destination.latitude,toLon:destination.longitude},signal:controller.signal})
+      .then(data=>{if(!controller.signal.aborted)setTrafficResult({key:trafficKey,data,error:""});})
+      .catch(e=>{if(!controller.signal.aborted)setTrafficResult({key:trafficKey,data:null,error:message(e)});});
+    return ()=>controller.abort();
+  },[trafficKey,route,origin,destination]);
+  const traffic=trafficKey&&trafficResult.key===trafficKey?trafficResult.data:null;
+  const trafficError=trafficKey&&trafficResult.key===trafficKey?trafficResult.error:"";
   const activeTime = police?.currentTimeWindow;
   const timeCategories = activeTime ? police?.windows?.[activeTime] : undefined;
   const timeTotal = Object.values(timeCategories ?? {}).reduce((sum,count)=>sum+count,0);
@@ -302,18 +316,14 @@ export default function MapScreen() {
   const accessNews = (news.data?.items || []).filter(n => ["Trânsito", "Acidentes", "Clima e via", "Obras na via"].includes(n.topic));
   const topicNews = topic === "safety" ? safetyNews : topic === "pavement" ? pavementNews : topic === "access" ? accessNews : [];
   const topicReports = topic === "community" ? actualNearby : topic === "safety" ? safety : topic === "pavement" ? pavement : accessReports;
-  const accessSummary = !focus ? "Selecione um local"
-    : accessError || accessData?.status === "UNAVAILABLE" ? "Base SP156 indisponível"
-    : !accessData ? "Consultando SP156…"
-    : accessData.totalRequests ? `${accessData.totalRequests} solicitações à Prefeitura`
-    : q.loading && !q.data ? "Consultando relatos…"
-    : q.error && !q.data ? "Relatos indisponíveis"
-    : newsPlace && news.loading ? "Consultando fontes…"
-    : newsPlace && (news.error || news.data?.status === "UNAVAILABLE") ? `${accessReports.length} relato(s) · notícias indisponíveis`
-    : newsPlace && (accessReports.length || accessNews.length) ? `${accessReports.length} relato(s) · ${accessNews.length} notícia(s)`
-    : newsPlace ? "Sem registros nesta consulta"
-    : accessReports.length ? `${accessReports.length} relato(s) · busque um endereço`
-    : "Busque um endereço";
+  const trafficCondition=traffic?.condition==="LEVE"?"Trânsito tranquilo na viagem":traffic?.condition==="MODERADO"?"Trânsito moderado na viagem":traffic?.condition==="CONGESTIONADO"?"Viagem congestionada":"";
+  const accessSummary = !route ? "Trace uma viagem para avaliar o trânsito"
+    : trafficError||traffic?.status==="UNAVAILABLE" ? "Trânsito ao vivo indisponível"
+    : !traffic ? "Avaliando trânsito da viagem…"
+    : trafficCondition;
+  const accessCaption=traffic?.status==="AVAILABLE"
+    ? `${Math.ceil(traffic.travelTimeSeconds/60)} min estimados · ${traffic.delaySeconds>=60?`+${Math.ceil(traffic.delaySeconds/60)} min de atraso`:"sem atraso relevante"}`
+    : route?"Estimativa para origem e destino":"Solicitações locais nos detalhes";
 
   const showRouteAction = !!origin && !!destination && !route && !search;
   const showRouteFooter = showRouteAction || (!!route && !search);
@@ -384,7 +394,7 @@ export default function MapScreen() {
             {([
               {id:"safety",title:"Segurança",color:"#3B6467",bg:"#EFF5F3",text:police?.status==="AVAILABLE"?(hasTimeData?`Histórico ${timeLabel} · ${timeTotal} ${timeTotal===1?"BO":"BOs"}`:"Recorte horário indisponível"):policeError||police?.status==="UNAVAILABLE"?"Base policial indisponível":policeKey?"Consultando SSP…":"Selecione um local",caption:police?.status==="AVAILABLE"?"Hora atual · SSP-SP · veículos · 1 km":"SSP · veículos roubados/furtados"},
               {id:"pavement",title:"Pavimento",color:"#B5532A",bg:"#FFF0E9",text:pavementData?.status==="AVAILABLE"?(pavementOpen?`${pavementOpen} pedidos abertos no arquivo`:pavementData.totalRequests?`${pavementData.totalRequests} pedidos SP156`:"Sem pedidos nesta base"):pavementError||pavementData?.status==="UNAVAILABLE"?"Base SP156 indisponível":policeKey?"Consultando SP156…":"Selecione um local",caption:pavementData?.status==="AVAILABLE"?`SP156 · 1 km · status em ${shortDate(pavementData.sourceUpdatedAt)}`:"Pedidos de tapa-buraco · sem vistoria"},
-              {id:"access",title:"Trânsito e acesso",color:"#2563B5",bg:"#EBF3FF",text:accessSummary,caption:accessData?.status==="AVAILABLE"?`SP156 · 1 km · status em ${shortDate(accessData.sourceUpdatedAt)}`:"Obras, alagamentos e acesso"},
+              {id:"access",title:"Trânsito e acesso",color:"#2563B5",bg:"#EBF3FF",text:accessSummary,caption:accessCaption},
               {id:"community",title:"Comunidade",color:"#7952B3",bg:"#F4EEFF",text:q.loading?"Consultando…":q.error?"Dados indisponíveis":actualNearby.length?`${actualNearby.length} relato(s) do local`:"Sem relatos reais aqui",caption:"Experiências de motoristas"},
             ] as const).map(card => <Pressable key={card.id} accessibilityRole="button" accessibilityState={{selected:topic===card.id}} accessibilityLabel={`${card.title}: ${card.text}`} onPress={() => setTopic(card.id)} style={({pressed}) => ({width:"48%",flexGrow:1,minHeight:142,padding:13,gap:6,borderRadius:18,backgroundColor:card.bg,borderWidth:2,borderColor:topic===card.id?card.color:"transparent",opacity:pressed?0.8:1})}>
               <Svg width={27} height={27} viewBox="0 0 24 24" fill="none" stroke={card.color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" accessible={false}>
@@ -442,7 +452,15 @@ export default function MapScreen() {
           </> : null}
           {topic === "community" ? <><Text style={styles.heading}>Quem passa por aqui</Text><Text style={styles.body}>{actualNearby.length?"Relatos de motoristas próximos do ponto selecionado.":"A comunidade ainda não tem relatos reais deste local. Compartilhe o que você observou para ajudar quem passa por aqui."}</Text><Button title="Abrir comunidade" secondary onPress={() => router.push("/community")} /></> : null}
           {topic === "access" ? <>
-            <Text style={styles.heading}>Trânsito e acesso no entorno</Text>
+            <Text style={styles.heading}>Trânsito da viagem</Text>
+            {!route ? <Text style={styles.body}>Defina origem e destino e trace a viagem para consultar o trânsito entre os dois pontos.</Text>
+              : traffic?.status==="AVAILABLE" ? <View style={[styles.card,{backgroundColor:"#EBF3FF"}]}>
+                <Text style={styles.heading}>{trafficCondition}</Text>
+                <Text style={styles.body}>{Math.ceil(traffic.travelTimeSeconds/60)} min estimados para a viagem · {traffic.delaySeconds>=60?`aproximadamente ${Math.ceil(traffic.delaySeconds/60)} min de atraso pelo trânsito`:"sem atraso relevante estimado"}.</Text>
+                <Text style={styles.subtitle}>{traffic.source} · consultado em {when(traffic.checkedAt)}. A avaliação considera somente o trânsito, não a segurança da região.</Text>
+                <Text style={styles.subtitle}>{traffic.message}</Text>
+              </View> : <Text style={styles.body}>{trafficError||traffic?.status==="UNAVAILABLE"?`Trânsito ao vivo indisponível. A rota do mapa estima ${Math.ceil(route.duration/60)} min sem essa avaliação.`:"Consultando o trânsito desta viagem…"}</Text>}
+            <Text style={styles.heading}>Histórico de vias e acesso · até 1 km</Text>
             <Text style={styles.body}>Solicitações públicas sobre circulação, acesso, alagamentos, árvores e reparos estruturais, além de relatos revisados e notícias locais.</Text>
             {accessData?.status==="AVAILABLE" ? <View style={[styles.card,{backgroundColor:"#EBF3FF"}]}>
               <Text style={styles.heading}>{accessData.totalRequests} solicitações à Prefeitura sobre vias e acesso</Text>

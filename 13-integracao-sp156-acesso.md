@@ -2,7 +2,7 @@
 
 ## Fonte e recorte
 
-Usamos o [CSV oficial do SP156 do 3º trimestre de 2026](https://dados.prefeitura.sp.gov.br/dataset/dados-do-sp156/resource/f67fcc12-8da4-485f-92a3-d2af40cc771e), atualizado em **13/10/2026**, para complementar o card **Trânsito e acesso**. O arquivo contém pedidos feitos à Prefeitura, não um monitoramento do trânsito em tempo real. A consulta usa um raio de 1 km ao redor do ponto selecionado em São Paulo.
+Usamos o [CSV oficial do SP156 do 3º trimestre de 2026](https://dados.prefeitura.sp.gov.br/dataset/dados-do-sp156/resource/f67fcc12-8da4-485f-92a3-d2af40cc771e), atualizado em **13/10/2026**, nos **detalhes históricos** do card **Trânsito e acesso**. O resumo rápido do card avalia o [trânsito da viagem entre origem e destino](14-transito-da-viagem.md), quando a fonte ao vivo está configurada. O arquivo SP156 contém pedidos feitos à Prefeitura, não um monitoramento do trânsito em tempo real. A consulta histórica usa um raio de 1 km ao redor do ponto selecionado em São Paulo.
 
 O importador aceita somente serviços com relação direta ao contexto da via: **alagamento**, **queda de árvore ou galho**, **risco de queda de árvore**, **avaliação de circulação e acesso de veículos e pessoas** e **reparos em pontes, viadutos e túneis**. Pedidos de tapa-buraco permanecem no card Pavimento. Outros serviços do SP156 não entram automaticamente no card.
 
