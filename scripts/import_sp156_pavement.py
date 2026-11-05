@@ -28,12 +28,12 @@ def parse_date(value):
         return None
 
 
-def select(row, today):
+def select(row, today, period_start=dt.date(2026, 7, 1), period_end=dt.date(2026, 9, 30)):
     service = row.get("Serviço", "").strip()
     if "tapa-buraco" not in service.casefold():
         return None
     opened = parse_date(row.get("Data de Abertura", ""))
-    if not opened or not dt.date(2026, 7, 1) <= opened <= min(today, dt.date(2026, 9, 30)):
+    if not opened or not period_start <= opened <= min(today, period_end):
         return None
     try:
         latitude = float(row["Latitude"])
@@ -59,13 +59,13 @@ def select(row, today):
     }
 
 
-def aggregate(rows, source_updated_at, today=None):
+def aggregate(rows, source_updated_at, today=None, period_start=dt.date(2026, 7, 1), period_end=dt.date(2026, 9, 30)):
     today = today or dt.datetime.now(dt.timezone(dt.timedelta(hours=-3))).date()
     records = []
     source_rows = 0
     for row in rows:
         source_rows += 1
-        request = select(row, today)
+        request = select(row, today, period_start, period_end)
         if request:
             records.append(request)
     if not records:

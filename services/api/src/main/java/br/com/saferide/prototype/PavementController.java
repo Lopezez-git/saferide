@@ -23,13 +23,9 @@ import java.util.Map;
 @CrossOrigin(origins={"http://localhost:8081","http://127.0.0.1:8081"})
 @RestController @Profile("prototype") @RequestMapping("/api/v1/pavement")
 public class PavementController {
- private final JsonNode dataset;
-
+ private final PublicDataRefresh.Snapshot snapshot;
  public PavementController(ObjectMapper mapper) {
-  JsonNode loaded;
-  try(var input=new ClassPathResource("data/sp156-pavement.json").getInputStream()) {loaded=mapper.readTree(input);}
-  catch(Exception e) {loaded=null;}
-  dataset=loaded;
+  snapshot=new PublicDataRefresh.Snapshot(mapper,"sp156-pavement.json");
  }
 
  public static List<Map<String,Object>> nearby(JsonNode records,double latitude,double longitude) {
@@ -66,6 +62,7 @@ public class PavementController {
  @GetMapping("/requests") public Map<String,Object> local(@RequestParam double latitude,@RequestParam double longitude) {
   if(!Double.isFinite(latitude)||!Double.isFinite(longitude)||latitude< -24.1||latitude> -23.3||longitude< -46.9||longitude> -46.3)
    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Fora da área piloto.");
+  JsonNode dataset=snapshot.get();
   if(dataset==null)return Map.of("status","UNAVAILABLE","message","Base SP156 não carregada.");
   var found=nearby(dataset.path("records"),latitude,longitude);
   Map<String,Integer> statuses=new LinkedHashMap<>();
@@ -75,7 +72,7 @@ public class PavementController {
   result.put("totalRequests",found.size());result.put("statuses",statuses);
   var display=groupForDisplay(found);
   result.put("items",display.subList(0,Math.min(12,display.size())));
-  for(String key:List.of("source","sourceUrl","sourceUpdatedAt","importedAt","periodStart","periodEnd"))
+  for(String key:List.of("source","sourceUrl","lastCheckedAt","sourceUpdatedAt","importedAt","periodStart","periodEnd"))
    result.put(key,dataset.path(key).asText());
   result.put("stale",LocalDate.parse(dataset.path("sourceUpdatedAt").asText()).isBefore(LocalDate.now(ZoneId.of("America/Sao_Paulo")).minusDays(45)));
   result.put("meaning","Solicitações registradas no SP156; não são vistoria do pavimento nem número de buracos existentes. Finalizada indica encerramento do protocolo, não confirmação de via em boas condições.");

@@ -22,7 +22,7 @@ Na importação foram lidas 154.159 linhas, resultando em 24.861 BOs elegíveis;
 
 ## Atualização
 
-A fotografia agregada está incluída em `services/api/src/main/resources/data/ssp-vehicles.json`. A API carrega essa base ao iniciar. A consulta não depende de a SSP estar online; após 30 dias da importação, informa atualização pendente. O período dos fatos aparece sempre, independentemente dessa marca.
+A fotografia agregada está incluída em `services/api/src/main/resources/data/ssp-vehicles.json`. A API usa essa base como fallback e recarrega automaticamente o agregado externo atualizado. A consulta não depende de a SSP estar online; o indicador de defasagem considera o fim do período dos fatos (mais de 60 dias), não a data do download. O período dos fatos aparece sempre, independentemente dessa marca.
 
 Para baixar novamente a publicação e reconstruir a base, na raiz do repositório:
 
@@ -30,7 +30,7 @@ Para baixar novamente a publicação e reconstruir a base, na raiz do repositór
 python scripts/import_ssp_vehicles.py --year 2026 --output services/api/src/main/resources/data/ssp-vehicles.json
 ```
 
-Reinicie/recompile a API após a atualização. A rotina não está agendada automaticamente. O comando substitui o agregado somente depois de uma importação válida; falha de download não apaga a base anterior. O XLSX bruto fica em diretório temporário, fora do repositório. Python usa somente biblioteca padrão.
+A rotina automática consulta a fonte ao iniciar o backend e a cada 6 horas. A base externa é recarregada nas consultas, sem reiniciar. Veja [atualização automática](15-atualizacao-dados-publicos.md). O comando substitui o agregado somente depois de uma importação válida; falha de download não apaga a base anterior. O XLSX bruto fica em diretório temporário, fora do repositório. Python usa somente biblioteca padrão.
 
 ## Validação
 

@@ -101,3 +101,7 @@ Consulte [08-execucao-local.md](08-execucao-local.md) para executar API, app e c
 ### Histórico policial no mapa
 
 O card Segurança já consulta uma base agregada de boletins da SSP-SP sobre veículos roubados/furtados em São Paulo, por raio de 1 km. Exibe período dos fatos, contagens e fonte, sem classificar automaticamente o local como seguro/perigoso. A fotografia inicial cobre janeiro–setembro de 2026 e não é um alerta em tempo real. Consulte [integração SSP, metodologia e atualização](11-integracao-ssp.md).
+
+### Atualização automática de segurança e pavimento
+
+O backend verifica as fontes oficiais ao iniciar e a cada 6 horas. Novas bases válidas são carregadas sem reiniciar; falhas preservam o último agregado válido. Atualização automática não significa ocorrências em tempo real. [Configuração e limites](15-atualizacao-dados-publicos.md).
