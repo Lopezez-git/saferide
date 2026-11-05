@@ -105,3 +105,11 @@ O card Segurança já consulta uma base agregada de boletins da SSP-SP sobre ve�
 ### Atualização automática de segurança e pavimento
 
 O backend verifica as fontes oficiais ao iniciar e a cada 6 horas. Novas bases válidas são carregadas sem reiniciar; falhas preservam o último agregado válido. Atualização automática não significa ocorrências em tempo real. [Configuração e limites](15-atualizacao-dados-publicos.md).
+
+### Simulação de corridas
+
+O botão **Simular corrida**, no canto inferior direito da aba Mapa, apresenta ofertas fictícias com som, aceite, recusa e viagem animada. A caixa flutuante do SafeRide consulta o contexto real do destino. [Fluxo, fontes e limites](16-simulacao-corridas.md).
+
+### Navegação do MVP e histórico
+
+As abas do MVP são **Mapa, Histórico e Notícias**. Comunidade e Perfil foram retiradas da navegação. Corridas simuladas aceitas são persistidas no MySQL, com passageiro fictício, locais, distância, tempo, valor e status. Há fila local para sincronização após falhas. [Modelo e funcionamento do histórico](17-historico-corridas.md).

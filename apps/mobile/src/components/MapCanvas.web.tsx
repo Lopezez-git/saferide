@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { mapHtml, MapProps } from "./mapHtml";
-export default function MapCanvas({ data, onPick, onReport, height = 360 }: MapProps) {
+export default function MapCanvas({ data, onPick, onReport, height = 360, html = mapHtml }: MapProps) {
   const ref = useRef<HTMLIFrameElement>(null);
   useEffect(() => {
     function send() {
@@ -29,7 +29,7 @@ export default function MapCanvas({ data, onPick, onReport, height = 360 }: MapP
     <iframe
       ref={ref}
       title="Mapa interativo de São Paulo"
-      srcDoc={mapHtml}
+      srcDoc={html}
       sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
       referrerPolicy="strict-origin-when-cross-origin"
       style={{ width: "100%", height, border: 0, borderRadius: 0 }}

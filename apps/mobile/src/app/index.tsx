@@ -12,8 +12,9 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path, Circle } from "react-native-svg";
 import { useFocusEffect, useRouter } from "expo-router";
+import RideSimulation from "../components/RideSimulation";
 import MapCanvas from "../components/MapCanvas";
-import { MapPoint } from "../components/mapHtml";
+import { MapPoint, MapData } from "../components/mapHtml";
 import { useResource } from "../lib/useResource";
 import { api, Report, message, when } from "../lib/client";
 import { useSession } from "../lib/session";
@@ -40,6 +41,8 @@ type Route = {
 export default function MapScreen() {
   const { token, user } = useSession();
   const router = useRouter();
+  const [simulating, setSimulating] = useState(false);
+  const [simulationData, setSimulationData] = useState<MapData | null>(null);
   const [topic, setTopic] = useState<"safety" | "pavement" | "access" | "community">("access");
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -340,10 +343,12 @@ export default function MapScreen() {
     <View style={{flex:1,backgroundColor:"#E6E9E3"}} onLayout={(event) => setMapHeight(event.nativeEvent.layout.height)}>
       <MapCanvas
         height={mapHeight}
-        data={{ routeMinutes: route ? Math.round(route.duration / 60) : undefined, reports: shown, placeFocus, position, locationFocus, origin, destination, selected: point, route: route?.geometry.coordinates ?? null }}
-        onPick={(point) => { if (search) { Keyboard.dismiss(); setSearch(""); setPlaces([]); setSearched(false); setSearching(false); searchRequest.current++; return; } if (!route || mode === "report") pick(point); else { setInspected(point); setLocalName(""); setNewsPlace(""); } setSheetOpen(true); }}
+        data={simulating && simulationData ? simulationData : { routeMinutes: route ? Math.round(route.duration / 60) : undefined, reports: shown, placeFocus, position, locationFocus, origin, destination, selected: point, route: route?.geometry.coordinates ?? null }}
+        onPick={(point) => { if (simulating) return; if (search) { Keyboard.dismiss(); setSearch(""); setPlaces([]); setSearched(false); setSearching(false); searchRequest.current++; return; } if (!route || mode === "report") pick(point); else { setInspected(point); setLocalName(""); setNewsPlace(""); } setSheetOpen(true); }}
         onReport={(id) => { const report = reports.find(r => r.id === id); if (report) { setInspected(report); setLocalName(report.title); setNewsPlace(""); } setSheetOpen(true); }}
       />
+      {!simulating ? <>
+
       <View style={{position:"absolute",top:12+insets.top,left:12,right:12,maxWidth:520,alignSelf:"center",backgroundColor:"white",borderRadius:20,padding:14,boxShadow:"0 3px 18px #00000020"}}>
         <View style={{flexDirection:"row",alignItems:"center",gap:8}}>
       <TextInput
@@ -577,6 +582,11 @@ export default function MapScreen() {
           <Text style={{color:"white",fontSize:18,fontWeight:"700"}}>{routing ? "Calculando percurso…" : "Traçar percurso"}</Text>
         </Pressable>
       </View> : null}
+      {!search ? <Pressable accessibilityRole="button" accessibilityLabel="Iniciar simulação de corrida" onPress={() => { Keyboard.dismiss(); setSimulationData(null); setSimulating(true); }} style={({pressed}) => ({position:"absolute",right:16,bottom:showRouteFooter?100:18,backgroundColor:pressed?"#075E54":"#087F71",borderRadius:28,paddingHorizontal:18,height:54,flexDirection:"row",alignItems:"center",gap:8,boxShadow:"0 4px 16px #0004",borderWidth:1,borderColor:"#74CDBD"})}>
+        <Svg width={20} height={20} viewBox="0 0 24 24" fill="white"><Path d="M8 4l12 8-12 8V4z" /></Svg><Text style={{color:"white",fontWeight:"700",fontSize:14}}>Simular corrida</Text>
+      </Pressable> : null}
+      </> : <RideSimulation height={mapHeight} onMapData={setSimulationData} autoStart onExit={() => setSimulating(false)} />}
+
     </View>
   );
 }
