@@ -10,6 +10,7 @@ import type { MapData } from "./mapHtml";
 
 import { createRideId, saveRide, Ride } from '../lib/rideHistory';
 import SimulationContext from '../components/SimulationContext';
+import SimulationProgress from './SimulationProgress';
 import routeSamples from '../lib/simulation-routes.json';
 import { offers, legProgress, simulationDriver, simulationReducer, SimulationPhase, OFFER_SECONDS } from '../lib/simulation';
 
@@ -44,11 +45,12 @@ function useSimulationController({ onExit, onMapData, height, autoStart = false 
   const offer = offers[index];
   const current = routeSamples.routes[index];
   const active = focused && foreground;
-  const moving = phase === 'pickup' || phase === 'trip';
+  const moving = phase === 'pickup' || phase === 'boarding' || phase === 'trip';
+  const passengerOnboard = phase === 'boarding' || phase === 'trip';
   const introVisible = phase === 'intro' || phase === 'idle';
   const waiting = phase === 'searching' || introVisible;
   const offering = phase === 'offer' || phase === 'accepting';
-  const cardHeight = offering ? Math.min(380,height*0.51) : Math.min(250,height*0.38);
+  const cardHeight = offering ? Math.min(340,height*0.48) : Math.min(224,height*0.34);
   useEffect(() => {
     if (phase !== 'offer') { announced.current = false; return; }
     if (!active || !sound || !audioStatus.isLoaded || announced.current) return;
@@ -70,13 +72,13 @@ function useSimulationController({ onExit, onMapData, height, autoStart = false 
       fare:offer.fare,plannedDistanceMeters:Math.round(current.pickup.distance+current.trip.distance),
       distanceMeters:Math.round(current.pickup.distance*pickupFraction+current.trip.distance*tripFraction),
       simulatedSeconds:Math.round(current.pickup.duration*pickupFraction+current.trip.duration*tripFraction),
-      activeSeconds:Math.floor(14*pickupFraction+28*tripFraction),status,createdAt:acceptedAt.current,
+      activeSeconds:Math.floor(14*pickupFraction+28*tripFraction+boardingSeconds(phase,elapsed)),status,createdAt:acceptedAt.current,
       finishedAt:status==='IN_PROGRESS'?null:new Date().toISOString()};
   }
   const latestSnapshot=useRef(snapshot);
   useEffect(()=>{latestSnapshot.current=snapshot;});
   useEffect(()=>{
-    if(!rideId.current||!(phase==='pickup'||phase==='trip'))return;
+    if(!rideId.current||!(phase==='pickup'||phase==='boarding'||phase==='trip'))return;
     const key=phase+':'+Math.floor(elapsed/4);
     if(checkpoint.current===key)return;
     checkpoint.current=key;
@@ -149,8 +151,14 @@ function useSimulationController({ onExit, onMapData, height, autoStart = false 
   const distance = current.pickup.distance+current.trip.distance;
   const top = Math.max(inset.top,10);
   const prepareCamera = (phase === 'intro' && elapsed >= 3) || phase === 'searching';
-  const offerHeight = Math.min(380,height*0.51);
-  const mapData = useMemo(()=>({ simulation:true,simulationPreview:prepareCamera?route:null,reduceMotion:reducedMotion!==false,reports:[],origin:waiting?null:offer.pickup,destination:waiting?null:offer.destination,selected:null,route:waiting?null:route,approachRoute:waiting?undefined:current.pickup.geometry.coordinates,driver:waiting?null:driver,bottomInset:(waiting?offerHeight:cardHeight)+26,topInset:top+170 }),[offer,current,route,driver,waiting,prepareCamera,reducedMotion,cardHeight,offerHeight,top]);
+  const offerHeight = Math.min(340,height*0.48);
+  const driverMotion = useMemo(() => {
+    if (phase !== 'pickup' && phase !== 'trip') return null;
+    const leg = current[phase];
+    return { key: `${index}:${phase}`, coordinates: leg.geometry.coordinates, elapsed, duration: phase === 'pickup' ? 14 : 28, running: active && !paused && !saving };
+  }, [phase,current,index,elapsed,active,paused,saving]);
+  const visibleRoute = passengerOnboard ? current.trip.geometry.coordinates : route;
+  const mapData = useMemo(()=>({ simulation:true,navigation:moving,driverMotion,passengerOnboard,simulationPreview:prepareCamera?route:null,reduceMotion:reducedMotion!==false,reports:[],origin:waiting?null:offer.pickup,destination:waiting?null:offer.destination,selected:null,route:waiting?null:visibleRoute,approachRoute:waiting||passengerOnboard?undefined:current.pickup.geometry.coordinates,driver:waiting?null:driver,bottomInset:(waiting?offerHeight:cardHeight)+26,topInset:top+148 }),[offer,current,route,visibleRoute,driver,moving,driverMotion,passengerOnboard,waiting,prepareCamera,reducedMotion,cardHeight,offerHeight,top]);
   useEffect(() => { onMapData(mapData); }, [mapData,onMapData]);
   const compact = height < 720;
   const finished = phase === 'done' || phase === 'declined' || phase === 'expired';
@@ -180,11 +188,18 @@ export default function RideSimulation(props: SimulationProps) {
 }
 function stageHeading(phase: SimulationPhase) {
   if (phase === 'offer' || phase === 'accepting') return 'NOVA SOLICITAÇÃO';
-  if (phase === 'pickup') return 'A CAMINHO DO PASSAGEIRO';
+  if (phase === 'pickup') return 'BUSCAR PASSAGEIRO';
+  if (phase === 'boarding') return 'EMBARQUE CONFIRMADO';
   if (phase === 'trip') return 'VIAGEM EM ANDAMENTO';
   return 'RESUMO DA SIMULAÇÃO';
 }
+function boardingSeconds(phase: SimulationPhase, elapsed: number) {
+  if (phase === 'boarding') return elapsed;
+  if (phase === 'trip' || phase === 'done') return 3;
+  return 0;
+}
 function stageTitle(phase: SimulationPhase, passenger: string) {
+  if (phase === 'boarding') return 'Passageiro a bordo';
   if (phase === 'pickup' || phase === 'trip') return passenger;
   if (phase === 'done') return 'Viagem concluída';
   if (phase === 'expired') return 'A oferta expirou';
@@ -192,6 +207,7 @@ function stageTitle(phase: SimulationPhase, passenger: string) {
 }
 function stageAddress({phase,offer,distance}: SimulationModel) {
   if (phase === 'pickup') return offer.pickup.name;
+  if (phase === 'boarding') return `${offer.passenger.split(' ')[0]} embarcou. Vamos ao destino.`;
   if (phase === 'trip') return offer.destination.name;
   const summary = phase === 'done' ? km(distance)+' km percorridos' : 'Você pode receber outra oferta';
   return `${money(offer.fare)} · ${summary}`;
@@ -231,6 +247,7 @@ function SearchPanel({model}: PanelProps) {
 
 function OfferPanel({model}: PanelProps) {
   const { c, waiting, reducedMotion, cardHeight, offering, phase, offer, audioError, saveNotice } = model;
+  const importantNotice = /Falha|Não foi|pendente/.test(saveNotice) ? saveNotice : '';
   return <SimulationMotion visible={!waiting} reducedMotion={reducedMotion} fromY={110} duration={650} delay={160} testID="simulation-offer" style={[s.offer,{height:cardHeight,backgroundColor:c.surface,borderColor:c.border}]}>
       <View style={[s.handle,{backgroundColor:c.border}]}/>
       <ScrollView style={{flex:1}} contentContainerStyle={{paddingHorizontal:16,paddingBottom:4}} showsVerticalScrollIndicator={false}>
@@ -240,7 +257,7 @@ function OfferPanel({model}: PanelProps) {
       </ScrollView>
       <View style={[s.actions,{borderTopColor:c.border}]}>
         <RideActions model={model}/>
-        {saveNotice?<Text accessibilityLiveRegion="polite" style={[s.footnote,{color:c.accent}]}>{saveNotice}</Text>:<Text style={[s.footnote,{color:c.muted}]}>Oferta fictícia · estimativa de percurso sem trânsito</Text>}
+        {importantNotice ? <Text accessibilityLiveRegion="polite" style={[s.footnote,{color:c.orange}]}>{importantNotice}</Text> : null}
       </View>
     </SimulationMotion>;
 }
@@ -248,41 +265,61 @@ function OfferPanel({model}: PanelProps) {
 function OfferDetails({model}: PanelProps) {
   const { c, offer, distance, minutes, compact, current } = model;
   return <>
-          <View style={[s.row,{alignItems:'baseline'}]}><Text style={[s.fare,{color:c.text,fontSize:compact?32:40}]}>{money(offer.fare)}</Text><View style={{flex:1}}/><Text style={[s.rate,{color:c.accent,backgroundColor:c.accentSurface}]}>{money(offer.fare/((distance??1)/1000))}/km</Text></View>
-          <Text style={[s.summary,{color:c.muted}]}>{minutes} min · {km(distance??0)} km · {offer.passenger.split(' ')[0]} ★ {offer.rating}</Text>
+          <View style={[s.row,{alignItems:'baseline'}]}><Text style={[s.fare,{color:c.text,fontSize:compact?32:36}]}>{money(offer.fare)}</Text><View style={{flex:1}}/><Text style={{color:c.muted,fontSize:13}}>★ {offer.rating}</Text></View>
+          <Text style={[s.summary,{color:c.muted}]}>{minutes} min · {km(distance)} km no total</Text>
           <View style={[s.divider,{backgroundColor:c.border}]}/>
-          <View style={s.stop}><View style={[s.marker,{backgroundColor:'#1878c9'}]}><Person/></View><View style={{flex:1}}><Text style={[s.stopLabel,{color:c.blue}]}>EMBARQUE · {Math.ceil(current.pickup.duration/60)} min · {km(current.pickup.distance)} km</Text><Text style={[s.address,{color:c.text}]} numberOfLines={2}>{offer.pickup.name}</Text></View></View>
-          <View style={s.stop}><View style={[s.marker,{backgroundColor:c.inset}]}><Text style={{color:c.text}}>■</Text></View><View style={{flex:1}}><Text style={[s.stopLabel,{color:c.muted}]}>DESTINO · {Math.ceil(current.trip.duration/60)} min · {km(current.trip.distance)} km</Text><Text style={[s.address,{color:c.text}]} numberOfLines={2}>{offer.destination.name}</Text></View></View>
+          <View style={s.stop}><View style={[s.marker,{backgroundColor:'#1878c9'}]}><Person/></View><View style={{flex:1}}><Text style={[s.stopLabel,{color:c.blue}]}>BUSCAR {offer.passenger.split(' ')[0].toUpperCase()} · {Math.ceil(current.pickup.duration/60)} min</Text><Text style={[s.address,{color:c.text}]} numberOfLines={2}>{offer.pickup.name}</Text></View></View>
+          <View style={s.stop}><View style={[s.marker,{backgroundColor:c.inset}]}><Text style={{color:c.text}}>■</Text></View><View style={{flex:1}}><Text style={[s.stopLabel,{color:c.muted}]}>DESTINO · {Math.ceil(current.trip.duration/60)} min</Text><Text style={[s.address,{color:c.text}]} numberOfLines={2}>{offer.destination.name}</Text></View></View>
 </>;
 }
 
 function TripDetails({model}: PanelProps) {
-  const { c, phase, offer, moving, paused } = model;
-  return <>
-          <Text style={[s.stageTitle,{color:c.text}]}>{stageTitle(phase,offer.passenger)}</Text>
-          <Text style={[s.address,{color:c.muted}]} numberOfLines={2}>{stageAddress(model)}</Text>
-          {moving?<Text style={[s.passenger,{color:c.accent}]}>{paused?'Simulação pausada':'Movimento automático · velocidade de demonstração'}</Text>:null}
-</>;
+  const { c, phase, offer, paused, reducedMotion } = model;
+  const boarding = phase === 'boarding';
+  const onboard = boarding || phase === 'trip';
+  return <View accessibilityLiveRegion="polite">
+    <View style={[s.row,{marginTop:8,marginBottom:8}]}>
+      <SimulationMotion visible reducedMotion={reducedMotion} key={onboard?'onboard':'pickup'} fromY={12} duration={420} style={[s.tripAvatar,{backgroundColor:onboard?c.accentSurface:c.inset}]}>
+        {onboard ? <Svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke={c.accent} strokeWidth={2.5}><Path d="M5 12l4 4L19 6"/></Svg> : <Person color={c.blue}/>}
+      </SimulationMotion>
+      <View style={{flex:1}}>
+        <Text style={[s.stageTitle,{color:boarding?c.accent:c.text}]}>{stageTitle(phase,offer.passenger)}</Text>
+        {phase==='trip'?<Text style={{color:c.accent,fontSize:12,marginTop:3}}>✓ Passageiro a bordo</Text>:null}
+      </View>
+    </View>
+    <Text style={[s.address,{color:c.muted}]} numberOfLines={2}>{stageAddress(model)}</Text>
+    {paused&&!boarding?<Text style={[s.passenger,{color:c.orange}]}>Simulação pausada</Text>:null}
+  </View>;
+}
+
+function BoardingActions({model}: PanelProps) {
+  const {c,paused,setPaused} = model;
+  return <View style={s.row}>
+    <Text style={{flex:1,color:c.muted,fontSize:12}}>{paused?'Embarque pausado':'Partida automática em instantes'}</Text>
+    <Pressable accessibilityRole="button" accessibilityLabel={paused?'Continuar embarque':'Pausar embarque'} onPress={()=>setPaused(value=>!value)} style={[s.secondary,{borderColor:c.border}]}><Text style={{color:c.text}}>{paused?'Continuar':'Pausar'}</Text></Pressable>
+  </View>;
 }
 
 function RideActions({model}: PanelProps) {
-  const { c, offering, elapsed, saving, changePhase, accept, moving, phase, paused, setPaused, completionError, setCompletionError, retryCompletion } = model;
+  const { c, offering, elapsed, saving, changePhase, accept, moving, phase, paused, setPaused, completionError, setCompletionError, retryCompletion, reducedMotion } = model;
   if (offering) return <>
-          <View style={[s.progress,{backgroundColor:c.inset}]}><View style={[s.progressFill,{width:`${Math.max(0,100-elapsed/OFFER_SECONDS*100)}%`}]}/></View>
+          <SimulationProgress key="offer" value={1-elapsed/OFFER_SECONDS} color={c.accent} background={c.inset} reducedMotion={reducedMotion}/>
           <View style={s.row}><Pressable accessibilityRole="button" accessibilityLabel="Recusar corrida" disabled={saving} onPress={()=>changePhase('declined')} style={[s.secondary,{borderColor:c.border}]}><Text style={{color:c.text,fontWeight:'600'}}>Recusar</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Aceitar corrida simulada" disabled={saving} onPress={accept} style={[s.accept,{flex:1,opacity:saving ? 0.6 : 1}]}><Text style={s.acceptText}>{saving?'Salvando…':'Aceitar corrida'} {saving?null:<Text style={{fontSize:12}}>· {Math.max(0,OFFER_SECONDS-Math.floor(elapsed))}s</Text>}</Text></Pressable></View>
 </>;
+  if (phase === 'boarding') return <BoardingActions model={model}/>;
   if (moving) return <>
-          <View style={[s.progress,{backgroundColor:c.inset}]}><View style={[s.progressFill,{width:`${Math.min(100,elapsed/(phase==='pickup'?14:28)*100)}%`}]}/></View>
-          <View style={s.row}><Pressable accessibilityRole="button" disabled={saving} onPress={()=>setPaused(value=>!value)} style={[s.accept,{flex:1}]}><Text style={s.acceptText}>{paused?'Continuar viagem':'Pausar'}</Text></Pressable><Pressable accessibilityRole="button" disabled={saving} onPress={()=>changePhase('declined')} style={[s.secondary,{borderColor:c.border}]}><Text style={{color:c.text}}>Cancelar</Text></Pressable></View>
+          <SimulationProgress key={phase} value={elapsed/(phase==='pickup'?14:28)} color={c.accent} background={c.inset} reducedMotion={reducedMotion}/>
+          <View style={s.row}><Pressable accessibilityRole="button" disabled={saving} onPress={()=>setPaused(value=>!value)} style={[s.accept,{flex:1}]}><Text style={s.acceptText}>{paused?'Continuar':'Pausar'}</Text></Pressable><Pressable accessibilityRole="button" disabled={saving} onPress={()=>changePhase('declined')} style={[s.secondary,{borderColor:c.border}]}><Text style={{color:c.text}}>Cancelar</Text></Pressable></View>
 </>;
   if (completionError) return <Pressable accessibilityRole="button" onPress={()=>{setCompletionError(false);retryCompletion();}} style={s.accept}><Text style={s.acceptText}>Salvar e continuar</Text></Pressable>;
   return <Text style={[s.searchCaption,{color:c.muted}]}>Salvando a viagem para buscar a próxima…</Text>;
 }
 
 const s=StyleSheet.create({
+  tripAvatar:{width:46,height:46,borderRadius:23,alignItems:'center',justifyContent:'center'},
   searchingPanel:{position:'absolute',left:16,right:16,bottom:20,padding:24,borderRadius:24,borderWidth:1,boxShadow:'0 8px 26px #0003'},
   toolbar:{position:'absolute',left:14,right:14,flexDirection:'row',justifyContent:'space-between',alignItems:'center'},
   row:{flexDirection:'row',alignItems:'center',gap:8},mode:{borderWidth:1,borderRadius:22,paddingHorizontal:12,height:40,flexDirection:'row',alignItems:'center',gap:7},modeText:{fontSize:10,fontWeight:'800',letterSpacing:1.1},dot:{width:7,height:7,borderRadius:4,backgroundColor:'#39c6a1'},tool:{minWidth:44,height:40,borderRadius:20,paddingHorizontal:12,alignItems:'center',justifyContent:'center'},
   intro:{position:'absolute',bottom:12,left:24,right:24},introContent:{flexGrow:1,justifyContent:'center',paddingVertical:16},radar:{width:112,height:112,borderRadius:56,borderWidth:1,alignSelf:'center',alignItems:'center',justifyContent:'center',marginBottom:16},radarInner:{width:86,height:86,borderRadius:43,alignItems:'center',justifyContent:'center'},introBrand:{fontSize:44,fontWeight:'800',letterSpacing:-1.8,textAlign:'center'},eyebrow:{fontSize:9,fontWeight:'800',letterSpacing:1.1},introTitle:{fontSize:21,lineHeight:28,fontWeight:'600',marginTop:10,letterSpacing:-.3,textAlign:'center'},introTopics:{flexDirection:'row',justifyContent:'center',gap:26,marginVertical:26},introTopic:{alignItems:'center',gap:7},searchStatus:{padding:17,borderRadius:20,borderWidth:1,gap:11},searchTitle:{fontSize:13,fontWeight:'700'},searchCaption:{fontSize:12,textAlign:'center'},
-  offer:{position:'absolute',bottom:10,left:12,right:12,borderRadius:25,borderWidth:1,overflow:'hidden',boxShadow:'0 10px 32px #0004'},handle:{height:4,width:34,borderRadius:3,alignSelf:'center',marginTop:8,marginBottom:9},fare:{fontWeight:'800',letterSpacing:-1.3},rate:{fontSize:11,fontWeight:'700',paddingHorizontal:8,paddingVertical:6,borderRadius:8},summary:{fontSize:13,marginTop:3},divider:{height:1,marginVertical:9},stop:{flexDirection:'row',gap:9,marginBottom:8},marker:{width:28,height:28,borderRadius:14,alignItems:'center',justifyContent:'center'},stopLabel:{fontSize:9,fontWeight:'700',letterSpacing:.4},address:{fontSize:13,lineHeight:17,marginTop:3,fontWeight:'500'},passenger:{fontSize:11,marginTop:5},stageTitle:{fontSize:22,fontWeight:'800',letterSpacing:-.5},actions:{paddingHorizontal:14,paddingVertical:9,borderTopWidth:1,gap:7},accept:{backgroundColor:'#087f71',borderRadius:14,minHeight:48,alignItems:'center',justifyContent:'center',paddingHorizontal:12,paddingVertical:10},acceptText:{color:'white',fontSize:16,fontWeight:'700'},secondary:{minHeight:48,borderWidth:1,borderRadius:14,paddingHorizontal:15,alignItems:'center',justifyContent:'center'},footnote:{fontSize:9,lineHeight:13,textAlign:'center',marginTop:4},progress:{height:3,borderRadius:3,overflow:'hidden'},progressFill:{height:3,backgroundColor:'#36bca0'},
+  offer:{position:'absolute',bottom:10,left:12,right:12,borderRadius:25,borderWidth:1,overflow:'hidden',boxShadow:'0 10px 32px #0004'},handle:{height:4,width:34,borderRadius:3,alignSelf:'center',marginTop:8,marginBottom:9},fare:{fontWeight:'800',letterSpacing:-1.3},rate:{fontSize:11,fontWeight:'700',paddingHorizontal:8,paddingVertical:6,borderRadius:8},summary:{fontSize:13,marginTop:3},divider:{height:1,marginVertical:9},stop:{flexDirection:'row',gap:9,marginBottom:8},marker:{width:28,height:28,borderRadius:14,alignItems:'center',justifyContent:'center'},stopLabel:{fontSize:9,fontWeight:'700',letterSpacing:.4},address:{fontSize:13,lineHeight:17,marginTop:3,fontWeight:'500'},passenger:{fontSize:11,marginTop:5},stageTitle:{fontSize:21,fontWeight:'800',letterSpacing:-.5},actions:{paddingHorizontal:14,paddingVertical:9,borderTopWidth:1,gap:7},accept:{backgroundColor:'#087f71',borderRadius:14,minHeight:48,alignItems:'center',justifyContent:'center',paddingHorizontal:12,paddingVertical:10},acceptText:{color:'white',fontSize:16,fontWeight:'700'},secondary:{minHeight:48,borderWidth:1,borderRadius:14,paddingHorizontal:15,alignItems:'center',justifyContent:'center'},footnote:{fontSize:9,lineHeight:13,textAlign:'center',marginTop:4},progress:{height:3,borderRadius:3,overflow:'hidden'},progressFill:{height:3,backgroundColor:'#36bca0'},
 });
