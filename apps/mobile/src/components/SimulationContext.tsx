@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useSimulationTheme } from '../lib/simulationTheme';
@@ -9,7 +9,7 @@ import { Offer, routeBody } from '../lib/simulation';
 import { type Police, type Pavement, type Traffic, policeSummary, pavementSummary, trafficSummary } from '../lib/simulationContext';
 
 const date = (value?: string) => value ? value.split('-').reverse().join('/') : '—';
-export default function SimulationContext({ offer, top, active, visible = true, reducedMotion = false }: Readonly<{ offer: Offer; top: number; active: boolean; visible?: boolean; reducedMotion?: boolean | null }>) {
+function SimulationContext({ offer, top, active, visible = true, reducedMotion = false }: Readonly<{ offer: Offer; top: number; active: boolean; visible?: boolean; reducedMotion?: boolean | null }>) {
   const { palette: c } = useSimulationTheme();
   const [collapsed, setCollapsed] = useState(false);
   const [detail, setDetail] = useState(false);
@@ -37,16 +37,16 @@ export default function SimulationContext({ offer, top, active, visible = true, 
     <View style={styles.header}>
       <Pressable accessibilityRole="button" accessibilityLabel="Ver fontes do SafeRide" onPress={() => setDetail(true)} style={{ flex: 1, flexDirection:'row',alignItems:'center',gap:8,minHeight:40 }}>
         <View style={{width:27,height:27,borderRadius:9,backgroundColor:c.accentSurface,alignItems:'center',justifyContent:'center'}}><Svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke={c.accent} strokeWidth={2}><Path d="M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3zM8 12l3 3 5-6"/></Svg></View>
-        <Text style={[styles.brand,{color:c.text}]}>SafeRide</Text><Text style={[styles.subtitle,{color:c.muted}]}>CONTEXTO DA CORRIDA</Text>
+        <Text style={[styles.brand,{color:c.text}]}>SafeRide</Text><Text style={[styles.subtitle,{color:c.muted}]}>NO DESTINO</Text>
       </Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel={collapsed ? 'Expandir SafeRide' : 'Recolher SafeRide'} accessibilityState={{expanded:!collapsed}} onPress={() => setCollapsed(!collapsed)} style={styles.toggle}><Text style={{ color:c.muted, fontSize:20 }}>{collapsed ? '+' : '−'}</Text></Pressable>
     </View>
     {!collapsed ? <Pressable accessibilityRole="button" accessibilityLabel="Ver detalhes de segurança, pavimento e trânsito" onPress={() => setDetail(true)}>
-      <Text style={[styles.location,{color:c.muted}]} numberOfLines={1}>Destino · {offer.destination.name}</Text>
+
       <View style={styles.grid}>{cards.map(card => <View key={card.label} style={styles.cell}>
         <View style={{ flexDirection:'row',alignItems:'center',gap:4 }}><Svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke={card.color} strokeWidth={1.8}><Path d={card.path}/></Svg><Text style={[styles.label,{color:c.muted}]}>{card.label}</Text></View>
-        <Text style={[styles.value,{color:card.color}]} numberOfLines={1} adjustsFontSizeToFit>{card.value}</Text><Text style={[styles.caption,{color:c.muted}]}>{card.caption}</Text>
-      </View>)}</View>
+        <Text style={[styles.value,{color:card.color}]} numberOfLines={1} adjustsFontSizeToFit>{card.value}</Text>
+      </View>)}</View><Text style={[styles.location,{color:c.muted}]}>SSP e SP156: histórico · toque para ver fontes</Text>
 
     </Pressable> : null}
     <Modal visible={detail} transparent animationType="fade" onRequestClose={() => setDetail(false)}><View style={styles.scrim}><View style={[styles.detail,{backgroundColor:c.surface}]}>
@@ -62,9 +62,10 @@ export default function SimulationContext({ offer, top, active, visible = true, 
     </View></View></Modal>
   </SimulationMotion>;
 }
+export default memo(SimulationContext);
 const styles = StyleSheet.create({
-  floating: { position:'absolute', left:14, right:14, backgroundColor:'#172b32f5', borderColor:'#57858b', borderWidth:1, borderRadius:22, boxShadow:'0 5px 20px #0005', overflow:'hidden' },
+  floating: { position:'absolute', left:14, right:14, backgroundColor:'#172b32f5', borderColor:'#57858b', borderWidth:1, borderRadius:18, boxShadow:'0 5px 20px #0005', overflow:'hidden' },
   header:{ flexDirection:'row', alignItems:'center', paddingHorizontal:12 }, brand:{ color:'#d6fff3',fontWeight:'800',fontSize:15 }, subtitle:{ fontSize:10,color:'#abc6c8',fontWeight:'500' }, toggle:{ width:40,height:40,alignItems:'center',justifyContent:'center' },
-  location:{fontSize:10,paddingHorizontal:14,marginBottom:7},footer:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:14,paddingVertical:5,borderTopWidth:1},grid:{ flexDirection:'row',paddingBottom:12,paddingHorizontal:8 },cell:{flex:1,paddingHorizontal:6,borderRightWidth:0},label:{fontSize:10,fontWeight:'600'},value:{color:'#fff',fontWeight:'700',fontSize:12,marginTop:5},caption:{fontSize:8,color:'#bccbd0',marginTop:3},
+  location:{fontSize:10,paddingHorizontal:14,marginBottom:7},footer:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:14,paddingVertical:5,borderTopWidth:1},grid:{ flexDirection:'row',paddingBottom:12,paddingHorizontal:8 },cell:{flex:1,paddingHorizontal:6,borderRightWidth:0},label:{fontSize:10,fontWeight:'600'},value:{color:'#fff',fontWeight:'700',fontSize:13,marginTop:5},caption:{fontSize:8,color:'#bccbd0',marginTop:3},
   scrim:{flex:1,backgroundColor:'#000a',justifyContent:'center',alignItems:'center',padding:20},detail:{backgroundColor:'#20252c',padding:12,borderRadius:20,maxWidth:460,width:'100%',maxHeight:'85%'},body:{color:'#c9d0d7',fontSize:14,lineHeight:21,marginVertical:8},section:{color:'white',fontWeight:'700',fontSize:16,marginTop:14},link:{color:'#8be6cb',paddingVertical:8},
 });
