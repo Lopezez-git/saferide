@@ -6,11 +6,10 @@ import SimulationMotion from './SimulationMotion';
 import { api } from '../lib/client';
 import { Offer, routeBody } from '../lib/simulation';
 
-type Police = { status: string; currentTimeWindow?: string; windows?: Record<string, Record<string, number>>; periodStart?: string; periodEnd?: string; sourceUrl?: string };
-type Pavement = { status: string; statuses?: Record<string, number>; sourceUpdatedAt?: string; sourceUrl?: string };
-type Traffic = { status: string; condition?: string; delaySeconds?: number; checkedAt?: string };
+import { type Police, type Pavement, type Traffic, policeSummary, pavementSummary, trafficSummary } from '../lib/simulationContext';
+
 const date = (value?: string) => value ? value.split('-').reverse().join('/') : '—';
-export default function SimulationContext({ offer, top, active, visible = true, reducedMotion = false }: { offer: Offer; top: number; active: boolean; visible?: boolean; reducedMotion?: boolean | null }) {
+export default function SimulationContext({ offer, top, active, visible = true, reducedMotion = false }: Readonly<{ offer: Offer; top: number; active: boolean; visible?: boolean; reducedMotion?: boolean | null }>) {
   const { palette: c } = useSimulationTheme();
   const [collapsed, setCollapsed] = useState(false);
   const [detail, setDetail] = useState(false);
@@ -29,14 +28,10 @@ export default function SimulationContext({ offer, top, active, visible = true, 
   }, [offer, active]);
   const current = data?.key === offer ? data : null;
   const police = current?.police, pavement = current?.pavement, traffic = current?.traffic;
-  const hour = police?.currentTimeWindow;
-  const count = hour && police?.windows?.[hour] ? Object.values(police.windows[hour]).reduce((a, b) => a + b, 0) : null;
-  const open = (pavement?.statuses?.Aberto ?? 0) + (pavement?.statuses?.['Em andamento'] ?? 0);
-  const conditions: Record<string, string> = { LEVE: 'Tranquilo', MODERADO: 'Moderado', CONGESTIONADO: 'Congestionado' };
   const cards = [
-    { label: 'Segurança', color: c.blue, path: 'M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3z', value: police === undefined ? 'Consultando…' : police?.status === 'AVAILABLE' && count !== null ? `${count} ${count===1?'BO':'BOs'}` : 'Indisponível', caption: count !== null ? `Histórico · ${hour}h–${String((Number(hour)+1)%24).padStart(2,'0')}h` : 'SSP · histórico' },
-    { label: 'Pavimento', color: c.orange, path: 'M7 3L3 21M17 3l4 18M12 3v4m0 4v3m0 4v3', value: pavement === undefined ? 'Consultando…' : pavement?.status === 'AVAILABLE' ? `${open} solicitações` : 'Indisponível', caption: 'Abertos na publicação' },
-    { label: 'Trânsito', color: traffic?.condition === 'LEVE' ? c.accent : c.violet, path: 'M4 7h13l-3-3m3 3l-3 3M20 17H7l3-3m-3 3l3 3', value: traffic === undefined ? 'Consultando…' : traffic?.status === 'AVAILABLE' ? conditions[traffic.condition ?? ''] ?? 'Indisponível' : 'Indisponível', caption: traffic?.status === 'AVAILABLE' ? 'Ao vivo · TomTom' : 'Sem avaliação ao vivo' },
+    { label: 'Segurança', color: c.blue, path: 'M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3z', ...policeSummary(police) },
+    { label: 'Pavimento', color: c.orange, path: 'M7 3L3 21M17 3l4 18M12 3v4m0 4v3m0 4v3', value: pavementSummary(pavement), caption: 'Abertos na publicação' },
+    { label: 'Trânsito', color: traffic?.condition === 'LEVE' ? c.accent : c.violet, path: 'M4 7h13l-3-3m3 3l-3 3M20 17H7l3-3m-3 3l3 3', value: trafficSummary(traffic), caption: traffic?.status === 'AVAILABLE' ? 'Ao vivo · TomTom' : 'Sem avaliação ao vivo' },
   ];
   return <SimulationMotion visible={visible} reducedMotion={reducedMotion} fromY={-36} duration={520} delay={300} testID="simulation-notification" style={[styles.floating, { top, backgroundColor:c.surface,borderColor:c.border }]}>
     <View style={styles.header}>

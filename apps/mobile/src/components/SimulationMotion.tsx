@@ -13,18 +13,19 @@ export function useReducedMotion() {
 }
 
 /** Retains the outgoing panel until its exit finishes. Only opacity/transform animate. */
-export default function SimulationMotion({visible,reducedMotion,fromY=0,duration=480,delay=0,style,children,testID}: {
+export default function SimulationMotion({visible,reducedMotion,fromY=0,duration=480,delay=0,style,children,testID}: Readonly<{
   visible:boolean; reducedMotion:boolean | null; fromY?:number; duration?:number; delay?:number;
   style?:StyleProp<ViewStyle>; children?:ReactNode; testID?:string;
-}) {
+}>) {
   const [progress]=useState(()=>new Animated.Value(0));
   const [retained,setRetained]=useState(visible);
   // Keep an entering panel mounted even if visibility changes before entry ends.
   if(visible&&!retained)setRetained(true);
   useEffect(()=>{
     if(reducedMotion===null)return;
+    const transitionDuration = visible ? duration : 260;
     const animation=Animated.timing(progress,{
-      toValue:visible?1:0,duration:reducedMotion?0:visible?duration:260,
+      toValue:visible?1:0,duration:reducedMotion?0:transitionDuration,
       delay:visible&&!reducedMotion?delay:0,easing:Easing.out(Easing.cubic),
       useNativeDriver:Platform.OS!=='web',
     });

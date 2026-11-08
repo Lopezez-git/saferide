@@ -19,22 +19,43 @@ export function pointAlong(points: number[][], fraction: number): MapPoint | nul
     }
     remaining -= lengths[i];
   }
-  const last = points[points.length - 1];
+  const last = points.at(-1)!;
   return { longitude: last[0], latitude: last[1] };
 }
 
 export const OFFER_SECONDS = 10;
 export type SimulationPhase = 'idle' | 'intro' | 'searching' | 'offer' | 'accepting' | 'pickup' | 'trip' | 'done' | 'declined' | 'expired';
 export type Playback = { phase: SimulationPhase; elapsed: number; offerIndex?: number };
+const timedPhases: Partial<Record<SimulationPhase, { duration: number; next: SimulationPhase }>> = {
+  intro: { duration: 5, next: 'searching' },
+  searching: { duration: 5, next: 'offer' },
+  offer: { duration: OFFER_SECONDS, next: 'searching' },
+  pickup: { duration: 14, next: 'trip' },
+  trip: { duration: 28, next: 'done' },
+};
+export function legProgress(phase: SimulationPhase, elapsed: number) {
+  if (phase === 'pickup') return { pickup: Math.min(1, elapsed / 14), trip: 0 };
+  if (phase === 'trip') return { pickup: 1, trip: Math.min(1, elapsed / 28) };
+  if (phase === 'done') return { pickup: 1, trip: 1 };
+  return { pickup: 0, trip: 0 };
+}
+
+export function simulationDriver(phase: SimulationPhase, elapsed: number, offer: Offer, route: { pickup: Route; trip: Route }) {
+  if (phase === 'pickup') return pointAlong(route.pickup.geometry.coordinates, elapsed / 14);
+  if (phase === 'trip') return pointAlong(route.trip.geometry.coordinates, elapsed / 28);
+  if (phase === 'done') return offer.destination;
+  return offer.driver;
+}
+
 export function simulationReducer(state: Playback, action: { type: 'tick' } | { type: 'next' } | { type: 'phase'; phase: SimulationPhase }): Playback {
   if (action.type === 'next') return {phase:'searching',elapsed:0,offerIndex:((state.offerIndex??0)+1)%offers.length};
   if (action.type === 'phase') return { ...state, phase: action.phase, elapsed: 0 };
-  const duration = state.phase === 'intro' || state.phase === 'searching' ? 5 : state.phase === 'offer' ? OFFER_SECONDS : state.phase === 'pickup' ? 14 : state.phase === 'trip' ? 28 : 0;
-  if (!duration) return state;
+  const timing = timedPhases[state.phase];
+  if (!timing) return state;
   const elapsed = state.elapsed + 0.25;
-  if (elapsed >= duration) {
+  if (elapsed >= timing.duration) {
     if(state.phase==='offer')return simulationReducer(state,{type:'next'});
-    return { ...state, phase: state.phase === 'intro' ? 'searching' : state.phase === 'searching' ? 'offer' : state.phase === 'pickup' ? 'trip' : 'done', elapsed: 0 };
+    return { ...state, phase: timing.next, elapsed: 0 };
   }
   return { ...state, elapsed };
 }
