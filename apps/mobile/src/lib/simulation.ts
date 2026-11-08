@@ -23,13 +23,18 @@ export function pointAlong(points: number[][], fraction: number): MapPoint | nul
   return { longitude: last[0], latitude: last[1] };
 }
 
-export type SimulationPhase = 'idle' | 'offer' | 'pickup' | 'trip' | 'done' | 'declined' | 'expired';
-export type Playback = { phase: SimulationPhase; elapsed: number };
-export function simulationReducer(state: Playback, action: { type: 'tick' } | { type: 'phase'; phase: SimulationPhase }): Playback {
-  if (action.type === 'phase') return { phase: action.phase, elapsed: 0 };
-  const duration = state.phase === 'offer' ? 45 : state.phase === 'pickup' ? 14 : state.phase === 'trip' ? 28 : 0;
+export const OFFER_SECONDS = 10;
+export type SimulationPhase = 'idle' | 'intro' | 'searching' | 'offer' | 'accepting' | 'pickup' | 'trip' | 'done' | 'declined' | 'expired';
+export type Playback = { phase: SimulationPhase; elapsed: number; offerIndex?: number };
+export function simulationReducer(state: Playback, action: { type: 'tick' } | { type: 'next' } | { type: 'phase'; phase: SimulationPhase }): Playback {
+  if (action.type === 'next') return {phase:'searching',elapsed:0,offerIndex:((state.offerIndex??0)+1)%offers.length};
+  if (action.type === 'phase') return { ...state, phase: action.phase, elapsed: 0 };
+  const duration = state.phase === 'intro' || state.phase === 'searching' ? 5 : state.phase === 'offer' ? OFFER_SECONDS : state.phase === 'pickup' ? 14 : state.phase === 'trip' ? 28 : 0;
   if (!duration) return state;
   const elapsed = state.elapsed + 0.25;
-  if (elapsed >= duration) return { phase: state.phase === 'offer' ? 'expired' : state.phase === 'pickup' ? 'trip' : 'done', elapsed: 0 };
+  if (elapsed >= duration) {
+    if(state.phase==='offer')return simulationReducer(state,{type:'next'});
+    return { ...state, phase: state.phase === 'intro' ? 'searching' : state.phase === 'searching' ? 'offer' : state.phase === 'pickup' ? 'trip' : 'done', elapsed: 0 };
+  }
   return { ...state, elapsed };
 }

@@ -31,3 +31,8 @@ Cada fotografia é salva localmente antes do envio. Sem conexão, fica marcada c
 ## Validação
 
 `RideHistoryTest` valida migração/persistência, isolamento entre chaves, idempotência, proteção do estado final e entrada inválida. A simulação foi testada com gravação no MySQL e consulta pela aba Histórico.
+
+
+## Retorno automático à busca
+
+A oferta tem 10 segundos para aceite. Ofertas vencidas ou recusadas retornam à busca sem criar histórico. Depois de uma viagem aceita, a conclusão (ou cancelamento) é persistida antes de iniciar outra busca. O ciclo não repete a intro e mantém cada viagem com ID próprio. Uma falha na gravação local bloqueia o avanço até uma nova tentativa; indisponibilidade do servidor mantém o registro local pendente.

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import { useSimulationTheme } from '../lib/simulationTheme';
+import SimulationMotion from './SimulationMotion';
 import { api } from '../lib/client';
 import { Offer, routeBody } from '../lib/simulation';
 
@@ -8,7 +10,8 @@ type Police = { status: string; currentTimeWindow?: string; windows?: Record<str
 type Pavement = { status: string; statuses?: Record<string, number>; sourceUpdatedAt?: string; sourceUrl?: string };
 type Traffic = { status: string; condition?: string; delaySeconds?: number; checkedAt?: string };
 const date = (value?: string) => value ? value.split('-').reverse().join('/') : '—';
-export default function SimulationContext({ offer, top, active }: { offer: Offer; top: number; active: boolean }) {
+export default function SimulationContext({ offer, top, active, visible = true, reducedMotion = false }: { offer: Offer; top: number; active: boolean; visible?: boolean; reducedMotion?: boolean | null }) {
+  const { palette: c } = useSimulationTheme();
   const [collapsed, setCollapsed] = useState(false);
   const [detail, setDetail] = useState(false);
   const [data, setData] = useState<{ key: Offer; police?: Police | null; pavement?: Pavement | null; traffic?: Traffic | null } | null>(null);
@@ -31,35 +34,42 @@ export default function SimulationContext({ offer, top, active }: { offer: Offer
   const open = (pavement?.statuses?.Aberto ?? 0) + (pavement?.statuses?.['Em andamento'] ?? 0);
   const conditions: Record<string, string> = { LEVE: 'Tranquilo', MODERADO: 'Moderado', CONGESTIONADO: 'Congestionado' };
   const cards = [
-    { label: 'Segurança', color: '#83c9e8', path: 'M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3z', value: police === undefined ? 'Consultando…' : police?.status === 'AVAILABLE' && count !== null ? `${count} ${count===1?'BO':'BOs'}` : 'Indisponível', caption: count !== null ? `Histórico · ${hour}h–${String((Number(hour)+1)%24).padStart(2,'0')}h` : 'SSP · histórico' },
-    { label: 'Pavimento', color: '#ffbe7d', path: 'M7 3L3 21M17 3l4 18M12 3v4m0 4v3m0 4v3', value: pavement === undefined ? 'Consultando…' : pavement?.status === 'AVAILABLE' ? `${open} pedidos` : 'Indisponível', caption: 'Abertos na publicação' },
-    { label: 'Trânsito', color: traffic?.condition === 'LEVE' ? '#7de0b4' : '#c1b7ff', path: 'M4 7h13l-3-3m3 3l-3 3M20 17H7l3-3m-3 3l3 3', value: traffic === undefined ? 'Consultando…' : traffic?.status === 'AVAILABLE' ? conditions[traffic.condition ?? ''] ?? 'Indisponível' : 'Indisponível', caption: traffic?.status === 'AVAILABLE' ? 'Ao vivo · TomTom' : 'Sem avaliação ao vivo' },
+    { label: 'Segurança', color: c.blue, path: 'M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3z', value: police === undefined ? 'Consultando…' : police?.status === 'AVAILABLE' && count !== null ? `${count} ${count===1?'BO':'BOs'}` : 'Indisponível', caption: count !== null ? `Histórico · ${hour}h–${String((Number(hour)+1)%24).padStart(2,'0')}h` : 'SSP · histórico' },
+    { label: 'Pavimento', color: c.orange, path: 'M7 3L3 21M17 3l4 18M12 3v4m0 4v3m0 4v3', value: pavement === undefined ? 'Consultando…' : pavement?.status === 'AVAILABLE' ? `${open} solicitações` : 'Indisponível', caption: 'Abertos na publicação' },
+    { label: 'Trânsito', color: traffic?.condition === 'LEVE' ? c.accent : c.violet, path: 'M4 7h13l-3-3m3 3l-3 3M20 17H7l3-3m-3 3l3 3', value: traffic === undefined ? 'Consultando…' : traffic?.status === 'AVAILABLE' ? conditions[traffic.condition ?? ''] ?? 'Indisponível' : 'Indisponível', caption: traffic?.status === 'AVAILABLE' ? 'Ao vivo · TomTom' : 'Sem avaliação ao vivo' },
   ];
-  return <View style={[styles.floating, { top }]}>
+  return <SimulationMotion visible={visible} reducedMotion={reducedMotion} fromY={-36} duration={520} delay={300} testID="simulation-notification" style={[styles.floating, { top, backgroundColor:c.surface,borderColor:c.border }]}>
     <View style={styles.header}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Ver fontes do SafeRide" onPress={() => setDetail(true)} style={{ flex: 1, paddingVertical: 9 }}><Text style={styles.brand}>◈ SafeRide <Text style={styles.subtitle}> · contexto do destino</Text></Text></Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel={collapsed ? 'Expandir SafeRide' : 'Recolher SafeRide'} onPress={() => setCollapsed(!collapsed)} style={styles.toggle}><Text style={{ color: 'white', fontSize: 20 }}>{collapsed ? '+' : '−'}</Text></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="Ver fontes do SafeRide" onPress={() => setDetail(true)} style={{ flex: 1, flexDirection:'row',alignItems:'center',gap:8,minHeight:40 }}>
+        <View style={{width:27,height:27,borderRadius:9,backgroundColor:c.accentSurface,alignItems:'center',justifyContent:'center'}}><Svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke={c.accent} strokeWidth={2}><Path d="M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3zM8 12l3 3 5-6"/></Svg></View>
+        <Text style={[styles.brand,{color:c.text}]}>SafeRide</Text><Text style={[styles.subtitle,{color:c.muted}]}>CONTEXTO DA CORRIDA</Text>
+      </Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={collapsed ? 'Expandir SafeRide' : 'Recolher SafeRide'} accessibilityState={{expanded:!collapsed}} onPress={() => setCollapsed(!collapsed)} style={styles.toggle}><Text style={{ color:c.muted, fontSize:20 }}>{collapsed ? '+' : '−'}</Text></Pressable>
     </View>
-    {!collapsed ? <Pressable accessibilityRole="button" accessibilityLabel="Ver detalhes de segurança, pavimento e trânsito" onPress={() => setDetail(true)} style={styles.grid}>{cards.map(card => <View key={card.label} style={styles.cell}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}><Svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke={card.color} strokeWidth={1.8}><Path d={card.path} /></Svg><Text style={[styles.label, { color: card.color }]}>{card.label}</Text></View>
-      <Text style={styles.value} numberOfLines={1} adjustsFontSizeToFit>{card.value}</Text><Text style={styles.caption}>{card.caption}</Text>
-    </View>)}</Pressable> : null}
-    <Modal visible={detail} transparent animationType="fade" onRequestClose={() => setDetail(false)}><View style={styles.scrim}><View style={styles.detail}>
-      <View style={styles.header}><Text style={[styles.brand,{flex:1}]}>Fontes do SafeRide</Text><Pressable accessibilityRole="button" accessibilityLabel="Fechar fontes" onPress={() => setDetail(false)} style={styles.toggle}><Text style={{color:'white',fontSize:25}}>×</Text></Pressable></View>
-      <ScrollView><Text style={styles.body}>{offer.destination.name}</Text><Text style={styles.body}>Segurança e pavimento: raio de 1 km do destino. Trânsito: percurso do embarque ao destino.</Text>
-        <Text style={styles.section}>Segurança · SSP-SP</Text><Text style={styles.body}>Roubo e furto de veículos de {police?.periodStart ?? '—'} a {police?.periodEnd ?? '—'}, filtrados pela hora atual de São Paulo. Histórico, não ocorrências ao vivo. Zero BOs não garante segurança.</Text>
-        {police?.sourceUrl ? <Pressable onPress={() => Linking.openURL(police.sourceUrl!).catch(() => {})}><Text style={styles.link}>Abrir publicação SSP ↗</Text></Pressable> : null}
-        <Text style={styles.section}>Pavimento · SP156</Text><Text style={styles.body}>Solicitações abertas ou em andamento na publicação de {date(pavement?.sourceUpdatedAt)}. Pedidos de tapa-buraco não são contagem de buracos atuais nem confirmação de pavimento ruim.</Text>
-        {pavement?.sourceUrl ? <Pressable onPress={() => Linking.openURL(pavement.sourceUrl!).catch(() => {})}><Text style={styles.link}>Abrir publicação SP156 ↗</Text></Pressable> : null}
-        <Text style={styles.section}>Trânsito · TomTom</Text><Text style={styles.body}>{traffic?.status === 'AVAILABLE' ? `Estimativa consultada em ${new Date(traffic.checkedAt!).toLocaleTimeString('pt-BR')}. Atraso estimado de ${Math.ceil((traffic.delaySeconds ?? 0)/60)} min. A rota do provedor pode diferir da linha do mapa.` : 'Sem dados ao vivo nesta consulta. O tempo da oferta é uma estimativa de rota sem trânsito; não é usado para inventar uma classificação.'}</Text>
-        <Text style={styles.body}>Oferta, valor, avaliação e movimento do motorista são simulados. Os dados de contexto vêm do backend real do SafeRide.</Text>
+    {!collapsed ? <Pressable accessibilityRole="button" accessibilityLabel="Ver detalhes de segurança, pavimento e trânsito" onPress={() => setDetail(true)}>
+      <Text style={[styles.location,{color:c.muted}]} numberOfLines={1}>Destino · {offer.destination.name}</Text>
+      <View style={styles.grid}>{cards.map(card => <View key={card.label} style={styles.cell}>
+        <View style={{ flexDirection:'row',alignItems:'center',gap:4 }}><Svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke={card.color} strokeWidth={1.8}><Path d={card.path}/></Svg><Text style={[styles.label,{color:c.muted}]}>{card.label}</Text></View>
+        <Text style={[styles.value,{color:card.color}]} numberOfLines={1} adjustsFontSizeToFit>{card.value}</Text><Text style={[styles.caption,{color:c.muted}]}>{card.caption}</Text>
+      </View>)}</View>
+
+    </Pressable> : null}
+    <Modal visible={detail} transparent animationType="fade" onRequestClose={() => setDetail(false)}><View style={styles.scrim}><View style={[styles.detail,{backgroundColor:c.surface}]}>
+      <View style={styles.header}><Text style={[styles.brand,{flex:1,color:c.text}]}>Fontes do SafeRide</Text><Pressable accessibilityRole="button" accessibilityLabel="Fechar fontes" onPress={() => setDetail(false)} style={styles.toggle}><Text style={{color:c.text,fontSize:25}}>×</Text></Pressable></View>
+      <ScrollView><Text style={[styles.body,{color:c.muted}]}>{offer.destination.name}</Text><Text style={[styles.body,{color:c.muted}]}>Segurança e pavimento: raio de 1 km do destino. Trânsito: percurso do embarque ao destino.</Text>
+        <Text style={[styles.section,{color:c.text}]}>Segurança · SSP-SP</Text><Text style={[styles.body,{color:c.muted}]}>Roubo e furto de veículos de {police?.periodStart ?? '—'} a {police?.periodEnd ?? '—'}, filtrados pela hora atual de São Paulo. Histórico, não ocorrências ao vivo. Zero BOs não garante segurança.</Text>
+        {police?.sourceUrl ? <Pressable onPress={() => Linking.openURL(police.sourceUrl!).catch(() => {})}><Text style={[styles.link,{color:c.accent}]}>Abrir publicação SSP ↗</Text></Pressable> : null}
+        <Text style={[styles.section,{color:c.text}]}>Pavimento · SP156</Text><Text style={[styles.body,{color:c.muted}]}>Solicitações abertas ou em andamento na publicação de {date(pavement?.sourceUpdatedAt)}. Pedidos de tapa-buraco não são contagem de buracos atuais nem confirmação de pavimento ruim.</Text>
+        {pavement?.sourceUrl ? <Pressable onPress={() => Linking.openURL(pavement.sourceUrl!).catch(() => {})}><Text style={[styles.link,{color:c.accent}]}>Abrir publicação SP156 ↗</Text></Pressable> : null}
+        <Text style={[styles.section,{color:c.text}]}>Trânsito · TomTom</Text><Text style={[styles.body,{color:c.muted}]}>{traffic?.status === 'AVAILABLE' ? `Estimativa consultada em ${new Date(traffic.checkedAt!).toLocaleTimeString('pt-BR')}. Atraso estimado de ${Math.ceil((traffic.delaySeconds ?? 0)/60)} min. A rota do provedor pode diferir da linha do mapa.` : 'Sem dados ao vivo nesta consulta. O tempo da oferta é uma estimativa de rota sem trânsito; não é usado para inventar uma classificação.'}</Text>
+        <Text style={[styles.body,{color:c.muted}]}>Oferta, valor, avaliação e movimento do motorista são simulados. Os dados de contexto vêm do backend real do SafeRide.</Text>
       </ScrollView>
     </View></View></Modal>
-  </View>;
+  </SimulationMotion>;
 }
 const styles = StyleSheet.create({
-  floating: { position:'absolute', left:14, right:14, backgroundColor:'#172b32f5', borderColor:'#57858b', borderWidth:1, borderRadius:16, boxShadow:'0 5px 20px #0005', overflow:'hidden' },
+  floating: { position:'absolute', left:14, right:14, backgroundColor:'#172b32f5', borderColor:'#57858b', borderWidth:1, borderRadius:22, boxShadow:'0 5px 20px #0005', overflow:'hidden' },
   header:{ flexDirection:'row', alignItems:'center', paddingHorizontal:12 }, brand:{ color:'#d6fff3',fontWeight:'800',fontSize:15 }, subtitle:{ fontSize:10,color:'#abc6c8',fontWeight:'500' }, toggle:{ width:40,height:40,alignItems:'center',justifyContent:'center' },
-  grid:{ flexDirection:'row',paddingBottom:12,paddingHorizontal:6 },cell:{flex:1,paddingHorizontal:6,borderRightWidth:0},label:{fontSize:11,fontWeight:'600'},value:{color:'#fff',fontWeight:'700',fontSize:15,marginTop:7},caption:{fontSize:9,color:'#bccbd0',marginTop:3},
+  location:{fontSize:10,paddingHorizontal:14,marginBottom:7},footer:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:14,paddingVertical:5,borderTopWidth:1},grid:{ flexDirection:'row',paddingBottom:12,paddingHorizontal:8 },cell:{flex:1,paddingHorizontal:6,borderRightWidth:0},label:{fontSize:10,fontWeight:'600'},value:{color:'#fff',fontWeight:'700',fontSize:12,marginTop:5},caption:{fontSize:8,color:'#bccbd0',marginTop:3},
   scrim:{flex:1,backgroundColor:'#000a',justifyContent:'center',alignItems:'center',padding:20},detail:{backgroundColor:'#20252c',padding:12,borderRadius:20,maxWidth:460,width:'100%',maxHeight:'85%'},body:{color:'#c9d0d7',fontSize:14,lineHeight:21,marginVertical:8},section:{color:'white',fontWeight:'700',fontSize:16,marginTop:14},link:{color:'#8be6cb',paddingVertical:8},
 });
