@@ -32,4 +32,23 @@ class RideHistoryTest {
   http.perform(get("/api/v1/rides")).andExpect(status().isUnauthorized());
   http.perform(put("/api/v1/rides/"+UUID.randomUUID()).header("Authorization","Bearer "+UUID.randomUUID()).contentType("application/json").content(json.writeValueAsString(data("CANCELLED",-1)))).andExpect(status().isBadRequest());
  }
+ @Test void feedbackRequiresCompletedOwnedRideAndExcludesNoneFromCommunity() throws Exception {
+  String token="Bearer "+UUID.randomUUID(),other="Bearer "+UUID.randomUUID(),id=UUID.randomUUID().toString();
+  http.perform(put("/api/v1/rides/"+id).header("Authorization",token).contentType("application/json").content(json.writeValueAsString(data("IN_PROGRESS",300)))).andExpect(status().isOk());
+  http.perform(put("/api/v1/rides/"+id+"/feedback").header("Authorization",token).contentType("application/json").content("{\"categories\":[\"POTHOLE\"]}")).andExpect(status().isConflict());
+  http.perform(put("/api/v1/rides/"+id).header("Authorization",token).contentType("application/json").content(json.writeValueAsString(data("COMPLETED",1000)))).andExpect(status().isOk());
+  http.perform(put("/api/v1/rides/"+id+"/feedback").header("Authorization",other).contentType("application/json").content("{\"categories\":[\"POTHOLE\"]}")).andExpect(status().isNotFound());
+  http.perform(put("/api/v1/rides/"+id+"/feedback").header("Authorization",token).contentType("application/json").content("{\"categories\":[\"NONE\"]}")).andExpect(status().isOk());
+  http.perform(get("/api/v1/rides").header("Authorization",token)).andExpect(jsonPath("$[0].feedback[0]").value("NONE"));
+  http.perform(get("/api/v1/rides/community-feedback")).andExpect(jsonPath("$[?(@.category == 'NONE')]").isEmpty());
+  http.perform(put("/api/v1/rides/"+id+"/feedback").header("Authorization",token).contentType("application/json").content("{\"categories\":[\"FLOOD\"]}")).andExpect(status().isConflict());
+ }
+ @Test void problemFeedbackIsIdentifiedAsSimulatedAndNeverPinsAnExactPoint() throws Exception {
+  String token="Bearer "+UUID.randomUUID(),id=UUID.randomUUID().toString();
+  http.perform(put("/api/v1/rides/"+id).header("Authorization",token).contentType("application/json").content(json.writeValueAsString(data("COMPLETED",1000)))).andExpect(status().isOk());
+  http.perform(put("/api/v1/rides/"+id+"/feedback").header("Authorization",token).contentType("application/json").content("{\"categories\":[\"POTHOLE\",\"INSECURE\"]}")).andExpect(status().isOk());
+  http.perform(get("/api/v1/rides/community-feedback")).andExpect(status().isOk()).andExpect(jsonPath("$[?(@.category == 'POTHOLE')].simulated").value(org.hamcrest.Matchers.hasItem(true))).andExpect(jsonPath("$[?(@.category == 'POTHOLE')].latitude").isEmpty());
+  http.perform(get("/api/v1/rides/community-feedback?originLat=-23.6&originLon=-46.7&destinationLat=-23.7&destinationLon=-46.6")).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2));
+  http.perform(get("/api/v1/rides/community-feedback?originLat=-22&originLon=-46.7&destinationLat=-23.7&destinationLon=-46.6")).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+ }
 }

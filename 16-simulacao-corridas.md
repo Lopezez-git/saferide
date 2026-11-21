@@ -1,6 +1,6 @@
 # Simulação de ofertas e viagens
 
-O botão **Simular corrida**, no canto inferior direito da aba **Mapa**, ativa uma simulação no mesmo mapa já montado na aba, sem modal de tela, navegação, troca de estilo ou criação de outro mapa. Adiciona um bonequinho de passageiro azul, o destino, os dois percursos e o cartão com categoria, valor, avaliação, origem/destino e botão Aceitar. Uma notificação visual SafeRide, recolhível, aparece no topo do mapa junto à oferta. Mostra três indicadores compactos do destino; tocar nela abre fontes, datas e limites. É uma notificação dentro do aplicativo, não um push do sistema operacional.
+O botão **Simular corrida**, no canto inferior direito da aba **Mapa**, ativa uma simulação no mesmo mapa já montado na aba, sem modal de tela, navegação, troca de estilo ou criação de outro mapa. Adiciona um bonequinho de passageiro azul, o destino, os dois percursos e o cartão com categoria, valor, avaliação, origem/destino e botão Aceitar. Uma notificação visual SafeRide, recolhível, aparece no topo do mapa junto à oferta. Mostra três indicadores compactos do destino; tocar nela abre fontes, datas e limites. A simulação mostra um painel dentro do aplicativo; no Android, o serviço também pode emitir notificações do sistema, sujeito à validação.
 
 ## Fluxo
 
@@ -8,9 +8,9 @@ O botão **Simular corrida**, no canto inferior direito da aba **Mapa**, ativa u
 2. A oferta fica disponível por **10 segundos**. Sem aceite, desaparece e inicia automaticamente outra busca de **5 segundos**, seguida da próxima oferta. Recusar também retorna à busca. Os três cenários se alternam em ciclo; a intro só acontece na entrada da simulação.
 3. Ao aceitar, o prazo da oferta para imediatamente enquanto o registro é criado. O motorista percorre o caminho até o cliente (14 segundos de demonstração), para por 3 segundos com **Embarque confirmado / Passageiro a bordo** e depois segue até o destino (28 segundos). O passageiro deixa de aparecer esperando no mapa e o marcador do motorista recebe um sinal de confirmação. É possível pausar ou cancelar; os minutos estimados da viagem são diferentes desse tempo acelerado.
 4. Ao chegar, o sistema grava a conclusão antes de voltar automaticamente à busca de 5 segundos. Se o servidor estiver indisponível, uma gravação local pendente permite continuar; falha no armazenamento local exige **Salvar e continuar**, para não perder o registro. Cancelar uma corrida aceita também grava o cancelamento antes de retornar à busca. Ofertas recusadas ou vencidas não viram viagens no histórico.
-5. O botão **Encerrar simulação** interrompe o ciclo. A troca de aba ou ida para segundo plano pausa os temporizadores.
+5. O botão **Encerrar simulação** interrompe o ciclo. A troca de aba pausa os temporizadores. No Android, com as notificações ativadas, a implementação tenta manter a simulação ao abrir outro aplicativo; essa continuidade ainda precisa de validação em aparelho.
 
-Os temporizadores param quando a aba perde foco ou o aplicativo vai para segundo plano. Não há notificações reais em segundo plano nem aceite de corridas nas plataformas.
+Sem as notificações ativas, os temporizadores param quando a aba perde foco ou o aplicativo vai para segundo plano. Com o serviço de notificações Android ativo, a implementação tenta manter a simulação em execução e avisar sobre as ofertas fictícias; o comportamento ainda precisa ser validado em aparelho. Não há aceite de corridas reais nas plataformas.
 
 O botão **Encerrar simulação** remove os elementos simulados e restaura a posição/zoom e a consulta anterior do mapa. A simulação não ocupa mais uma aba própria.
 
@@ -30,7 +30,7 @@ Durante os últimos dois segundos da intro, a câmera calcula o enquadramento a 
 
 Ao aceitar, o **mesmo mapa Leaflet** entra na visão do motorista: zoom 16,8, inclinação de 38°, orientação acompanhando o sentido do percurso e seta na parte inferior da área livre entre os painéis. A posição percorre os segmentos da geometria OSRM, com quadros intermediários via `requestAnimationFrame`; a câmera acompanha a seta e suaviza mudanças de direção. Não há troca de página ou de instância do mapa.
 
-A visão próxima continua durante os três segundos de embarque. O ponto do passageiro desaparece e a seta recebe um sinal de confirmação; o painel mostra “Passageiro a bordo”. Depois do embarque, apenas o trecho até o destino permanece destacado. Ao voltar à busca, a câmera sai da perspectiva e retoma o enquadramento da próxima oferta. Ao encerrar a simulação, restaura a vista anterior do mapa. Pausar, trocar de aba ou colocar o aplicativo em segundo plano interrompe o movimento.
+A visão próxima continua durante os três segundos de embarque. O ponto do passageiro desaparece e a seta recebe um sinal de confirmação; o painel mostra “Passageiro a bordo”. Depois do embarque, apenas o trecho até o destino permanece destacado. Ao voltar à busca, a câmera sai da perspectiva e retoma o enquadramento da próxima oferta. Ao encerrar a simulação, restaura a vista anterior do mapa. Pausar ou trocar de aba interrompe o movimento; o serviço de notificações Android ativo tenta manter a simulação em segundo plano.
 
 A perspectiva usa [leaflet-rotate 0.5.3](https://github.com/Raruto/leaflet-rotate), carregado por CDN com versão fixa, sob licença **GPL-3.0**. Se esse script não carregar, a simulação mantém acompanhamento em vista superior. A renderização de navegação desenha os mesmos vetores z14 em blocos SVG de 1024 px no z16; isso preserva a escala geográfica e reduz a ampliação de texturas pequenas na perspectiva. A vista comum mantém seu renderizador anterior. Os componentes dependem de conexão para carregar scripts e mapas; não há garantia de FPS fixo em todos os celulares.
 

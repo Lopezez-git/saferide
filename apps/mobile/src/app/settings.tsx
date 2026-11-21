@@ -1,10 +1,24 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSimulationTheme } from '../lib/simulationTheme';
+import { useState } from 'react';
+import { overlay } from '../lib/overlay';
 
 export default function Settings() {
   const {theme,setTheme,palette:p,error}=useSimulationTheme();
+  const [overlayMessage,setOverlayMessage]=useState('');
+  async function activateOverlay() {
+    try {
+      if(!overlay.available()){setOverlayMessage('Disponível na versão Android de desenvolvimento. A prévia web e o Expo Go não incluem esta função.');return;}
+      if(!await overlay.request() || !overlay.permission()){setOverlayMessage('Permita as notificações do SafeRide nas configurações do Android.');return;}
+      overlay.start();setOverlayMessage('Notificações ativadas para a simulação.');
+    } catch {setOverlayMessage('Não foi possível ativar as notificações. Confira a permissão do Android.');}
+  }
   return <ScrollView style={{flex:1,backgroundColor:'#f3f6f5'}} contentContainerStyle={s.page}>
     <Text style={s.title}>Do seu jeito.</Text>
+    <Text style={s.label}>NOTIFICAÇÕES ANDROID · DEMONSTRAÇÃO</Text>
+    <Text style={s.description}>Ative para receber o contexto das ofertas e o pedido de feedback. As corridas e os trajetos são simulados.</Text>
+    <View style={s.options}><Pressable accessibilityRole="button" onPress={()=>void activateOverlay()} style={[s.option,s.selected]}><Text style={s.optionLabel}>Ativar notificações</Text></Pressable><Pressable accessibilityRole="button" onPress={()=>{overlay.stop();setOverlayMessage('Notificações encerradas.');}} style={s.option}><Text style={s.optionLabel}>Desativar</Text></Pressable></View>
+    {overlayMessage?<Text accessibilityRole="alert" style={s.description}>{overlayMessage}</Text>:null}
     <Text style={s.description}>Escolha a aparência dos cartões e avisos da simulação. Sua preferência fica salva neste dispositivo.</Text>
     <Text style={s.label}>TEMA DA SIMULAÇÃO</Text>
     <View style={s.options}>{(['light','dark'] as const).map(value=><Pressable key={value} accessibilityRole="radio" accessibilityState={{checked:theme===value}} accessibilityLabel={value==='light'?'Tema claro':'Tema escuro'} onPress={()=>setTheme(value)} style={[s.option,theme===value&&s.selected]}>
@@ -12,7 +26,7 @@ export default function Settings() {
       <Text style={s.optionLabel}>{value==='light'?'Claro':'Escuro'}{theme===value?'  ✓':''}</Text>
     </Pressable>)}</View>
     <Text style={s.label}>PRÉVIA DA NOTIFICAÇÃO</Text>
-    <View style={[s.preview,{backgroundColor:p.surface,borderColor:p.border}]}><Text style={{color:p.accent,fontWeight:'800'}}>SafeRide · prévia</Text><Text style={{color:p.text,fontSize:18,fontWeight:'700',marginTop:12}}>Contexto para sua viagem</Text><Text style={{color:p.muted,lineHeight:21,marginTop:6}}>Segurança, pavimento e trânsito em um aviso sobre o mapa.</Text></View>
+    <View style={[s.preview,{backgroundColor:p.surface,borderColor:p.border}]}><Text style={{color:p.accent,fontWeight:'800'}}>SafeRide · prévia</Text><Text style={{color:p.text,fontSize:18,fontWeight:'700',marginTop:12}}>Contexto para sua viagem</Text><Text style={{color:p.muted,lineHeight:21,marginTop:6}}>Segurança, pavimento e trânsito em notificações do SafeRide.</Text></View>
     <Text style={s.description}>O mapa mantém seu estilo atual. Essa escolha muda a intro, a oferta e a notificação do SafeRide.</Text>
     {error?<Text accessibilityRole="alert" style={{color:'#a33b22'}}>{error}</Text>:null}
   </ScrollView>;

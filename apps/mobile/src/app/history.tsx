@@ -1,14 +1,17 @@
 import { useCallback, useState } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { Ride, loadRides } from '../lib/rideHistory';
+import { Ride, loadRides, feedbackOptions, loadSimulatedCommunityFeedback, SimulatedCommunityFeedback } from '../lib/rideHistory';
 import { styles, Button } from '../components/ui';
+import RideFeedback from '../components/RideFeedback';
 const money=(n:number)=>n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const km=(n:number,decimals=2)=>(n/1000).toLocaleString('pt-BR',{minimumFractionDigits:decimals,maximumFractionDigits:decimals});
 const time=(n:number)=>`${Math.floor(n/60)} min ${n%60} s`;
 export default function HistoryScreen() {
  const [items,setItems]=useState<Ride[]>([]),[loading,setLoading]=useState(true),[offline,setOffline]=useState(false),[error,setError]=useState('');
- const refresh=useCallback(async()=>{setLoading(true);setError('');try{const result=await loadRides();setItems(result.items);setOffline(result.offline);}catch{setError('Não foi possível ler o histórico. Tente novamente.');}finally{setLoading(false);}},[]);
+ const [feedbackRideId,setFeedbackRideId]=useState<string|null>(null);
+ const [community,setCommunity]=useState<SimulatedCommunityFeedback[]>([]);
+ const refresh=useCallback(async()=>{setLoading(true);setError('');try{const result=await loadRides();setItems(result.items);setOffline(result.offline);try{setCommunity(await loadSimulatedCommunityFeedback());}catch{setCommunity([]);}}catch{setError('Não foi possível ler o histórico. Tente novamente.');}finally{setLoading(false);}},[]);
  useFocusEffect(useCallback(()=>{void refresh();},[refresh]));
  const completed=items.filter(r=>r.status==='COMPLETED');
  return <ScrollView style={styles.page} contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh}/>}>
@@ -26,7 +29,10 @@ export default function HistoryScreen() {
     <Text style={styles.subtitle}>Inclui deslocamento até o cliente. Planejado: {km(ride.plannedDistanceMeters)} km. Tempo ativo do teste: {time(ride.activeSeconds)}.</Text>
     <Text style={styles.subtitle}>{ride.status==='COMPLETED'?'Valor simulado recebido':'Valor ofertado; não contabilizado como recebido'}: {money(ride.fare)}</Text>
     {ride.finishedAt?<Text style={styles.subtitle}>Encerrada em {new Date(ride.finishedAt).toLocaleString('pt-BR')}</Text>:null}
+    {ride.status==='COMPLETED'?(ride.feedback?.length?<Text style={styles.subtitle}>Feedback: {ride.feedback.map(value=>feedbackOptions.find(o=>o.value===value)?.label).join(', ')}</Text>:<><Text style={styles.subtitle}>Feedback pendente · responda quando estiver parado</Text><Button title="Dar feedback" secondary onPress={()=>setFeedbackRideId(ride.id)}/></>):null}
   </View>)}
   <Button title={loading?'Atualizando…':'Atualizar histórico'} onPress={refresh} disabled={loading}/>
+  {community.length?<View style={styles.card}><Text style={styles.heading}>Relatos de demonstração</Text><Text style={styles.subtitle}>Somente corridas fictícias · localização aproximada pelo trajeto</Text>{community.slice(0,10).map((item,index)=><View key={`${item.createdAt}-${index}`}><Text style={styles.body}>{feedbackOptions.find(o=>o.value===item.category)?.label} · {new Date(item.createdAt).toLocaleString('pt-BR')}</Text><Text style={styles.subtitle}>{item.origin} → {item.destination}</Text></View>)}</View>:null}
+  <RideFeedback rideId={feedbackRideId} onClose={()=>setFeedbackRideId(null)} onSaved={()=>void refresh()}/>
  </ScrollView>;
 }

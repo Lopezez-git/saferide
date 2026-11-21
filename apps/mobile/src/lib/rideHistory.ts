@@ -1,5 +1,11 @@
 import { api } from './client';
 import { rideStorage } from './rideStorage';
+export type FeedbackCategory = 'POTHOLE' | 'BAD_ROAD' | 'FLOOD' | 'ROBBERY' | 'INSECURE' | 'ACCESS' | 'NONE';
+export type SimulatedCommunityFeedback = {origin:string;destination:string;category:FeedbackCategory;createdAt:string;simulated:true};
+export const feedbackOptions: { value: FeedbackCategory; label: string }[] = [
+ {value:'POTHOLE',label:'Buraco'}, {value:'BAD_ROAD',label:'Via em mau estado'}, {value:'FLOOD',label:'Alagamento'},
+ {value:'ROBBERY',label:'Assalto'}, {value:'INSECURE',label:'Sensação de insegurança'}, {value:'ACCESS',label:'Problema de acesso'}, {value:'NONE',label:'Nenhum problema'},
+];
 export type Ride = {
  id: string; passenger: string; origin: string; destination: string;
  originLat: number; originLon: number; destinationLat: number; destinationLon: number;
@@ -7,6 +13,7 @@ export type Ride = {
  simulatedSeconds: number; activeSeconds: number;
  status: 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
  createdAt: string; updatedAt?: string; finishedAt?: string | null; pending?: boolean;
+ feedback?: FeedbackCategory[];
 };
 const INDEX='sr-ride-index', OWNER='sr-ride-owner';
 const recordKey=(id:string)=>'sr-ride-'+id;
@@ -37,6 +44,13 @@ export async function saveRide(ride:Ride):Promise<boolean> {
  await write({...ride,updatedAt:new Date().toISOString(),pending:true});
  try { await flush();await flush();return !JSON.parse(await rideStorage.get(recordKey(ride.id))??'{}').pending; } catch { return false; }
 }
+export async function submitRideFeedback(rideId:string,categories:FeedbackCategory[]) {
+ await flush();
+ await api('/rides/'+rideId+'/feedback',{method:'PUT',token:await owner(),body:{categories}});
+ const ride=JSON.parse(await rideStorage.get(recordKey(rideId))??'null') as Ride|null;
+ if(ride)await write({...ride,feedback:categories});
+}
+export async function loadSimulatedCommunityFeedback(query=''){return api<SimulatedCommunityFeedback[]>('/rides/community-feedback'+query);}
 export async function loadRides():Promise<{items:Ride[];offline:boolean}> {
  try {
   await flush();const remote=await api<Ride[]>('/rides',{token:await owner()});

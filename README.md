@@ -18,13 +18,13 @@ O painel do mapa reúne quatro assuntos: **Segurança, Pavimento, Trânsito e ac
 
 A linha do trajeto usa OSRM e sua duração não inclui trânsito ao vivo. Para vias com o mesmo nome em bairros diferentes, o usuário precisa escolher o trecho correto. O mapa distingue o ponto cadastrado do destino do fim da via acessível a carros. Veja a [auditoria da rota Avenida Curió, Campanário → Morumbi Shopping](15-auditoria-rota-curio-morumbi.md).
 
-## Modelo do produto e caixinha flutuante
+## Modelo do produto e notificações
 
-A proposta escolhida é fornecer contexto junto de ofertas de plataformas como Uber, 99 e iFood por uma caixinha flutuante do SafeRide sobre o aplicativo utilizado. O cartão pode ser movido, minimizado ou fechado, sem bloquear aceitar/recusar. Comunidade e detalhes ficam no app SafeRide.
+A proposta atual é apresentar informações de segurança, pavimento e relatos por notificações do SafeRide. Na demonstração, as ofertas e corridas são simuladas, e a aceitação acontece na interface da simulação. Não há leitura de outros aplicativos nem integração real com Uber, 99 ou iFood.
 
-Para a faculdade, demonstrar integração autorizada simulada com ofertas fictícias, React Native, módulo Android em Kotlin para sobreposição e Spring Boot. Sobrepor uma janela não significa parceria oficial nem acesso automático aos dados da corrida. Não há conexão real implementada com as plataformas. O [plano de caixinha e alertas](07-caixinha-alertas.md) define fluxo, estados, dados e critérios de aceite.
+Ao final de uma corrida simulada, o motorista pode informar por botões o que encontrou no trajeto. O feedback é gravado no banco e pode aparecer em consultas de trajetos semelhantes; sem resposta, não é criado relato e a corrida fica pendente no histórico. Os avisos identificam dados históricos e relatos da demonstração.
 
-Os alertas incluem obras, pavimento, alagamentos, obstáculos, acesso e ocorrências de assalto registradas em notícias ou relatos revisados. Exibir fonte, data e precisão. Notícia de assalto passado não significa crime em andamento, e ausência de registros não significa segurança.
+As notificações e uma corrida em segundo plano foram testadas no emulador Android; falta validar em um aparelho físico. Veja [notificações na simulação](18-caixinha-android.md). Documentos anteriores sobre a caixinha registram uma proposta substituída por essa decisão.
 
 ## Para quem é o SafeRide
 
@@ -54,7 +54,7 @@ O Spring Boot executa a consulta local; o React Native exibe as matérias dentro
 
 ## Execução local e fallback
 
-O foco é um protótipo funcional para apresentação, com React Native, Spring Boot e banco local. O app roda em celular Android ou emulador, com backend e banco no computador da apresentação. Android é o alvo da prova de conceito de sobreposição; a ferramenta de build ainda será definida. Não se presume o mesmo mecanismo no iOS. Publicação em lojas fica para uma etapa posterior. Não é necessário contratar hospedagem para essa entrega. Buscar notícias novas exige internet; os custos e limites de fontes e mapas precisam ser verificados antes da escolha.
+O foco é um protótipo funcional para apresentação, com React Native, Spring Boot e banco local. O app roda em celular Android ou emulador, com backend e banco no computador da apresentação. Android é o alvo da prova de conceito de notificações e segundo plano, testada no emulador e ainda pendente de validação em aparelho físico. Não se presume o mesmo mecanismo no iOS. Publicação em lojas fica para uma etapa posterior. Não é necessário contratar hospedagem para essa entrega. Buscar notícias novas exige internet; os custos e limites de fontes e mapas precisam ser verificados antes da escolha.
 
 Em caso de falha, o sistema tenta fontes alternativas com limite de tempo e tentativas. Se todas falharem, mostra as últimas notícias salvas localmente, indicando a data e a indisponibilidade da atualização. Sem dados salvos, oferece ativação explícita de um modo de demonstração com exemplos identificados e separados dos dados reais.
 
@@ -62,7 +62,7 @@ O perfil de demonstração terá um botão administrativo para simular falha na 
 
 ## Situação atual
 
-Planejamento inicial em 2 de novembro de 2026. O repositório já tem um protótipo funcional local React Native e Spring Boot, com MySQL, contas, perfil, publicações, comentários, mapa, consulta de rotas, relatos e coleta RSS. Consulte [execução local e limites da primeira entrega](08-execucao-local.md). A integração real com plataformas e a sobreposição nativa ainda não estão implementadas; a caixinha tem uma simulação interna identificada. React Native na interface do protótipo e Spring Boot no backend são requisitos confirmados. As demais decisões técnicas e operacionais propostas precisam ser revisadas pelo grupo.
+Planejamento inicial em 2 de novembro de 2026. O repositório já tem um protótipo funcional local React Native e Spring Boot, com MySQL, contas, perfil, publicações, comentários, mapa, consulta de rotas, relatos e coleta RSS. Consulte [execução local e limites da primeira entrega](08-execucao-local.md). A integração real com plataformas não está implementada; a simulação é identificada e as notificações Android estão em validação. React Native na interface do protótipo e Spring Boot no backend são requisitos confirmados. As demais decisões técnicas e operacionais propostas precisam ser revisadas pelo grupo.
 
 ## Por onde começar
 
@@ -73,11 +73,11 @@ Planejamento inicial em 2 de novembro de 2026. O repositório já tem um protót
 5. [Como colaborar](CONTRIBUTING.md): rotina de branches, revisão e entregas.
 6. [Integração de notícias](05-integracao-noticias.md): busca automática, fontes alternativas, dados locais, demonstração e ocorrências no mapa.
 7. [Comunidade e perfis](06-comunidade-perfis.md): perfis, feed, conversas gerais, dicas, dúvidas, comentários e moderação.
-8. [Caixinha flutuante e alertas](07-caixinha-alertas.md): ofertas simuladas, sobreposição Android, notícias, assaltos e situações do trajeto.
+8. [Notificações Android](18-caixinha-android.md): ofertas simuladas, feedback e limitações do segundo plano.
 
 ## Primeiro objetivo
 
-Demonstrar uma oferta fictícia recebida, consulta de contexto e caixinha flutuante com informações revisadas, fonte e datas; trocar de oferta sem reaproveitar resposta antiga. Complementar com mapa, envio/revisão de relato e participação na comunidade.
+Demonstrar uma oferta fictícia recebida, consulta de contexto e notificações com informações, fontes e datas; trocar de oferta sem reaproveitar resposta antiga. Complementar com mapa, envio/revisão de relato e participação na comunidade.
 
 Dados fictícios devem ser identificados como demonstração. A aplicação só será apresentada como piloto com dados reais depois da validação das fontes e do fluxo de moderação.
 

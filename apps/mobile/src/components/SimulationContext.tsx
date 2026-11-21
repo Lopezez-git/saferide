@@ -4,6 +4,8 @@ import Svg, { Path } from 'react-native-svg';
 import { useSimulationTheme } from '../lib/simulationTheme';
 import SimulationMotion from './SimulationMotion';
 import { api } from '../lib/client';
+import { overlay } from '../lib/overlay';
+import { feedbackOptions, loadSimulatedCommunityFeedback, SimulatedCommunityFeedback } from '../lib/rideHistory';
 import { Offer, routeBody } from '../lib/simulation';
 
 import { type Police, type Pavement, type Traffic, policeSummary, pavementSummary, trafficSummary } from '../lib/simulationContext';
@@ -14,6 +16,7 @@ function SimulationContext({ offer, top, active, visible = true, reducedMotion =
   const [collapsed, setCollapsed] = useState(false);
   const [detail, setDetail] = useState(false);
   const [data, setData] = useState<{ key: Offer; police?: Police | null; pavement?: Pavement | null; traffic?: Traffic | null } | null>(null);
+  const [community,setCommunity]=useState<{key:Offer;items:SimulatedCommunityFeedback[]|null}|null>(null);
   useEffect(() => {
     if (!active) return;
     const controller = new AbortController();
@@ -24,10 +27,20 @@ function SimulationContext({ offer, top, active, visible = true, reducedMotion =
     api<Police>('/safety/police' + query, { signal: controller.signal }).then(value => store('police', value)).catch(() => store('police', null));
     api<Pavement>('/pavement/requests' + query, { signal: controller.signal }).then(value => store('pavement', value)).catch(() => store('pavement', null));
     api<Traffic>('/traffic/route', { method: 'POST', body: routeBody(offer.pickup, offer.destination), signal: controller.signal }).then(value => store('traffic', value)).catch(() => store('traffic', null));
+    const routeQuery=`?originLat=${offer.pickup.latitude}&originLon=${offer.pickup.longitude}&destinationLat=${offer.destination.latitude}&destinationLon=${offer.destination.longitude}`;
+    loadSimulatedCommunityFeedback(routeQuery).then(items=>{if(!controller.signal.aborted)setCommunity({key:offer,items});}).catch(()=>{if(!controller.signal.aborted)setCommunity({key:offer,items:null});});
     return () => controller.abort();
   }, [offer, active]);
   const current = data?.key === offer ? data : null;
   const police = current?.police, pavement = current?.pavement, traffic = current?.traffic;
+  const reports=community?.key===offer?community.items:undefined;
+  useEffect(()=>{
+    if(!active)return;
+    if(!visible){overlay.update('Aguardando oferta simulada no SafeRide.');return;}
+    const safety=policeSummary(police);
+    const reportsText=reports===undefined?'Consultando relatos':reports===null?'Relatos indisponíveis':reports.length?reports.map(r=>feedbackOptions.find(o=>o.value===r.category)?.label).filter(Boolean).join(', '):'Nenhum relato encontrado';
+    overlay.update(`Oferta simulada · ${offer.passenger} · ${offer.fare.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}\nDestino: ${offer.destination.name}\nSegurança: ${safety.value} · SSP histórico até ${date(police?.periodEnd)}\nPavimento: ${pavementSummary(pavement)} · SP156 ${date(pavement?.sourceUpdatedAt)}\nTrajeto simulado: ${reportsText}`);
+  },[active,visible,offer,police,pavement,reports]);
   const cards = [
     { label: 'Segurança', color: c.blue, path: 'M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3z', ...policeSummary(police) },
     { label: 'Pavimento', color: c.orange, path: 'M7 3L3 21M17 3l4 18M12 3v4m0 4v3m0 4v3', value: pavementSummary(pavement), caption: 'Abertos na publicação' },
@@ -46,7 +59,7 @@ function SimulationContext({ offer, top, active, visible = true, reducedMotion =
       <View style={styles.grid}>{cards.map(card => <View key={card.label} style={styles.cell}>
         <View style={{ flexDirection:'row',alignItems:'center',gap:4 }}><Svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke={card.color} strokeWidth={1.8}><Path d={card.path}/></Svg><Text style={[styles.label,{color:c.muted}]}>{card.label}</Text></View>
         <Text style={[styles.value,{color:card.color}]} numberOfLines={1} adjustsFontSizeToFit>{card.value}</Text>
-      </View>)}</View><Text style={[styles.location,{color:c.muted}]}>SSP e SP156: histórico · toque para ver fontes</Text>
+      </View>)}</View><Text style={[styles.location,{color:c.muted}]}>{reports===undefined?'Consultando relatos do trajeto…':reports===null?'Relatos do trajeto indisponíveis':reports.length?`${reports.length} relato(s) em trajeto semelhante · simulação`:'Sem relatos para este trajeto · simulação'} · toque para detalhes</Text>
 
     </Pressable> : null}
     <Modal visible={detail} transparent animationType="fade" onRequestClose={() => setDetail(false)}><View style={styles.scrim}><View style={[styles.detail,{backgroundColor:c.surface}]}>
@@ -57,6 +70,7 @@ function SimulationContext({ offer, top, active, visible = true, reducedMotion =
         <Text style={[styles.section,{color:c.text}]}>Pavimento · SP156</Text><Text style={[styles.body,{color:c.muted}]}>Solicitações abertas ou em andamento na publicação de {date(pavement?.sourceUpdatedAt)}. Pedidos de tapa-buraco não são contagem de buracos atuais nem confirmação de pavimento ruim.</Text>
         {pavement?.sourceUrl ? <Pressable onPress={() => Linking.openURL(pavement.sourceUrl!).catch(() => {})}><Text style={[styles.link,{color:c.accent}]}>Abrir publicação SP156 ↗</Text></Pressable> : null}
         <Text style={[styles.section,{color:c.text}]}>Trânsito · TomTom</Text><Text style={[styles.body,{color:c.muted}]}>{traffic?.status === 'AVAILABLE' ? `Estimativa consultada em ${new Date(traffic.checkedAt!).toLocaleTimeString('pt-BR')}. Atraso estimado de ${Math.ceil((traffic.delaySeconds ?? 0)/60)} min. A rota do provedor pode diferir da linha do mapa.` : 'Sem dados ao vivo nesta consulta. O tempo da oferta é uma estimativa de rota sem trânsito; não é usado para inventar uma classificação.'}</Text>
+        <Text style={[styles.section,{color:c.text}]}>Relatos da comunidade · simulação</Text><Text style={[styles.body,{color:c.muted}]}>Comparamos embarque e destino em até 1 km. Isso não identifica o ponto exato do problema nem comprova que ele continua no local.</Text>{reports?.map((report,index)=><Text key={`${report.createdAt}-${index}`} style={[styles.body,{color:c.muted}]}>{feedbackOptions.find(option=>option.value===report.category)?.label} · {new Date(report.createdAt).toLocaleString('pt-BR')}</Text>)}
         <Text style={[styles.body,{color:c.muted}]}>Oferta, valor, avaliação e movimento do motorista são simulados. Os dados de contexto vêm do backend real do SafeRide.</Text>
       </ScrollView>
     </View></View></Modal>

@@ -8,9 +8,11 @@ import { useSimulationTheme } from '../lib/simulationTheme';
 import SimulationMotion, { useReducedMotion } from './SimulationMotion';
 import type { MapData } from "./mapHtml";
 
-import { createRideId, saveRide, Ride } from '../lib/rideHistory';
+import { createRideId, saveRide, submitRideFeedback, type FeedbackCategory, type Ride } from '../lib/rideHistory';
 import SimulationContext from '../components/SimulationContext';
 import SimulationProgress from './SimulationProgress';
+import RideFeedback from './RideFeedback';
+import { overlay } from '../lib/overlay';
 import routeSamples from '../lib/simulation-routes.json';
 import { offers, legProgress, simulationDriver, simulationReducer, SimulationPhase, OFFER_SECONDS } from '../lib/simulation';
 
@@ -29,10 +31,12 @@ function useSimulationController({ onExit, onMapData, height, autoStart = false 
   const [paused,setPaused] = useState(false);
   const [focused,setFocused] = useState(false);
   const [foreground,setForeground] = useState(AppState.currentState === 'active');
+  const [overlayActive,setOverlayActive] = useState(()=>overlay.running());
   const [sound,setSound] = useState(true);
   const [saving,setSaving] = useState(false);
   const [saveNotice,setSaveNotice] = useState('');
   const [completionError,setCompletionError] = useState(false);
+  const [feedbackRideId,setFeedbackRideId] = useState<string|null>(null);
   const [completionAttempt,retryCompletion] = useReducer((value:number)=>value+1,0);
   const accepting = useRef(false);
   const rideId = useRef<string|null>(null);
@@ -44,7 +48,7 @@ function useSimulationController({ onExit, onMapData, height, autoStart = false 
   const announced = useRef(false);
   const offer = offers[index];
   const current = routeSamples.routes[index];
-  const active = focused && foreground;
+  const active = focused && (foreground || overlayActive);
   const moving = phase === 'pickup' || phase === 'boarding' || phase === 'trip';
   const passengerOnboard = phase === 'boarding' || phase === 'trip';
   const introVisible = phase === 'intro' || phase === 'idle';
@@ -58,7 +62,7 @@ function useSimulationController({ onExit, onMapData, height, autoStart = false 
     void player.seekTo(0).then(() => player.play()).catch(() => setAudioError('Som indisponível neste dispositivo.'));
   }, [phase,active,sound,audioStatus.isLoaded,player]);
   useFocusEffect(useCallback(() => { setFocused(true); return () => { setFocused(false); }; },[]));
-  useEffect(() => { const listener=AppState.addEventListener('change',value=>setForeground(value==='active'));return ()=>listener.remove(); },[]);
+  useEffect(() => { const listener=AppState.addEventListener('change',value=>{setForeground(value==='active');setOverlayActive(overlay.running());});return ()=>listener.remove(); },[]);
   useEffect(() => { if(!active || !sound || phase!=='offer')player.pause(); },[active,sound,phase,player]);
   useEffect(() => {
     if(!active || paused || saving || !(phase==='intro'||phase==='searching'||phase==='offer'||moving))return;
@@ -95,7 +99,7 @@ function useSimulationController({ onExit, onMapData, height, autoStart = false 
       if(!current||rideId.current!==id)return;
       rideId.current=null;checkpoint.current='';
       setSaveNotice(saved?'Viagem concluída e salva no histórico':'Viagem salva no dispositivo · envio pendente');
-      setCompletionError(false);setAudioError('');dispatch({type:'next'});
+      setCompletionError(false);setAudioError('');setFeedbackRideId(id);setPaused(true);dispatch({type:'next'});
     }).catch(()=>{if(current){setCompletionError(true);setSaveNotice('Não foi possível salvar a conclusão. Tente novamente para continuar.');}});
     return()=>{current=false;};
   },[phase,completionAttempt]);
@@ -144,6 +148,18 @@ function useSimulationController({ onExit, onMapData, height, autoStart = false 
     onExit();
   }
 
+  async function notificationFeedback(category:FeedbackCategory) {
+    if(!feedbackRideId)return;
+    try { await submitRideFeedback(feedbackRideId,[category]);setSaveNotice('Feedback salvo no banco.'); }
+    catch { setSaveNotice('Não foi possível salvar o feedback. Responda depois no histórico.'); }
+    setFeedbackRideId(null);setPaused(false);
+  }
+  const overlayHandlers=useRef({feedback:notificationFeedback,later:()=>{setFeedbackRideId(null);setPaused(false);},stopped:()=>setOverlayActive(false)});
+  useEffect(()=>{overlayHandlers.current={feedback:notificationFeedback,later:()=>{setFeedbackRideId(null);setPaused(false);},stopped:()=>setOverlayActive(false)};});
+  useEffect(()=>{const subscription=overlay.listen(action=>{if(action==='feedback:POTHOLE')void overlayHandlers.current.feedback('POTHOLE');if(action==='feedback:BAD_ROAD')void overlayHandlers.current.feedback('BAD_ROAD');if(action==='feedback:INSECURE')void overlayHandlers.current.feedback('INSECURE');if(action==='later')overlayHandlers.current.later();if(action==='stopped')overlayHandlers.current.stopped();});return ()=>subscription?.remove();},[]);
+  useEffect(()=>{overlay.phase(feedbackRideId?'feedback':phase);},[feedbackRideId,phase]);
+  useEffect(()=>()=>{overlay.phase('idle');overlay.update('Inicie uma corrida simulada no SafeRide para consultar o contexto.');},[]);
+
   function start() { setAudioError(''); void changePhase('intro'); }
   const route = useMemo(()=>[...current.pickup.geometry.coordinates,...current.trip.geometry.coordinates],[current]);
   const driver = useMemo(() => simulationDriver(phase, elapsed, offer, current), [phase,elapsed,offer,current]);
@@ -162,7 +178,7 @@ function useSimulationController({ onExit, onMapData, height, autoStart = false 
   useEffect(() => { onMapData(mapData); }, [mapData,onMapData]);
   const compact = height < 720;
   const finished = phase === 'done' || phase === 'declined' || phase === 'expired';
-  return { c, reducedMotion, phase, elapsed, index, paused, setPaused, sound, setSound, saving, saveNotice, completionError, setCompletionError, retryCompletion, audioError, offer, current, active, moving, introVisible, waiting, offering, cardHeight, accept, changePhase, exitSimulation, start, minutes, distance, top, compact, finished };
+  return { c, reducedMotion, phase, elapsed, index, paused, setPaused, sound, setSound, saving, saveNotice, completionError, setCompletionError, retryCompletion, audioError, offer, current, active, moving, introVisible, waiting, offering, cardHeight, accept, changePhase, exitSimulation, start, minutes, distance, top, compact, finished, feedbackRideId, setFeedbackRideId };
 }
 type SimulationModel = ReturnType<typeof useSimulationController>;
 type PanelProps = Readonly<{ model: SimulationModel }>;
@@ -184,6 +200,7 @@ export default function RideSimulation(props: SimulationProps) {
     <IntroPanel model={model}/>
     <SearchPanel model={model}/>
     <OfferPanel model={model}/>
+    <RideFeedback rideId={model.feedbackRideId} onClose={()=>{model.setFeedbackRideId(null);model.setPaused(false);}} />
   </View></View>;
 }
 function stageHeading(phase: SimulationPhase) {

@@ -18,7 +18,7 @@ export async function locate(_onRefined?: (position: DevicePosition) => void): P
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const position = await Promise.race([
-      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High, mayShowUserSettingsDialog: false }),
       new Promise<never>((_, reject) => {
         timer = setTimeout(() => reject(new Error("A localização demorou para responder. Tente novamente em um local com melhor sinal.")), 20000);
       }),

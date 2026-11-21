@@ -1,5 +1,11 @@
 # Histórico das corridas simuladas
 
+## Feedback ao finalizar
+
+Ao concluir uma corrida simulada, o app oferece botões para buraco, via em mau estado, alagamento, assalto, sensação de insegurança, problema de acesso ou nenhum problema. Responder é opcional; ao fechar, a corrida concluída fica com feedback pendente no Histórico. O envio exige conexão e grava no servidor; em caso de falha, a tela permite tentar novamente ou responder depois. Uma resposta já enviada não pode ser alterada nesta versão.
+
+Os relatos com problemas são gravados no banco e alimentam uma lista compartilhada de demonstração, identificada como simulada. É possível selecionar mais de uma situação; `Nenhum problema` é exclusivo e não gera ocorrência, enquanto ausência de resposta não é tratada como resposta. Em ofertas seguintes, são exibidos relatos das últimas 100 respostas cujo embarque e destino estejam cada um a até 1 km dos pontos da oferta. Essa comparação de extremos não garante que as rotas sejam iguais, nem identifica o local exato da ocorrência. Não são misturados com relatos reais revisados ou os dados oficiais. Passageiro e valor não são expostos na lista compartilhada. A integração com corridas reais ainda não existe.
+
 O MVP apresenta as abas Mapa, Histórico e Notícias. Comunidade e Perfil foram retiradas da navegação; os dados e endpoints anteriores não foram apagados.
 
 ## Registro
@@ -12,7 +18,7 @@ O histórico registra passageiro, origem/embarque, destino, coordenadas, valor o
 - **Concluída**: inclui deslocamento até o cliente e viagem até o destino; soma o valor fictício ao resumo de recebimentos simulados.
 - **Cancelada**: preserva a distância e o tempo percorridos até cancelar ou encerrar a simulação. O valor ofertado aparece, mas não é somado a recebimentos.
 
-O percurso roda acelerado (14 segundos para o embarque e 28 para o destino). O tempo de viagem usa proporcionalmente a duração OSRM de cada trecho. O tempo ativo do teste é mostrado separadamente. Pausas e segundo plano não incrementam esses tempos. Não são medidas de GPS nem registros de uma corrida real.
+O percurso roda acelerado (14 segundos para o embarque e 28 para o destino). O tempo de viagem usa proporcionalmente a duração OSRM de cada trecho. O tempo ativo do teste é mostrado separadamente. Pausas não incrementam esses tempos. Em segundo plano, a continuidade com o serviço de notificações Android ativo ainda precisa ser validada. Não são medidas de GPS nem registros de uma corrida real.
 
 ## Persistência e isolamento
 
