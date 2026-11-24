@@ -13,8 +13,8 @@ import SimulationContext from '../components/SimulationContext';
 import SimulationProgress from './SimulationProgress';
 import RideFeedback from './RideFeedback';
 import { overlay } from '../lib/overlay';
-import { locate, type DevicePosition } from "../lib/location";
-import { nearbyScenario, offers, legProgress, simulationDriver, simulationReducer, SimulationPhase, OFFER_SECONDS } from '../lib/simulation';
+import routeSamples from '../lib/simulation-routes.json';
+import { offers, legProgress, simulationDriver, simulationReducer, SimulationPhase, OFFER_SECONDS } from '../lib/simulation';
 
 
 
@@ -23,7 +23,7 @@ const km = (value: number) => (value/1000).toLocaleString('pt-BR',{maximumFracti
 function Person({ color = 'white' }: Readonly<{color?: string}>) { return <Svg width={19} height={19} viewBox="0 0 24 24" fill={color}><Circle cx={12} cy={7} r={4}/><Path d="M4 21v-3a8 8 0 0116 0v3z"/></Svg>; }
 
 type SimulationProps = Readonly<{ onExit: () => void; onMapData: (data: MapData) => void; height: number; }>;
-function useSimulationController({ onExit, onMapData, height, initialPosition }: SimulationProps & {initialPosition:DevicePosition}) {
+function useSimulationController({ onExit, onMapData, height }: SimulationProps) {
   const inset = useSafeAreaInsets();
   const { palette: c } = useSimulationTheme();
   const reducedMotion = useReducedMotion();
@@ -46,11 +46,11 @@ function useSimulationController({ onExit, onMapData, height, initialPosition }:
   const player = useAudioPlayer(require('../../assets/ride-chime.wav'));
   const audioStatus = useAudioPlayerStatus(player);
   const announced = useRef(false);
-  const [position,setPosition] = useState(initialPosition);
-  const {offer,route:current} = useMemo(()=>nearbyScenario(position,index),[position,index]);
+  const offer = offers[index];
+  const current = routeSamples.routes[index];
   const [nextDecision,setNextDecision] = useState<'open'|'reserved'|'declined'>('open');
   const nextIndex = (index + 1) % offers.length;
-  const nextOffer = nearbyScenario(offer.destination,nextIndex).offer;
+  const nextOffer = offers[nextIndex];
   const remainingSeconds = current.trip.duration * (1 - legProgress(phase,elapsed).trip);
   const nearDropoff = phase === 'trip' && remainingSeconds <= 300;
   const active = focused && (foreground || overlayActive);
@@ -104,12 +104,11 @@ function useSimulationController({ onExit, onMapData, height, initialPosition }:
       if(!current||rideId.current!==id)return;
       rideId.current=null;checkpoint.current='';
       setSaveNotice(saved?'Viagem concluída e salva no histórico':'Viagem salva no dispositivo · envio pendente');
-      setPosition({...position,...offer.destination});
       if(nextDecision!=='reserved'){ dispatch({type:'next'}); setNextDecision('open'); }
       setCompletionError(false);setAudioError('');setFeedbackRideId(id);setPaused(true);dispatch({type:'next'});
     }).catch(()=>{if(current){setCompletionError(true);setSaveNotice('Não foi possível salvar a conclusão. Tente novamente para continuar.');}});
     return()=>{current=false;};
-  },[phase,completionAttempt,nextDecision,position,offer.destination]);
+  },[phase,completionAttempt,nextDecision]);
   function finishFeedback() {
     setFeedbackRideId(null);
     setPaused(false);
@@ -197,26 +196,6 @@ type SimulationModel = ReturnType<typeof useSimulationController>;
 type PanelProps = Readonly<{ model: SimulationModel }>;
 
 export default function RideSimulation(props: SimulationProps) {
-  const {palette:c} = useSimulationTheme();
-  const [position,setPosition] = useState<DevicePosition|null>(null);
-  const [error,setError] = useState('');
-  const [attempt,retry] = useReducer((n:number)=>n+1,0);
-  useEffect(()=>{
-    let active = true;
-    locate().then(value=>{if(active) setPosition(value);}).catch(reason=>{
-      if(active) setError(reason instanceof Error ? reason.message : 'Localização indisponível.');
-    });
-    return ()=>{active=false;};
-  },[attempt]);
-  if(position) return <LocatedSimulation {...props} initialPosition={position}/>;
-  return <View style={[StyleSheet.absoluteFill,{backgroundColor:c.surface,justifyContent:'center',padding:24,gap:16}]}>
-    <Text accessibilityLiveRegion="polite" style={{color:c.text}}>{error || 'Localizando o motorista…'}</Text>
-    {!!error && <Pressable accessibilityRole="button" onPress={()=>{setError('');retry();}} style={s.accept}><Text style={s.acceptText}>Tentar novamente</Text></Pressable>}
-    <Pressable accessibilityRole="button" onPress={props.onExit}><Text style={{color:c.accent,textAlign:'center'}}>Voltar ao mapa</Text></Pressable>
-  </View>;
-}
-
-function LocatedSimulation(props: SimulationProps & {initialPosition:DevicePosition}) {
   const model = useSimulationController(props);
   const { c, reducedMotion, introVisible, top, sound, setSound, saving, exitSimulation, index, offer, active, waiting, phase } = model;
   return <View pointerEvents="box-none" style={[StyleSheet.absoluteFill,{alignItems:'center'}]}>
@@ -292,7 +271,7 @@ function IntroPanel({model}: PanelProps) {
       ].map(topic=><View key={topic.label} style={s.introTopic}><Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={topic.color} strokeWidth={1.6}><Path d={topic.path}/></Svg><Text style={{fontSize:11,color:c.muted}}>{topic.label}</Text></View>)}</View>
       <View style={[s.searchStatus,{borderColor:c.border,backgroundColor:c.surface}]}>
         <View style={[s.row,{justifyContent:'center'}]}><View style={s.dot}/><Text style={[s.searchTitle,{color:c.text}]}>Preparando sua experiência</Text></View>
-        <Text style={[s.searchCaption,{color:c.muted}]}>Vamos buscar uma corrida simulada perto de você.</Text>
+        <Text style={[s.searchCaption,{color:c.muted}]}>Vamos buscar uma corrida simulada em São Paulo.</Text>
         <View accessibilityRole="progressbar" accessibilityLabel="Apresentação do SafeRide" accessibilityValue={{min:0,max:5,now:phase==='intro'?elapsed:5}} style={[s.progress,{backgroundColor:c.inset}]}><View style={[s.progressFill,{backgroundColor:c.accent,width:`${phase==='intro'?elapsed/5*100:100}%`}]}/></View>
       </View>
       <Text style={[s.footnote,{color:c.muted,marginTop:18}]}>MODO SIMULAÇÃO{'\n'}Passageiros fictícios · contexto de bases públicas</Text>

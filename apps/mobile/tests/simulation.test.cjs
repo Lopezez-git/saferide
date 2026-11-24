@@ -54,18 +54,3 @@ test('history progress keeps the completed pickup when the passenger trip starts
   assert.equal(legProgress('trip', 14).trip, 0.5);
   assert.equal(legProgress('done', 0).trip, 1);
 });
-test('nearby offers originate at the device and keep pickups within 1.1 km', () => {
-  for (const driver of [{latitude:-8,longitude:-35},{latitude:60,longitude:179.999}]) {
-    for (let index=0; index<3; index++) {
-      const {offer,route}=box.exports.nearbyScenario(driver,index);
-      const rad=Math.PI/180;
-      const a=Math.sin((offer.pickup.latitude-driver.latitude)*rad/2)**2 +
-        Math.cos(driver.latitude*rad)*Math.cos(offer.pickup.latitude*rad)*Math.sin((offer.pickup.longitude-driver.longitude)*rad/2)**2;
-      const meters=12742000*Math.asin(Math.sqrt(a));
-      assert.ok(meters>649 && meters<1100);
-      assert.ok(Math.abs(route.pickup.distance-meters)<1);
-      assert.equal(route.pickup.geometry.coordinates[0][0],driver.longitude);
-      assert.equal(route.trip.geometry.coordinates[0][1],offer.pickup.latitude);
-    }
-  }
-});

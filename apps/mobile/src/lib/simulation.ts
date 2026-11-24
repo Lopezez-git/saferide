@@ -7,28 +7,6 @@ export const offers: Offer[] = [
   { passenger: 'Lucas Almeida', pickup: { latitude: -23.5614, longitude: -46.6559, name: 'MASP · Avenida Paulista, Bela Vista' }, destination: { latitude: -23.6234167, longitude: -46.6985436, name: 'Morumbi Shopping · Av. Roque Petroni Júnior, 1089' }, driver: { latitude: -23.568, longitude: -46.659 }, fare: 32.70, rating: '4,96', reviews: 318, category: 'Comfort' },
   { passenger: 'Ana Souza', pickup: { latitude: -23.6234167, longitude: -46.6985436, name: 'Morumbi Shopping · Vila Cordeiro' }, destination: { latitude: -23.5874, longitude: -46.6576, name: 'Parque Ibirapuera · Avenida Pedro Álvares Cabral' }, driver: { latitude: -23.628, longitude: -46.696 }, fare: 24.80, rating: '4,92', reviews: 640, category: 'X' },
 ];
-// Great-circle offsets keep each fictional pickup nearby at any latitude.
-function offset(origin: MapPoint, meters: number, degrees: number): MapPoint {
-  const rad = Math.PI / 180;
-  const latitude = origin.latitude * rad;
-  const arc = meters / 6371000;
-  const bearing = degrees * rad;
-  const end = Math.asin(Math.sin(latitude)*Math.cos(arc) + Math.cos(latitude)*Math.sin(arc)*Math.cos(bearing));
-  const delta = Math.atan2(Math.sin(bearing)*Math.sin(arc)*Math.cos(latitude), Math.cos(arc)-Math.sin(latitude)*Math.sin(end));
-  return {latitude:end/rad, longitude:(origin.longitude+delta/rad+540)%360-180};
-}
-
-export function nearbyScenario(driver: MapPoint, index: number) {
-  const approach = 650 + 220 * index;
-  const journey = 2600 + 550 * index;
-  const pickup = {...offset(driver, approach, 65 + 120*index), name:'Embarque simulado nas proximidades'};
-  const destination = {...offset(pickup, journey, 120 + 110*index), name:'Destino simulado na região'};
-  function leg(a: MapPoint, b: MapPoint, distance: number): Route {
-    return {distance, duration:Math.round(distance/6), geometry:{coordinates:[[a.longitude,a.latitude],[b.longitude,b.latitude]]}};
-  }
-  return {offer:{...offers[index],driver,pickup,destination}, route:{pickup:leg(driver,pickup,approach),trip:leg(pickup,destination,journey)}};
-}
-
 export function routeBody(from: MapPoint, to: MapPoint) { return { fromLat: from.latitude, fromLon: from.longitude, toLat: to.latitude, toLon: to.longitude }; }
 export function pointAlong(points: number[][], fraction: number): MapPoint | null {
   if (!points.length) return null;
