@@ -101,6 +101,7 @@ function Account({ user }: { user: User }) {
   const [success, setSuccess] = useState("");
   const [busy, setBusy] = useState(false);
   const reports = useResource<Report[]>("/reports/mine", session.token);
+  const reputation = useResource<{points: number; publishedReports: number; confirmationsReceived: number}>("/me/reputation", session.token);
   async function save() {
     setBusy(true);
     setError("");
@@ -125,6 +126,16 @@ function Account({ user }: { user: User }) {
       <View style={styles.card}>
         <Text style={styles.heading}>{user.name}</Text>
         <Text style={styles.subtitle}>{user.email}</Text>
+      </View>
+      <View style={styles.card}>
+        <Text style={styles.heading}>Minha reputação</Text>
+        {reputation.data ? <Text style={styles.body}>{reputation.data.points} ponto(s) · {reputation.data.publishedReports} relato(s) publicado(s) · {reputation.data.confirmationsReceived} confirmação(ões) recebida(s)</Text> : null}
+        <Text style={styles.subtitle}>Cada relato aprovado vale um ponto. Cada outra pessoa que confirma esse relato acrescenta um ponto. Relatos retirados pela moderação deixam de pontuar.</Text>
+        <ResourceState {...reputation} />
+        <Button secondary title="Atualizar reputação" onPress={reputation.refresh} />
+      </View>
+      <View style={styles.card}>
+        <Text style={styles.heading}>Editar perfil</Text>
         <Field
           label="Nome público"
           value={name}

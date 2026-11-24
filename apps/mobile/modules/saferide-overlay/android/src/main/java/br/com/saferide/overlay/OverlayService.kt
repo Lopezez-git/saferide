@@ -81,7 +81,10 @@ class OverlayService : Service() {
   val safetyValue=safety?.substringAfter("Segurança:")?.substringBefore(" · ")?.trim()
   val pavementValue=pavement?.substringAfter("Pavimento:")?.substringBefore(" · ")?.trim()
   val reportValue=lines.firstOrNull{it.startsWith("Trajeto") }?.substringAfter(":")?.trim()
-  val compact=listOfNotNull(safetyValue?.let{"🛡 $it (hist.)"},pavementValue?.replace("solicitações","pedidos")?.let{"🚧 $it"}).joinToString("  •  ").ifBlank{"Consultando contexto da viagem."}
+  fun summaryLine(prefix: String) = lines.firstOrNull { it.startsWith(prefix) }?.substringAfter(":")?.trim()
+  val rates = summaryLine("Valor bruto:")
+  val pickup = summaryLine("Embarque:")
+  val compact = rates ?: listOfNotNull(safetyValue?.let{"🛡 $it (hist.)"},pavementValue?.replace("solicitações","pedidos")?.let{"🚧 $it"}).joinToString("  •  ").ifBlank{"Consultando contexto da viagem."}
   val body=SpannableStringBuilder()
   fun addLine(icon:String,label:String,value:String?) {
    if(value==null)return
@@ -90,8 +93,11 @@ class OverlayService : Service() {
    val start=body.length;body.append(label);body.setSpan(StyleSpan(Typeface.BOLD),start,body.length,Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
    body.append("  ·  ").append(value)
   }
+  addLine("⏱","Embarque",pickup)
+  addLine("💰","Receita bruta",rates)
   addLine("🛡","Segurança",safetyValue?.let{"$it (histórico)"})
   addLine("🚧","Pavimento",pavementValue?.let{"$it (arquivo)"})
+  addLine("🚗","Trânsito",summaryLine("Trânsito:"))
   addLine("💬","Relatos",reportValue)
   val details=Notification.BigTextStyle().setBigContentTitle("Contexto da viagem · Simulação").bigText(if(body.isEmpty())compact else body)
   val notification=builder(alertChannel).setSmallIcon(R.drawable.ic_saferide_notification).setColor(0xff087f71.toInt()).setContentTitle("Resumo da viagem · simulação").setContentText(compact).setStyle(details).setContentIntent(openApp()).setAutoCancel(false).setOnlyAlertOnce(true).build()

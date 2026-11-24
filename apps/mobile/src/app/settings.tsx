@@ -1,9 +1,12 @@
+import { useRouter } from "expo-router";
+import { Button } from "../components/ui";
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSimulationTheme } from '../lib/simulationTheme';
 import { useState } from 'react';
 import { overlay } from '../lib/overlay';
 
 export default function Settings() {
+  const router = useRouter();
   const {theme,setTheme,palette:p,error}=useSimulationTheme();
   const [overlayMessage,setOverlayMessage]=useState('');
   async function activateOverlay() {
@@ -15,6 +18,8 @@ export default function Settings() {
   }
   return <ScrollView style={{flex:1,backgroundColor:'#f3f6f5'}} contentContainerStyle={s.page}>
     <Text style={s.title}>Do seu jeito.</Text>
+    <Button secondary title="Comunidade" onPress={() => router.push("/community")} />
+    <Button secondary title="Meu perfil e reputação" onPress={() => router.push("/profile")} />
     <Text style={s.label}>NOTIFICAÇÕES ANDROID · DEMONSTRAÇÃO</Text>
     <Text style={s.description}>Ative para receber o contexto das ofertas e o pedido de feedback. As corridas e os trajetos são simulados.</Text>
     <View style={s.options}><Pressable accessibilityRole="button" onPress={()=>void activateOverlay()} style={[s.option,s.selected]}><Text style={s.optionLabel}>Ativar notificações</Text></Pressable><Pressable accessibilityRole="button" onPress={()=>{overlay.stop();setOverlayMessage('Notificações encerradas.');}} style={s.option}><Text style={s.optionLabel}>Desativar</Text></Pressable></View>

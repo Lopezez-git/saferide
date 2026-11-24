@@ -25,7 +25,7 @@ class PavementControllerTest {
   assertThat(grouped.getFirst()).containsEntry("sameDetailsCount",2);
  }
  @Test void exposesPublishedRequestsWithoutCallingThemVerifiedHoles() throws Exception {
-  var mvc=MockMvcBuilders.standaloneSetup(new PavementController(new ObjectMapper())).build();
+  var mvc=MockMvcBuilders.standaloneSetup(new PavementController(new br.com.saferide.prototype.PublicDataRefresh.Snapshot(new ObjectMapper(),"sp156-pavement.json"))).build();
   mvc.perform(get("/api/v1/pavement/requests").param("latitude","-23.6234167").param("longitude","-46.6985436"))
     .andExpect(status().isOk())
     .andExpect(jsonPath("$.status").value("AVAILABLE"))

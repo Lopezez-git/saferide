@@ -18,7 +18,8 @@ import { MapPoint, MapData } from "../components/mapHtml";
 import { useResource } from "../lib/useResource";
 import { api, Report, message, when } from "../lib/client";
 import { useSession } from "../lib/session";
-import { nearRoute } from "../lib/spatial";
+import RouteOptions, { type RouteComparison } from "../components/RouteOptions";
+import ReportConfirmation from "../components/ReportConfirmation";
 import { locate, DevicePosition } from "../lib/location";
 
 const inPilot = (p: MapPoint) => p.latitude >= -24.1 && p.latitude <= -23.3 && p.longitude >= -46.9 && p.longitude <= -46.3;
@@ -33,11 +34,6 @@ const categories = {
   SEGURANCA: "Segurança",
 };
 type PlaceResult = MapPoint & { id: string; name: string; address: string; accuracy?: string; city?: string; street?: string; district?: string };
-type Route = {
-  distance: number;
-  duration: number;
-  geometry: { coordinates: number[][] };
-};
 export default function MapScreen() {
   const { token, user } = useSession();
   const router = useRouter();
@@ -49,14 +45,17 @@ export default function MapScreen() {
   const manualOrigin = useRef(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mapHeight, setMapHeight] = useState(height - 64);
-  const q = useResource<Report[]>("/reports");
+  const q = useResource<Report[]>("/reports", token);
   const [mode, setMode] = useState<"origin" | "destination" | "report">(
     "origin",
   );
   const [origin, setOrigin] = useState<MapPoint | null>(null);
   const [destination, setDestination] = useState<MapPoint | null>(null);
   const [point, setPoint] = useState<MapPoint | null>(null);
-  const [route, setRoute] = useState<Route | null>(null);
+  const [comparison, setComparison] = useState<RouteComparison | null>(null);
+  const [selectedRoute, setSelectedRoute] = useState(0);
+  const [comparing, setComparing] = useState(false);
+  const route = comparison?.routes[selectedRoute] ?? null;
   const [routeRevision, setRouteRevision] = useState(0);
   const request = useRef(0);
   const [routing, setRouting] = useState(false);
@@ -172,15 +171,15 @@ export default function MapScreen() {
     } else {
       request.current++;
       setRouting(false);
-      setRoute(null);
-        if (mode === "origin") { manualOrigin.current = true; setOrigin(p); setOriginName(""); setOriginAccuracy(""); }
+      setComparison(null); setComparing(false);
+        if (mode === "origin") { manualOrigin.current = true; setOrigin(p); setOriginName(""); setOriginAccuracy(""); setMode("destination"); }
       else { setDestination(p); setDestinationName(""); setDestinationAccuracy(""); }
     }
   }
   function cancelRoute() {
     request.current++;
     setRouting(false);
-    setRoute(null);
+    setComparison(null); setComparing(false);
     setDestination(null);
     setDestinationName("");
     setDestinationAccuracy("");
@@ -200,10 +199,10 @@ export default function MapScreen() {
     if (!origin || !destination) return;
     const id = ++request.current;
     setRouting(true);
-    setRoute(null);
+    setComparison(null); setComparing(false);
     setError("");
     try {
-      const r = await api<Route>("/route", {
+      const r = await api<RouteComparison>("/route/options", {
         method: "POST",
         body: {
           fromLat: origin.latitude,
@@ -212,7 +211,10 @@ export default function MapScreen() {
           toLon: destination.longitude,
         },
       });
-      if (id === request.current) { setRoute(r); setRouteRevision(value=>value+1); setSheetOpen(false); Keyboard.dismiss(); }
+      if (id === request.current) {
+        setComparison(r); setSelectedRoute(0); setComparing(true);
+        setRouteRevision(value => value + 1); setSheetOpen(false); Keyboard.dismiss();
+      }
     } catch (e) {
       if (id === request.current) setError(message(e));
     } finally {
@@ -322,7 +324,7 @@ export default function MapScreen() {
   const pavementNews = (news.data?.items || []).filter(n => n.topic === "Pavimento");
   const accessNews = (news.data?.items || []).filter(n => ["Trânsito", "Acidentes", "Clima e via", "Obras na via"].includes(n.topic));
   const topicNews = topic === "safety" ? safetyNews : topic === "pavement" ? pavementNews : topic === "access" ? accessNews : [];
-  const topicReports = topic === "community" ? actualNearby : topic === "safety" ? safety : topic === "pavement" ? pavement : accessReports;
+  const topicReports = topic === "community" ? [...actualNearby].sort((a, b) => (b.confirmations ?? 0) - (a.confirmations ?? 0) || (b.authorPoints ?? 0) - (a.authorPoints ?? 0) || a.distance - b.distance) : topic === "safety" ? safety : topic === "pavement" ? pavement : accessReports;
   const trafficCondition=traffic?.condition==="LEVE"?"Trânsito tranquilo na viagem":traffic?.condition==="MODERADO"?"Trânsito moderado na viagem":traffic?.condition==="CONGESTIONADO"?"Viagem congestionada":"";
   const accessSummary = !route ? "Trace uma viagem para avaliar o trânsito"
     : trafficError||traffic?.status==="UNAVAILABLE" ? "Trânsito ao vivo indisponível"
@@ -334,9 +336,6 @@ export default function MapScreen() {
 
   const showRouteAction = !!origin && !!destination && !route && !search;
   const showRouteFooter = showRouteAction || (!!route && !search);
-  const contextual = route
-    ? reports.filter((r) => nearRoute(r, route.geometry.coordinates))
-    : [];
   const routeEnd = route?.geometry.coordinates[route.geometry.coordinates.length - 1];
   const destinationRoadGap = routeEnd && destination ? Math.round(distanceMeters(destination,{latitude:routeEnd[1],longitude:routeEnd[0]})) : 0;
   return (
@@ -499,6 +498,7 @@ export default function MapScreen() {
             <Text style={styles.heading}>{r.title}</Text>
             <Text style={styles.body}>{r.body}</Text>
             <Text style={styles.subtitle}>{when(r.observedAt)} · {r.source || "Comunidade · relato revisado"}</Text>
+            <ReportConfirmation report={r} token={token} onChange={q.refresh} />
             <Text style={styles.subtitle}>Revisão não comprova o fato.{r.validUntil ? ` Válido até ${when(r.validUntil)}.` : ""}</Text>
           </View>)}
           {topic === "access" && accessNews.length > 0 ? <Text style={styles.heading}>Notícias publicadas · local, rua ou bairro</Text> : null}
@@ -560,16 +560,18 @@ export default function MapScreen() {
             {originAccuracy.startsWith("Trecho") ? <Text style={styles.subtitle}>A origem é um trecho aproximado da avenida. Escolha um ponto no mapa ou informe o número para calcular desde o local exato.</Text> : null}
             <Text style={styles.subtitle}>Para: {destinationName || "Ponto marcado no mapa"}</Text>
             {destinationAccuracy.startsWith("Trecho") ? <Text style={styles.subtitle}>O destino também é um trecho aproximado da via.</Text> : null}
-            {route ? <Text style={styles.body}>{(route.distance/1000).toFixed(1)} km · cerca de {Math.round(route.duration/60)} min pelo OSRM, sem trânsito ao vivo · {contextual.length} relato(s) próximo(s) ao percurso</Text> : null}
+            {route ? <Text style={styles.body}>{(route.distance/1000).toFixed(1)} km · cerca de {Math.round(route.duration/60)} min pelo OSRM, sem trânsito ao vivo · {route.activeReports} relato(s) próximo(s) ao percurso</Text> : null}
             {destinationRoadGap >= 30 ? <Text style={styles.subtitle}>A linha termina na via acessível a carros, a cerca de {destinationRoadGap} m do ponto cadastrado do destino. Confirme o acesso no local.</Text> : null}
           </View> : null}
           <Text style={styles.subtitle}>Protótipo acadêmico · fontes e detalhes nos relatos.</Text>
         </ScrollView> : null}
       </View> : null}
+      {comparison && comparing ? <RouteOptions comparison={comparison} selected={selectedRoute}
+        onClose={() => setComparing(false)} onSelect={index => { setSelectedRoute(index); setComparing(false); }} /> : null}
       {route && !search ? <View style={{position:"absolute",bottom:0,left:0,right:0,height:84,padding:12,gap:10,flexDirection:"row",backgroundColor:"white",borderTopWidth:1,borderTopColor:"#E1E8E5"}}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Ver detalhes do trajeto" onPress={() => setSheetOpen(true)} style={{flex:1,justifyContent:"center",paddingHorizontal:12,borderRadius:16,backgroundColor:"#17211D"}}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Comparar trajetos" onPress={() => setComparing(true)} style={{flex:1,justifyContent:"center",paddingHorizontal:12,borderRadius:16,backgroundColor:"#17211D"}}>
           <Text style={{color:"white",fontWeight:"700",fontSize:16}}>{(route.distance/1000).toFixed(1)} km · {Math.round(route.duration/60)} min</Text>
-          <Text style={{color:"#E0EBE6",fontSize:12}}>Estimativa sem trânsito ao vivo · ver trajeto</Text>
+          <Text style={{color:"#E0EBE6",fontSize:12}}>Comparar trajetos</Text>
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="Cancelar trajeto" onPress={cancelRoute} style={({pressed}) => ({minHeight:56,paddingHorizontal:16,borderRadius:16,flexDirection:"row",alignItems:"center",justifyContent:"center",gap:8,backgroundColor:pressed?"#F7D7D2":"#FFF0ED",borderWidth:1,borderColor:"#E9B5AD"})}>
           <Svg width={18} height={18} viewBox="0 0 24 24" stroke="#A33224" strokeWidth={2.5} strokeLinecap="round"><Path d="m6 6 12 12M18 6 6 18" /></Svg>
@@ -582,7 +584,7 @@ export default function MapScreen() {
           <Text style={{color:"white",fontSize:18,fontWeight:"700"}}>{routing ? "Calculando percurso…" : "Traçar percurso"}</Text>
         </Pressable>
       </View> : null}
-      {!search ? <Pressable accessibilityRole="button" accessibilityLabel="Iniciar simulação de corrida" onPress={() => { Keyboard.dismiss(); setSimulationData(null); setSimulating(true); }} style={({pressed}) => ({position:"absolute",right:16,bottom:showRouteFooter?100:18,backgroundColor:pressed?"#075E54":"#087F71",borderRadius:28,paddingHorizontal:18,height:54,flexDirection:"row",alignItems:"center",gap:8,boxShadow:"0 4px 16px #0004",borderWidth:1,borderColor:"#74CDBD"})}>
+      {!search && !sheetOpen ? <Pressable accessibilityRole="button" accessibilityLabel="Iniciar simulação de corrida" onPress={() => { Keyboard.dismiss(); setSimulationData(null); setSimulating(true); }} style={({pressed}) => ({position:"absolute",right:16,bottom:showRouteFooter?100:18,backgroundColor:pressed?"#075E54":"#087F71",borderRadius:28,paddingHorizontal:18,height:54,flexDirection:"row",alignItems:"center",gap:8,boxShadow:"0 4px 16px #0004",borderWidth:1,borderColor:"#74CDBD"})}>
         <Svg width={20} height={20} viewBox="0 0 24 24" fill="white"><Path d="M8 4l12 8-12 8V4z" /></Svg><Text style={{color:"white",fontWeight:"700",fontSize:14}}>Simular corrida</Text>
       </Pressable> : null}
       </> : <RideSimulation height={mapHeight} onMapData={setSimulationData} autoStart onExit={() => setSimulating(false)} />}

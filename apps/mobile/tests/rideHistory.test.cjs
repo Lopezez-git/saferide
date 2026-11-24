@@ -9,5 +9,8 @@ test('offline record survives app reload and synchronizes without duplication',a
  assert.equal(await app.saveRide(ride),false);assert.equal(server.size,0);
  app=boot();let result=await app.loadRides();assert.equal(result.offline,true);assert.equal(result.items[0].distanceMeters,350);assert.equal(result.items[0].pending,true);
  online=true;result=await app.loadRides();assert.equal(result.offline,false);assert.equal(result.items[0].pending,false);assert.equal(server.size,1);
+ assert.equal(result.items[0].cachedOnly,false);
  await app.loadRides();assert.equal(server.size,1);
+ server.clear();result=await app.loadRides();assert.equal(result.offline,false);assert.equal(result.items[0].cachedOnly,true);
+ assert.equal(result.items[0].distanceMeters,350);
 });

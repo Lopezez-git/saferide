@@ -23,7 +23,7 @@ export default function HistoryScreen() {
   {items.map(ride=><View key={ride.id} style={styles.card}>
     <View style={{flexDirection:'row',justifyContent:'space-between',gap:10}}><Text style={[styles.heading,{flex:1}]}>{ride.passenger}</Text><Text style={styles.heading}>{money(ride.fare)}</Text></View>
     <Text style={{color:ride.status==='COMPLETED'?'#087F71':ride.status==='CANCELLED'?'#a33224':'#a66c10',fontWeight:'700'}}>{ride.status==='COMPLETED'?'Concluída':ride.status==='CANCELLED'?'Cancelada':'Em andamento / interrompida'} · Simulação</Text>
-    <Text style={styles.subtitle}>{new Date(ride.createdAt).toLocaleString('pt-BR')}{ride.pending?' · Sincronização pendente':' · Salvo no banco'}</Text>
+    <Text style={styles.subtitle}>{new Date(ride.createdAt).toLocaleString('pt-BR')}{ride.pending?' · Sincronização pendente':offline?' · Cópia no dispositivo · sem conexão':ride.cachedOnly?' · Cópia no dispositivo · fora da consulta atual':' · Salvo no banco'}</Text>
     <Text style={styles.body}>Passageiro: {ride.passenger}{'\n'}Embarque: {ride.origin}{'\n'}Destino: {ride.destination}</Text>
     <Text style={styles.body}>{km(ride.distanceMeters)} km rodados · {time(ride.simulatedSeconds)} de viagem simulada</Text>
     <Text style={styles.subtitle}>Inclui deslocamento até o cliente. Planejado: {km(ride.plannedDistanceMeters)} km. Tempo ativo do teste: {time(ride.activeSeconds)}.</Text>

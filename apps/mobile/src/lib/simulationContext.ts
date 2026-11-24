@@ -33,3 +33,15 @@ export function trafficSummary(traffic?: Traffic | null) {
   const conditions: Record<string, string> = { LEVE: 'Tranquilo', MODERADO: 'Moderado', CONGESTIONADO: 'Congestionado' };
   return conditions[traffic.condition ?? ''] ?? 'Indisponível';
 }
+
+export function grossRates(fare: number, meters: number, seconds: number) {
+  if (![fare, meters, seconds].every(Number.isFinite) || fare < 0 || meters <= 0 || seconds <= 0) return null;
+  return { perKm: fare * 1000 / meters, perHour: fare * 3600 / seconds, perMinute: fare * 60 / seconds };
+}
+
+export function grossRatesLabel(fare: number, meters: number, seconds: number) {
+  const rates = grossRates(fare, meters, seconds);
+  if (!rates) return "Estimativa indisponível";
+  const brl = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return [brl(rates.perKm) + "/km", brl(rates.perHour) + "/h", brl(rates.perMinute) + "/min"].join(" · ");
+}

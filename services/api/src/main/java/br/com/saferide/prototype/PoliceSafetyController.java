@@ -16,8 +16,8 @@ import java.util.*;
 @RestController @Profile("prototype") @RequestMapping("/api/v1/safety")
 public class PoliceSafetyController {
  private final PublicDataRefresh.Snapshot snapshot;
- public PoliceSafetyController(ObjectMapper mapper) {
-  snapshot=new PublicDataRefresh.Snapshot(mapper,"ssp-vehicles.json");
+ public PoliceSafetyController(@org.springframework.beans.factory.annotation.Qualifier("policeData") PublicDataRefresh.Snapshot snapshot) {
+  this.snapshot=snapshot;
  }
 
  public static double distance(double lat,double lon,double lat2,double lon2){

@@ -196,7 +196,8 @@ export default function RideSimulation(props: SimulationProps) {
         <Pressable accessibilityRole="button" accessibilityLabel="Encerrar simulação" disabled={saving} onPress={exitSimulation} style={[s.tool,{backgroundColor:c.surface}]}><Text style={{color:c.text,fontSize:22}}>×</Text></Pressable>
       </View>
     </View>
-    <SimulationContext key={index} offer={offer} top={top+52} active={active} visible={!waiting&&!finished} reducedMotion={reducedMotion}/>
+    <SimulationContext key={index} offer={offer} meters={model.distance}
+      seconds={model.current.pickup.duration + model.current.trip.duration} pickupSeconds={model.current.pickup.duration} top={top+52} active={active} visible={!waiting&&!finished} reducedMotion={reducedMotion}/>
     <IntroPanel model={model}/>
     <SearchPanel model={model}/>
     <OfferPanel model={model}/>

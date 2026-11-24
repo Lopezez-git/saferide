@@ -12,7 +12,7 @@ export type Ride = {
  fare: number; distanceMeters: number; plannedDistanceMeters: number;
  simulatedSeconds: number; activeSeconds: number;
  status: 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
- createdAt: string; updatedAt?: string; finishedAt?: string | null; pending?: boolean;
+ createdAt: string; updatedAt?: string; finishedAt?: string | null; pending?: boolean; cachedOnly?: boolean;
  feedback?: FeedbackCategory[];
 };
 const INDEX='sr-ride-index', OWNER='sr-ride-owner';
@@ -56,6 +56,8 @@ export async function loadRides():Promise<{items:Ride[];offline:boolean}> {
   await flush();const remote=await api<Ride[]>('/rides',{token:await owner()});
   const pending=(await local()).filter(r=>r.pending);
   for(const ride of remote)if(!pending.some(p=>p.id===ride.id))await write({...ride,pending:false});
-  return {items:(await local()).sort((a,b)=>b.createdAt.localeCompare(a.createdAt)),offline:false};
+  const remoteIds = new Set(remote.map(ride => ride.id));
+  const items = (await local()).map(ride => ({...ride, cachedOnly: !remoteIds.has(ride.id)}));
+  return {items:items.sort((a,b)=>b.createdAt.localeCompare(a.createdAt)),offline:false};
  } catch {return {items:(await local()).sort((a,b)=>b.createdAt.localeCompare(a.createdAt)),offline:true};}
 }
