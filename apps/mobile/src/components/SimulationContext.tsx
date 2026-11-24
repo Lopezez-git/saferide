@@ -11,7 +11,7 @@ import { Offer, routeBody } from '../lib/simulation';
 import { type Police, type Pavement, type Traffic, policeSummary, pavementSummary, trafficSummary, grossRatesLabel } from '../lib/simulationContext';
 
 const date = (value?: string) => value ? value.split('-').reverse().join('/') : '—';
-function SimulationContext({ offer, meters, seconds, pickupSeconds, top, active, inline = false, visible = true, reducedMotion = false }: Readonly<{ offer: Offer; meters: number; seconds: number; pickupSeconds: number; top?: number; inline?: boolean; active: boolean; visible?: boolean; reducedMotion?: boolean | null }>) {
+function SimulationContext({ offer, meters, seconds, pickupSeconds, top, active, remainingMinutes, visible = true, reducedMotion = false }: Readonly<{ offer: Offer; meters: number; seconds: number; pickupSeconds: number; top?: number; remainingMinutes?: number; active: boolean; visible?: boolean; reducedMotion?: boolean | null }>) {
   const { palette: c } = useSimulationTheme();
   const [collapsed, setCollapsed] = useState(false);
   const [detail, setDetail] = useState(false);
@@ -48,18 +48,19 @@ function SimulationContext({ offer, meters, seconds, pickupSeconds, top, active,
     { label: 'Pavimento', color: c.orange, path: 'M7 3L3 21M17 3l4 18M12 3v4m0 4v3m0 4v3', value: pavementSummary(pavement), caption: 'Abertos na publicação' },
     { label: 'Trânsito', color: traffic?.condition === 'LEVE' ? c.accent : c.violet, path: 'M4 7h13l-3-3m3 3l-3 3M20 17H7l3-3m-3 3l3 3', value: trafficSummary(traffic), caption: traffic?.status === 'AVAILABLE' ? 'Ao vivo · TomTom' : 'Sem avaliação ao vivo' },
   ];
-  return <SimulationMotion visible={visible} reducedMotion={reducedMotion} fromY={-36} duration={520} delay={inline ? 0 : 300} testID="simulation-notification" style={[inline ? {} : [styles.floating, {top}], { backgroundColor:c.surface,borderColor:c.border }]}>
+  return <SimulationMotion visible={visible} reducedMotion={reducedMotion} fromY={-36} duration={520} delay={0} testID="simulation-notification" style={[styles.floating, {top}, { backgroundColor:c.surface,borderColor:c.border }]}>
     <View style={styles.header}>
       <Pressable accessibilityRole="button" accessibilityLabel="Ver fontes do SafeRide" onPress={() => setDetail(true)} style={{ flex: 1, flexDirection:'row',alignItems:'center',gap:8,minHeight:40 }}>
         <View style={{width:27,height:27,borderRadius:9,backgroundColor:c.accentSurface,alignItems:'center',justifyContent:'center'}}><Svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke={c.accent} strokeWidth={2}><Path d="M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3zM8 12l3 3 5-6"/></Svg></View>
-        <Text style={[styles.brand,{color:c.text}]}>SafeRide</Text><Text style={[styles.subtitle,{color:c.muted}]}>CONTEXTO · {offer.platform}</Text>
+        <Text style={[styles.brand,{color:c.text}]}>SafeRide</Text><Text style={[styles.subtitle,{color:c.muted}]}>{remainingMinutes ? 'PRÓXIMA OFERTA' : 'OFERTA'} · {offer.platform} · SIMULAÇÃO</Text>
       </Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel={collapsed ? 'Expandir SafeRide' : 'Recolher SafeRide'} accessibilityState={{expanded:!collapsed}} onPress={() => setCollapsed(!collapsed)} style={styles.toggle}><Text style={{ color:c.muted, fontSize:20 }}>{collapsed ? '+' : '−'}</Text></Pressable>
     </View>
     {!collapsed ? <Pressable accessibilityRole="button" accessibilityLabel="Ver detalhes de segurança, pavimento e trânsito" onPress={() => setDetail(true)}>
 
       <View style={{paddingHorizontal:14,paddingBottom:8}}>
-        <Text style={[styles.label,{color:c.muted}]}>{inline ? 'Até o próximo embarque' : 'Embarque em'} {pickupMinutes} min · receita bruta estimada</Text>
+        <Text style={[styles.value,{color:c.text}]}>{offer.fare.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})} · {(meters/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})} km · {Math.ceil(seconds/60)} min</Text>
+        <Text style={[styles.label,{color:c.muted}]}>{remainingMinutes ? `Desembarque em ${remainingMinutes} min · próximo embarque ${pickupMinutes} min depois` : `Embarque em ${pickupMinutes} min`}</Text>
         <Text style={[styles.value,{color:c.text}]}>{rateLabel}</Text>
       </View>
       <View style={styles.grid}>{cards.map(card => <View key={card.label} style={styles.cell}>

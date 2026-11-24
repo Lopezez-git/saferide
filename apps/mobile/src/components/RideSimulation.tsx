@@ -221,27 +221,18 @@ export default function RideSimulation(props: SimulationProps) {
       pickupSeconds={model.current.pickup.duration} top={top+52}
       active={active} visible={phase === 'offer'} reducedMotion={reducedMotion}
     />}
-    {model.nearDropoff && model.nextDecision!=='declined' && <View style={{position:'absolute',top:top+52,left:12,right:12,maxHeight:Math.max(100,props.height-top-model.cardHeight-84),padding:10,gap:6,borderRadius:14,backgroundColor:c.surface}}>
-      <ScrollView style={{flexShrink:1}} contentContainerStyle={{gap:4}}>
-      <Text accessibilityLiveRegion="polite" style={{color:c.accent,fontWeight:'700'}}>{model.nextDecision==='reserved'?`Aceite simulado na ${model.nextOffer.platform}`:`Próxima oferta · ${model.nextOffer.platform} (simulada)`}</Text>
-      <Text style={{color:c.text}}>{model.nextOffer.passenger} · {money(model.nextOffer.fare)}</Text>
-      <Text style={{color:c.muted}}>Embarque: {model.nextOffer.pickup.name}</Text>
-      <Text style={{color:c.muted}}>Desembarque atual em cerca de {Math.max(1,Math.ceil(model.remainingSeconds/60))} min · depois, {Math.ceil(next.pickup.duration/60)} min até o próximo embarque</Text>
-      {model.nextDecision==='open' && <>
-        <Text style={{color:c.text}}>Destino: {model.nextOffer.destination.name}</Text>
-        <Text style={{color:c.muted}}>{km(nextMeters)} km · {Math.ceil(nextSeconds/60)} min no total · {model.nextOffer.category} · ★ {model.nextOffer.rating}</Text>
-        <SimulationContext inline offer={model.nextOffer} meters={nextMeters} seconds={nextSeconds} pickupSeconds={next.pickup.duration} active={active} reducedMotion={reducedMotion}/>
-      </>}
-      </ScrollView>
-      {model.nextDecision==='open' && <Text style={{color:c.muted}}>Decisão na {model.nextOffer.platform} · demonstração</Text>}
-      {model.nextDecision==='open' && <View style={s.row}>
-        <Pressable accessibilityRole="button" onPress={()=>model.setNextDecision('declined')} style={[s.secondary,{borderColor:c.border}]}><Text style={{color:c.text}}>Simular recusa</Text></Pressable>
-        <Pressable accessibilityRole="button" onPress={()=>model.setNextDecision('reserved')} style={s.accept}><Text style={s.acceptText}>Simular aceite</Text></Pressable>
-      </View>}
-    </View>}
+    {model.nearDropoff && model.nextDecision==='open' && <SimulationContext
+      offer={model.nextOffer} meters={nextMeters} seconds={nextSeconds}
+      pickupSeconds={next.pickup.duration} top={top+52} active={active}
+      remainingMinutes={Math.max(1,Math.ceil(model.remainingSeconds/60))} reducedMotion={reducedMotion}
+    />}
     <IntroPanel model={model}/>
     <SearchPanel model={model}/>
-    <OfferPanel model={model}/>
+    {model.offering ? <View style={[s.searchingPanel,{backgroundColor:c.surface,borderColor:c.border,gap:8}]}>
+      <Text style={{color:c.muted}}>Controles da demonstração · {offer.platform}</Text>
+      <RideActions model={model}/>
+      {!!model.saveNotice && <Text style={{color:c.muted}}>{model.saveNotice}</Text>}
+    </View> : <OfferPanel model={model}/>}
     <RideFeedback rideId={model.feedbackRideId} onClose={model.finishFeedback} />
   </View></View>;
 }
@@ -305,31 +296,23 @@ function SearchPanel({model}: PanelProps) {
 }
 
 function OfferPanel({model}: PanelProps) {
-  const { c, waiting, reducedMotion, cardHeight, offering, phase, offer, audioError, saveNotice } = model;
+  const { c, waiting, reducedMotion, cardHeight, phase, offer, audioError, saveNotice } = model;
   const importantNotice = /Falha|Não foi|pendente/.test(saveNotice) ? saveNotice : '';
   return <SimulationMotion visible={!waiting} reducedMotion={reducedMotion} fromY={110} duration={650} delay={160} testID="simulation-offer" style={[s.offer,{height:cardHeight,backgroundColor:c.surface,borderColor:c.border}]}>
       <View style={[s.handle,{backgroundColor:c.border}]}/>
       <ScrollView style={{flex:1}} contentContainerStyle={{paddingHorizontal:16,paddingBottom:4}} showsVerticalScrollIndicator={false}>
         <View style={[s.row,{justifyContent:'space-between',marginBottom:5}]}><Text style={[s.eyebrow,{color:c.accent}]}>{offer.platform} · {stageHeading(phase)}</Text><Text style={{color:c.muted,fontSize:12}}>{offer.category}</Text></View>
-        {offering ? <OfferDetails model={model}/> : <TripDetails model={model}/>}
+        <TripDetails model={model}/>
         {audioError?<Text style={{color:c.orange,fontSize:12,marginTop:6}}>{audioError}</Text>:null}
       </ScrollView>
       <View style={[s.actions,{borderTopColor:c.border}]}>
-        <RideActions model={model}/>
+        {model.nearDropoff && model.nextDecision==='open' ? <View style={s.row}>
+          <Pressable accessibilityRole="button" onPress={()=>model.setNextDecision('declined')} style={[s.secondary,{borderColor:c.border}]}><Text style={{color:c.text}}>Simular recusa</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={()=>model.setNextDecision('reserved')} style={s.accept}><Text style={s.acceptText}>Simular aceite na {model.nextOffer.platform}</Text></Pressable>
+        </View> : <RideActions model={model}/>}
         {importantNotice ? <Text accessibilityLiveRegion="polite" style={[s.footnote,{color:c.orange}]}>{importantNotice}</Text> : null}
       </View>
     </SimulationMotion>;
-}
-
-function OfferDetails({model}: PanelProps) {
-  const { c, offer, distance, minutes, compact, current } = model;
-  return <>
-          <View style={[s.row,{alignItems:'baseline'}]}><Text style={[s.fare,{color:c.text,fontSize:compact?32:36}]}>{money(offer.fare)}</Text><View style={{flex:1}}/><Text style={{color:c.muted,fontSize:13}}>★ {offer.rating}</Text></View>
-          <Text style={[s.summary,{color:c.muted}]}>{minutes} min · {km(distance)} km no total</Text>
-          <View style={[s.divider,{backgroundColor:c.border}]}/>
-          <View style={s.stop}><View style={[s.marker,{backgroundColor:'#1878c9'}]}><Person/></View><View style={{flex:1}}><Text style={[s.stopLabel,{color:c.blue}]}>BUSCAR {offer.passenger.split(' ')[0].toUpperCase()} · {Math.ceil(current.pickup.duration/60)} min</Text><Text style={[s.address,{color:c.text}]} numberOfLines={2}>{offer.pickup.name}</Text></View></View>
-          <View style={s.stop}><View style={[s.marker,{backgroundColor:c.inset}]}><Text style={{color:c.text}}>■</Text></View><View style={{flex:1}}><Text style={[s.stopLabel,{color:c.muted}]}>DESTINO · {Math.ceil(current.trip.duration/60)} min</Text><Text style={[s.address,{color:c.text}]} numberOfLines={2}>{offer.destination.name}</Text></View></View>
-</>;
 }
 
 function TripDetails({model}: PanelProps) {
@@ -362,7 +345,7 @@ function BoardingActions({model}: PanelProps) {
 function RideActions({model}: PanelProps) {
   const { c, offering, elapsed, saving, changePhase, accept, moving, phase, paused, setPaused, completionError, setCompletionError, retryCompletion, reducedMotion } = model;
   if (offering) return <>
-          <Text style={{color:c.muted,fontSize:12}}>Decisão na {model.offer.platform} · demonstração</Text>
+
           <SimulationProgress key="offer" value={1-elapsed/OFFER_SECONDS} color={c.accent} background={c.inset} reducedMotion={reducedMotion}/>
           <View style={s.row}><Pressable accessibilityRole="button" accessibilityLabel={`Simular recusa na ${model.offer.platform}`} disabled={saving} onPress={()=>changePhase('declined')} style={[s.secondary,{borderColor:c.border}]}><Text style={{color:c.text,fontWeight:'600'}}>Simular recusa</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel={`Simular aceite na ${model.offer.platform}`} disabled={saving} onPress={()=>accept()} style={[s.accept,{flex:1,opacity:saving ? 0.6 : 1}]}><Text style={s.acceptText}>{saving?'Salvando…':'Simular aceite'} {saving?null:<Text style={{fontSize:12}}>· {Math.max(0,OFFER_SECONDS-Math.floor(elapsed))}s</Text>}</Text></Pressable></View>
 </>;
