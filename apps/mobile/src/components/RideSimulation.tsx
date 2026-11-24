@@ -171,7 +171,8 @@ function useSimulationController({ onExit, onMapData, height }: SimulationProps)
   const overlayHandlers=useRef({feedback:notificationFeedback,later:finishFeedback,stopped:()=>setOverlayActive(false)});
   useEffect(()=>{overlayHandlers.current={feedback:notificationFeedback,later:finishFeedback,stopped:()=>setOverlayActive(false)};});
   useEffect(()=>{const subscription=overlay.listen(action=>{if(action==='feedback:POTHOLE')void overlayHandlers.current.feedback('POTHOLE');if(action==='feedback:BAD_ROAD')void overlayHandlers.current.feedback('BAD_ROAD');if(action==='feedback:INSECURE')void overlayHandlers.current.feedback('INSECURE');if(action==='later')overlayHandlers.current.later();if(action==='stopped')overlayHandlers.current.stopped();});return ()=>subscription?.remove();},[]);
-  useEffect(()=>{overlay.phase(feedbackRideId?'feedback':phase);},[feedbackRideId,phase]);
+  const overlayPhase = feedbackRideId ? 'feedback' : nearDropoff && nextDecision==='open' ? 'offer' : phase;
+  useEffect(()=>{overlay.phase(overlayPhase);},[overlayPhase]);
   useEffect(()=>()=>{overlay.phase('idle');overlay.update('Inicie uma corrida simulada no SafeRide para consultar o contexto.');},[]);
 
   const route = useMemo(()=>[...current.pickup.geometry.coordinates,...current.trip.geometry.coordinates],[current]);
@@ -190,7 +191,7 @@ function useSimulationController({ onExit, onMapData, height }: SimulationProps)
   const mapData = useMemo(()=>({ simulation:true,navigation:moving,driverMotion,passengerOnboard,simulationPreview:prepareCamera?route:null,reduceMotion:reducedMotion!==false,reports:[],origin:waiting?null:offer.pickup,destination:waiting?null:offer.destination,selected:null,route:waiting?null:visibleRoute,approachRoute:waiting||passengerOnboard?undefined:current.pickup.geometry.coordinates,driver:waiting?null:driver,bottomInset:(waiting?offerHeight:cardHeight)+26,topInset:top+(moving ? 52 : 148) }),[offer,current,route,visibleRoute,driver,moving,driverMotion,passengerOnboard,waiting,prepareCamera,reducedMotion,cardHeight,offerHeight,top]);
   useEffect(() => { onMapData(mapData); }, [mapData,onMapData]);
   const compact = height < 720;
-  return { nextOffer,nearDropoff,nextDecision,setNextDecision,remainingSeconds,c, reducedMotion, phase, elapsed, index, paused, setPaused, sound, setSound, saving, saveNotice, completionError, setCompletionError, retryCompletion, audioError, offer, current, active, moving, introVisible, waiting, offering, cardHeight, accept, changePhase, exitSimulation, minutes, distance, top, compact, feedbackRideId, finishFeedback };
+  return { nextRoute:routeSamples.routes[nextIndex],nextOffer,nearDropoff,nextDecision,setNextDecision,remainingSeconds,c, reducedMotion, phase, elapsed, index, paused, setPaused, sound, setSound, saving, saveNotice, completionError, setCompletionError, retryCompletion, audioError, offer, current, active, moving, introVisible, waiting, offering, cardHeight, accept, changePhase, exitSimulation, minutes, distance, top, compact, feedbackRideId, finishFeedback };
 }
 type SimulationModel = ReturnType<typeof useSimulationController>;
 type PanelProps = Readonly<{ model: SimulationModel }>;
@@ -198,6 +199,9 @@ type PanelProps = Readonly<{ model: SimulationModel }>;
 export default function RideSimulation(props: SimulationProps) {
   const model = useSimulationController(props);
   const { c, reducedMotion, introVisible, top, sound, setSound, saving, exitSimulation, index, offer, active, waiting, phase } = model;
+  const next = model.nextRoute;
+  const nextMeters = next.pickup.distance + next.trip.distance;
+  const nextSeconds = next.pickup.duration + next.trip.duration;
   return <View pointerEvents="box-none" style={[StyleSheet.absoluteFill,{alignItems:'center'}]}>
     <SimulationMotion visible={introVisible} reducedMotion={reducedMotion} duration={380} style={StyleSheet.absoluteFill}><View style={[StyleSheet.absoluteFill,{backgroundColor:c.surface+'f2'}]}/></SimulationMotion>
     <View pointerEvents="box-none" style={{flex:1,width:'100%',maxWidth:520}}>
@@ -214,11 +218,18 @@ export default function RideSimulation(props: SimulationProps) {
       pickupSeconds={model.current.pickup.duration} top={top+52}
       active={active} visible={phase === 'offer'} reducedMotion={reducedMotion}
     />}
-    {model.nearDropoff && model.nextDecision!=='declined' && <View style={{position:'absolute',top:top+52,left:12,right:12,padding:12,gap:6,borderRadius:14,backgroundColor:c.surface}}>
+    {model.nearDropoff && model.nextDecision!=='declined' && <View style={{position:'absolute',top:top+52,left:12,right:12,maxHeight:Math.max(100,props.height-top-model.cardHeight-84),padding:10,gap:6,borderRadius:14,backgroundColor:c.surface}}>
+      <ScrollView style={{flexShrink:1}} contentContainerStyle={{gap:4}}>
       <Text accessibilityLiveRegion="polite" style={{color:c.accent,fontWeight:'700'}}>{model.nextDecision==='reserved'?'Próxima corrida reservada':'Oferta para depois do desembarque'}</Text>
       <Text style={{color:c.text}}>{model.nextOffer.passenger} · {money(model.nextOffer.fare)}</Text>
       <Text style={{color:c.muted}}>Embarque: {model.nextOffer.pickup.name}</Text>
       <Text style={{color:c.muted}}>Desembarque atual em cerca de {Math.max(1,Math.ceil(model.remainingSeconds/60))} min</Text>
+      {model.nextDecision==='open' && <>
+        <Text style={{color:c.text}}>Destino: {model.nextOffer.destination.name}</Text>
+        <Text style={{color:c.muted}}>{km(nextMeters)} km · {Math.ceil(nextSeconds/60)} min no total · {model.nextOffer.category} · ★ {model.nextOffer.rating}</Text>
+        <SimulationContext inline offer={model.nextOffer} meters={nextMeters} seconds={nextSeconds} pickupSeconds={next.pickup.duration} active={active} reducedMotion={reducedMotion}/>
+      </>}
+      </ScrollView>
       {model.nextDecision==='open' && <View style={s.row}>
         <Pressable accessibilityRole="button" onPress={()=>model.setNextDecision('declined')} style={[s.secondary,{borderColor:c.border}]}><Text style={{color:c.text}}>Recusar</Text></Pressable>
         <Pressable accessibilityRole="button" onPress={()=>model.setNextDecision('reserved')} style={s.accept}><Text style={s.acceptText}>Aceitar próxima</Text></Pressable>
