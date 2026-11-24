@@ -1,5 +1,6 @@
 export type MapPoint = { latitude: number; longitude: number };
 export type MapData = {
+  dark?: boolean;
   simulation?: boolean;
   navigation?: boolean;
   simulationPreview?: number[][] | null;
@@ -27,7 +28,7 @@ export type MapProps = {
   onPick: (point: MapPoint) => void;
   onReport: (id: string) => void;
 };
-export const mapHtml = `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="strict-origin-when-cross-origin"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><style>html,body,#map{height:100%;margin:0}.leaflet-bottom{bottom:0}.leaflet-top .leaflet-control-zoom{margin-top:140px}.leaflet-container{background:#dfe4e5}.leaflet-tile-pane svg path[stroke-width="1.5"]{stroke-width:calc(1.5px / var(--tile-scale,1))}.leaflet-tile-pane svg path[stroke-width="3"]{stroke-width:calc(3px / var(--tile-scale,1))}.location-marker{box-sizing:border-box;border:3px solid white;border-radius:50%;background:#087f71;box-shadow:0 0 0 6px #087f7126,0 2px 5px #0003}.driver-arrow{width:34px;height:34px;filter:drop-shadow(0 2px 3px #0005)}.driver-arrow svg{width:34px;height:34px}.location-marker.manual{background:#fff;border:4px solid #243536;box-shadow:0 0 0 5px #2435361a}.endpoint{background:#111;border:2px solid white}.endpoint-label{border:0;box-shadow:0 1px 5px #0002;font:11px Arial;padding:5px 7px;color:#111}body{background:#dfe4e5;font:14px sans-serif}#hint{position:absolute;z-index:999;bottom:30px;left:10px;background:white;padding:8px;border-radius:8px;max-width:75%}</style></head><body><div id="map"></div><div id="hint">Carregando mapa…</div><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="https://unpkg.com/leaflet-rotate@0.5.3/dist/leaflet-rotate.js"></script><script src="https://unpkg.com/leaflet.vectorgrid@1.3.0/dist/Leaflet.VectorGrid.bundled.js"></script><script>
+export const mapHtml = `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="strict-origin-when-cross-origin"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><style>html,body,#map{height:100%;margin:0}.leaflet-bottom{bottom:0}.leaflet-top .leaflet-control-zoom{margin-top:140px}.leaflet-container{background:#dfe4e5}.leaflet-tile-pane svg path[stroke-width="1.5"]{stroke-width:calc(1.5px / var(--tile-scale,1))}.leaflet-tile-pane svg path[stroke-width="3"]{stroke-width:calc(3px / var(--tile-scale,1))}.location-marker{box-sizing:border-box;border:3px solid white;border-radius:50%;background:#087f71;box-shadow:0 0 0 6px #087f7126,0 2px 5px #0003}.driver-arrow{width:34px;height:34px;filter:drop-shadow(0 2px 3px #0005)}.driver-arrow svg{width:34px;height:34px}.location-marker.manual{background:#fff;border:4px solid #243536;box-shadow:0 0 0 5px #2435361a}.endpoint{background:#111;border:2px solid white}.endpoint-label{border:0;box-shadow:0 1px 5px #0002;font:11px Arial;padding:5px 7px;color:#111}body{background:#dfe4e5;font:14px sans-serif}#hint{position:absolute;z-index:999;bottom:30px;left:10px;background:white;padding:8px;border-radius:8px;max-width:75%}.dark #map,.dark body{background:#19252c}.dark .leaflet-tile-pane path[stroke="#fff"]{stroke:#465760}.dark .leaflet-tile-pane path[fill="#c7d1d5"]{fill:#203d4a}.dark .leaflet-tile-pane path[fill="#d5dddd"]{fill:#253a32}.dark #hint,.dark .leaflet-control-attribution,.dark .leaflet-control-zoom a,.dark .leaflet-tooltip{background:#182128;color:#dce6ed}.dark .leaflet-control-attribution a{color:#98cbfd}</style></head><body><div id="map"></div><div id="hint">Carregando mapa…</div><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="https://unpkg.com/leaflet-rotate@0.5.3/dist/leaflet-rotate.js"></script><script src="https://unpkg.com/leaflet.vectorgrid@1.3.0/dist/Leaflet.VectorGrid.bundled.js"></script><script>
 function send(data){var message=JSON.stringify({saferide:true,...data});if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage(message);else parent.postMessage(message,'*');}
 if(typeof L==='undefined'){document.getElementById('hint').textContent='Mapa indisponível. Use os pontos de referência e a lista abaixo.';}else{
 var simLayer=null,simDriver=null,simKey='',simFocusKey='',simRouteKey='',savedView=null;
@@ -111,6 +112,7 @@ navigationLayer=new NavigationGrid(info.tiles[0],{...options,tileSize:1024,minZo
 document.getElementById('hint').style.display='none';
 map.on('click',e=>send({type:'pick',latitude:e.latlng.lat,longitude:e.latlng.lng}));
 window.updateMap=function(d){
+if(d.dark !== undefined)document.documentElement.classList.toggle("dark",d.dark);
 if(d.simulation){
  if(!simLayer){map.stop();savedView={center:map.getCenter(),zoom:map.getZoom(),zoomSnap:map.options.zoomSnap};map.options.zoomSnap=0;simLayer=L.layerGroup().addTo(map);layer.clearLayers();if(routeLayer){map.removeLayer(routeLayer);routeLayer=null;}}
  setNavigation(d);
@@ -118,10 +120,10 @@ if(d.simulation){
   if(simRouteKey){map.stop();simRouteKey='';simFocusKey='';}
   if(d.simulationPreview&&d.simulationPreview.length){var focusKey=JSON.stringify([d.simulationPreview,d.bottomInset,d.topInset]);if(focusKey!==simFocusKey){simFocusKey=focusKey;var preview=simulationFrame(d.simulationPreview,d);map.stop();map.setView(preview.center,Math.min(18,preview.zoom+0.65),{animate:false});}}
  }
- var key=JSON.stringify([d.origin,d.destination,d.route,d.bottomInset,d.topInset,d.passengerOnboard,d.navigation]);
+ var key=JSON.stringify([d.origin,d.destination,d.route,d.bottomInset,d.topInset,d.passengerOnboard,d.navigation,d.dark]);
  if(key!==simKey){stopDriver();driverMotionKey='';simKey=key;simLayer.clearLayers();simDriver=null;
   if(d.route&&d.route.length){
-   L.polyline(d.route.map(p=>[p[1],p[0]]),{color:d.navigation?'#087f71':'#24383e',weight:d.navigation?7:5}).addTo(simLayer);
+   L.polyline(d.route.map(p=>[p[1],p[0]]),{color:d.dark?'#72d9bd':d.navigation?'#087f71':'#24383e',weight:d.navigation?7:5}).addTo(simLayer);
    if(!navigationActive){
    var framing=simulationFrame(d.route,d);
    var routeKey=JSON.stringify([d.origin,d.destination,d.route]);var newOffer=routeKey!==simRouteKey;simRouteKey=routeKey;

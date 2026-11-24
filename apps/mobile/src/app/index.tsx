@@ -1,7 +1,8 @@
+import { useSimulationTheme } from "../lib/simulationTheme";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Text, View, ScrollView, Pressable, TextInput, Keyboard, Linking, useWindowDimensions } from "react-native";
 import {
-  styles,
+  useAppStyles,
   Button,
   Chip,
   Field,
@@ -35,6 +36,8 @@ const categories = {
 };
 type PlaceResult = MapPoint & { id: string; name: string; address: string; accuracy?: string; city?: string; street?: string; district?: string };
 export default function MapScreen() {
+  const styles = useAppStyles();
+  const {theme, palette: p} = useSimulationTheme();
   const { token, user } = useSession();
   const router = useRouter();
   const [planning,setPlanning] = useState(false);
@@ -340,20 +343,21 @@ export default function MapScreen() {
   const routeEnd = route?.geometry.coordinates[route.geometry.coordinates.length - 1];
   const destinationRoadGap = routeEnd && destination ? Math.round(distanceMeters(destination,{latitude:routeEnd[1],longitude:routeEnd[0]})) : 0;
   return (
-    <View style={{flex:1,backgroundColor:"#E6E9E3"}} onLayout={(event) => setMapHeight(event.nativeEvent.layout.height)}>
+    <View style={{flex:1,backgroundColor:p.background}} onLayout={(event) => setMapHeight(event.nativeEvent.layout.height)}>
       <MapCanvas
         height={mapHeight}
-        data={simulating && simulationData ? simulationData : { routeMinutes: route ? Math.round(route.duration / 60) : undefined, reports: shown, placeFocus, position, locationFocus, origin, destination, selected: point, route: route?.geometry.coordinates ?? null }}
+        data={{dark: theme === "dark", ...(simulating && simulationData ? simulationData : { routeMinutes: route ? Math.round(route.duration / 60) : undefined, reports: shown, placeFocus, position, locationFocus, origin, destination, selected: point, route: route?.geometry.coordinates ?? null })}}
         onPick={(point) => { if (simulating) return; if (search) { Keyboard.dismiss(); setSearch(""); setPlaces([]); setSearched(false); setSearching(false); searchRequest.current++; return; } if (!route || mode === "report") pick(point); else { setInspected(point); setLocalName(""); setNewsPlace(""); } setSheetOpen(true); }}
         onReport={(id) => { const report = reports.find(r => r.id === id); if (report) { setInspected(report); setLocalName(report.title); setNewsPlace(""); } setSheetOpen(true); }}
       />
       {!simulating ? <>
 
-      {!planning && mode!=="report" ? <Pressable accessibilityRole="button" onPress={()=>setPlanning(true)} style={{position:"absolute",top:12+insets.top,left:12,backgroundColor:"white",borderRadius:18,padding:14}}><Text>Planejar trajeto</Text></Pressable> : <View style={{position:"absolute",top:12+insets.top,left:12,right:12,maxWidth:520,alignSelf:"center",backgroundColor:"white",borderRadius:20,padding:14,boxShadow:"0 3px 18px #00000020"}}>
+      {!planning && mode!=="report" ? <Pressable accessibilityRole="button" onPress={()=>setPlanning(true)} style={{position:"absolute",top:12+insets.top,left:12,backgroundColor:p.surface,borderRadius:18,padding:14}}><Text style={styles.body}>Planejar trajeto</Text></Pressable> : <View style={{position:"absolute",top:12+insets.top,left:12,right:12,maxWidth:520,alignSelf:"center",backgroundColor:p.surface,borderRadius:20,padding:14,boxShadow:"0 3px 18px #00000020"}}>
         <View style={{flexDirection:"row",alignItems:"center",gap:8}}>
       <TextInput
+        placeholderTextColor={p.muted}
         accessibilityLabel="Buscar endereço ou lugar"
-        style={{flex:1,fontSize:17,minHeight:48,color:"#17211D",paddingHorizontal:12,backgroundColor:"#F2F4F2",borderRadius:12}}
+        style={{flex:1,fontSize:17,minHeight:48,color:p.text,paddingHorizontal:12,backgroundColor:p.inset,borderRadius:12}}
         value={search}
         onChangeText={(text) => { searchRequest.current++; setSearch(text); setPlaces([]); setSearchError(""); setSearched(false); setSearching(text.trim().length >= 3); setSheetOpen(false); }}
         placeholder={mode === "origin" ? "Buscar lugar de partida" : mode === "destination" ? "Para onde? Busque um lugar" : "Buscar local do relato"}
@@ -363,7 +367,7 @@ export default function MapScreen() {
         returnKeyType="search"
         onSubmitEditing={() => Keyboard.dismiss()}
       />
-      {search.length > 0 ? <Pressable accessibilityRole="button" accessibilityLabel="Limpar busca" onPress={() => { searchRequest.current++; setSearch(""); setPlaces([]); setSearched(false); setSearching(false); setSearchError(""); }} style={{width:40,minHeight:44,alignItems:"center",justifyContent:"center"}}><Text style={{fontSize:24,color:"#64716C"}}>×</Text></Pressable> : null}
+      {search.length > 0 ? <Pressable accessibilityRole="button" accessibilityLabel="Limpar busca" onPress={() => { searchRequest.current++; setSearch(""); setPlaces([]); setSearched(false); setSearching(false); setSearchError(""); }} style={{width:40,minHeight:44,alignItems:"center",justifyContent:"center"}}><Text style={{fontSize:24,color:p.muted}}>×</Text></Pressable> : null}
       </View>
       <ScrollView keyboardShouldPersistTaps="handled" style={{maxHeight:Math.max(160,mapHeight*0.42)}} contentContainerStyle={{gap:4}}>
       {searching ? <Text accessibilityLiveRegion="polite" style={styles.subtitle}>Buscando sugestões…</Text> : null}
@@ -376,12 +380,12 @@ export default function MapScreen() {
           else if (mode === "destination") { setDestinationName([place.name,place.address].filter(Boolean).join(" · ")); setDestinationAccuracy(place.accuracy||""); }
           setPlaceFocus({ latitude: place.latitude, longitude: place.longitude, key: Date.now() });
           searchRequest.current++; setSearching(false); setSearch(""); setPlaces([]); setSearched(false);
-        }} style={({pressed}) => ({flexDirection:"row",alignItems:"center",gap:12,paddingVertical:13,paddingHorizontal:8,borderBottomWidth:1,borderBottomColor:"#EDF0EE",backgroundColor:pressed?"#EDF5F2":"white",borderRadius:8})}>
-        <Text style={{fontSize:22,color:"#087F71"}}>⌖</Text>
+        }} style={({pressed}) => ({flexDirection:"row",alignItems:"center",gap:12,paddingVertical:13,paddingHorizontal:8,borderBottomWidth:1,borderBottomColor:p.border,backgroundColor:pressed?p.accentSurface:p.surface,borderRadius:8})}>
+        <Text style={{fontSize:22,color:p.accent}}>⌖</Text>
         <View style={{flex:1,gap:3}}><Text style={styles.heading} numberOfLines={1}>{place.name}</Text>
         <Text style={styles.subtitle} numberOfLines={2}>{place.address}</Text>
-        {place.accuracy ? <Text style={{fontSize:11,color:place.accuracy.includes("aproximado")?"#915F15":"#64716C"}}>{place.accuracy}</Text> : null}</View>
-        <Text style={{fontSize:22,color:"#64716C"}}>›</Text>
+        {place.accuracy ? <Text style={{fontSize:11,color:place.accuracy.includes("aproximado")?p.orange:p.muted}}>{place.accuracy}</Text> : null}</View>
+        <Text style={{fontSize:22,color:p.muted}}>›</Text>
       </Pressable>)}
       {searched && places.length === 0 ? <Text style={styles.subtitle}>Nenhum resultado na região piloto. Tente o nome completo, bairro ou número.</Text> : null}
       {places.length > 0 ? <Text style={styles.subtitle}>Photon · © OpenStreetMap contributors</Text> : null}
@@ -389,24 +393,24 @@ export default function MapScreen() {
         </ScrollView>
       </View>}
 
-      {sheetOpen ? <View style={{position:"absolute",bottom:showRouteFooter ? 84 : 0,left:0,right:0,backgroundColor:"white",borderTopLeftRadius:24,borderTopRightRadius:24,maxHeight:Math.max(160,mapHeight*0.65-(showRouteFooter ? 84 : 0)),boxShadow:"0 -4px 20px #00000016"}}>
+      {sheetOpen ? <View style={{position:"absolute",bottom:showRouteFooter ? 84 : 0,left:0,right:0,backgroundColor:p.surface,borderTopLeftRadius:24,borderTopRightRadius:24,maxHeight:Math.max(160,mapHeight*0.65-(showRouteFooter ? 84 : 0)),boxShadow:"0 -4px 20px #00000016"}}>
         <Pressable accessibilityRole="button" accessibilityLabel={sheetOpen ? "Recolher painel do mapa" : "Abrir planejamento e relatos"} accessibilityState={{expanded:sheetOpen}} onPress={() => { Keyboard.dismiss(); setSheetOpen(!sheetOpen); }} style={{padding:16,gap:8,minHeight:80}}>
-          <View style={{width:38,height:4,borderRadius:4,backgroundColor:"#CBD2CE",alignSelf:"center"}} />
+          <View style={{width:38,height:4,borderRadius:4,backgroundColor:p.border,alignSelf:"center"}} />
           <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:8}}>
-            <Text style={{fontSize:21,fontWeight:"700",color:"#17211D",flexShrink:1}}>{localName || "Informações do local"}</Text>
-            <Text style={{fontSize:20,color:"#17211D"}}>{sheetOpen ? "⌄" : "⌃"}</Text>
+            <Text style={{fontSize:21,fontWeight:"700",color:p.text,flexShrink:1}}>{localName || "Informações do local"}</Text>
+            <Text style={{fontSize:20,color:p.text}}>{sheetOpen ? "⌄" : "⌃"}</Text>
           </View>
-          <Text numberOfLines={1} style={{fontSize:12,color:"#64716C"}}>{focus ? "Relatos em até 1 km do ponto selecionado" : "Selecione um lugar para consultar"}</Text>
+          <Text numberOfLines={1} style={{fontSize:12,color:p.muted}}>{focus ? "Relatos em até 1 km do ponto selecionado" : "Selecione um lugar para consultar"}</Text>
         </Pressable>
         {sheetOpen ? <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{padding:16,paddingTop:0,gap:12,paddingBottom:28}}>
           <Feedback error={error} success={success} />
           <ResourceState {...q} />
           <View style={{flexDirection:"row",flexWrap:"wrap",gap:10}}>
             {([
-              {id:"safety",title:"Segurança",color:"#3B6467",bg:"#EFF5F3",text:police?.status==="AVAILABLE"?(hasTimeData?`Histórico ${timeLabel} · ${timeTotal} ${timeTotal===1?"BO":"BOs"}`:"Recorte horário indisponível"):policeError||police?.status==="UNAVAILABLE"?"Base policial indisponível":policeKey?"Consultando SSP…":"Selecione um local",caption:police?.status==="AVAILABLE"?"Hora atual · SSP-SP · veículos · 1 km":"SSP · veículos roubados/furtados"},
-              {id:"pavement",title:"Pavimento",color:"#B5532A",bg:"#FFF0E9",text:pavementData?.status==="AVAILABLE"?(pavementOpen?`${pavementOpen} pedidos abertos no arquivo`:pavementData.totalRequests?`${pavementData.totalRequests} pedidos SP156`:"Sem pedidos nesta base"):pavementError||pavementData?.status==="UNAVAILABLE"?"Base SP156 indisponível":policeKey?"Consultando SP156…":"Selecione um local",caption:pavementData?.status==="AVAILABLE"?`SP156 · 1 km · status em ${shortDate(pavementData.sourceUpdatedAt)}`:"Pedidos de tapa-buraco · sem vistoria"},
-              {id:"access",title:"Trânsito e acesso",color:"#2563B5",bg:"#EBF3FF",text:accessSummary,caption:accessCaption},
-              {id:"community",title:"Comunidade",color:"#7952B3",bg:"#F4EEFF",text:q.loading?"Consultando…":q.error?"Dados indisponíveis":actualNearby.length?`${actualNearby.length} relato(s) do local`:"Sem relatos reais aqui",caption:"Experiências de motoristas"},
+              {id:"safety",title:"Segurança",color:p.accent,bg:p.inset,text:police?.status==="AVAILABLE"?(hasTimeData?`Histórico ${timeLabel} · ${timeTotal} ${timeTotal===1?"BO":"BOs"}`:"Recorte horário indisponível"):policeError||police?.status==="UNAVAILABLE"?"Base policial indisponível":policeKey?"Consultando SSP…":"Selecione um local",caption:police?.status==="AVAILABLE"?"Hora atual · SSP-SP · veículos · 1 km":"SSP · veículos roubados/furtados"},
+              {id:"pavement",title:"Pavimento",color:p.orange,bg:p.inset,text:pavementData?.status==="AVAILABLE"?(pavementOpen?`${pavementOpen} pedidos abertos no arquivo`:pavementData.totalRequests?`${pavementData.totalRequests} pedidos SP156`:"Sem pedidos nesta base"):pavementError||pavementData?.status==="UNAVAILABLE"?"Base SP156 indisponível":policeKey?"Consultando SP156…":"Selecione um local",caption:pavementData?.status==="AVAILABLE"?`SP156 · 1 km · status em ${shortDate(pavementData.sourceUpdatedAt)}`:"Pedidos de tapa-buraco · sem vistoria"},
+              {id:"access",title:"Trânsito e acesso",color:p.blue,bg:p.inset,text:accessSummary,caption:accessCaption},
+              {id:"community",title:"Comunidade",color:p.violet,bg:p.inset,text:q.loading?"Consultando…":q.error?"Dados indisponíveis":actualNearby.length?`${actualNearby.length} relato(s) do local`:"Sem relatos reais aqui",caption:"Experiências de motoristas"},
             ] as const).map(card => <Pressable key={card.id} accessibilityRole="button" accessibilityState={{selected:topic===card.id}} accessibilityLabel={`${card.title}: ${card.text}`} onPress={() => setTopic(card.id)} style={({pressed}) => ({width:"48%",flexGrow:1,minHeight:142,padding:13,gap:6,borderRadius:18,backgroundColor:card.bg,borderWidth:2,borderColor:topic===card.id?card.color:"transparent",opacity:pressed?0.8:1})}>
               <Svg width={27} height={27} viewBox="0 0 24 24" fill="none" stroke={card.color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" accessible={false}>
                 {card.id==="safety" ? <Path d="M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3zm0 5v5m0 3h.01" /> : null}
@@ -414,15 +418,15 @@ export default function MapScreen() {
                 {card.id==="access" ? <Path d="M7 3L3 21m14-18 4 18M12 3v5m0 4v4m0 4v1M5 18h14" /> : null}
                 {card.id==="community" ? <><Circle cx="9" cy="8" r="3"/><Path d="M3 21v-2a6 6 0 0112 0v2M16 5a3 3 0 010 6m2 3a5 5 0 013 5v2"/></> : null}
               </Svg>
-              <Text style={{fontSize:16,fontWeight:"700",color:"#17211D"}}>{card.title}</Text>
+              <Text style={{fontSize:16,fontWeight:"700",color:p.text}}>{card.title}</Text>
               <Text style={{fontSize:13,fontWeight:"600",color:card.color}}>{card.text}</Text>
-              <Text style={{fontSize:11,color:"#596860"}}>{card.caption}</Text>
+              <Text style={{fontSize:11,color:p.muted}}>{card.caption}</Text>
             </Pressable>)}
           </View>
           <Text style={styles.subtitle}>Toque em um card para ver os detalhes. As cores identificam assuntos, não níveis de risco.</Text>
           {topic === "safety" ? <>
             <Text style={styles.heading}>Histórico de veículos · raio de 1 km</Text>
-            {police?.status === "AVAILABLE" ? <View style={[styles.card,{backgroundColor:"#EFF5F3"}]}>
+            {police?.status === "AVAILABLE" ? <View style={[styles.card,{backgroundColor:p.inset}]}>
               {!hasTimeData ? <Text style={styles.body}>A API em execução ainda não disponibiliza horários; reinicie o backend atualizado para consultar esse recorte.</Text> : null}
               {hasTimeData ? <>
               <Text style={styles.body}>Horário atual em São Paulo · consulta automática</Text>
@@ -437,7 +441,7 @@ export default function MapScreen() {
               <Text style={styles.subtitle}>{police.coverage}</Text>
               <Text style={styles.subtitle}>{police.methodology}</Text>
               <Text style={styles.subtitle}>Base importada em {police.importedAt ? when(police.importedAt) : "—"}{police.stale ? " · atualização pendente" : ""}. Coordenadas aproximadas; registros sem localização válida não entram na contagem.</Text>
-              {police.sourceUrl ? <Pressable accessibilityRole="link" onPress={()=>Linking.openURL(police.sourceUrl!).catch(e=>setError(message(e)))}><Text style={{color:"#087F71",fontWeight:"700",paddingVertical:8}}>Consultar base original da SSP-SP ↗</Text></Pressable> : null}
+              {police.sourceUrl ? <Pressable accessibilityRole="link" onPress={()=>Linking.openURL(police.sourceUrl!).catch(e=>setError(message(e)))}><Text style={{color:p.accent,fontWeight:"700",paddingVertical:8}}>Consultar base original da SSP-SP ↗</Text></Pressable> : null}
             </View> : <Text style={styles.body}>{policeError||police?.status==="UNAVAILABLE"?"Não foi possível consultar a base policial. Isso não significa ausência de ocorrências.":"Consultando histórico da SSP-SP…"}</Text>}
             <Text style={styles.subtitle}>Essa contagem não classifica o lugar como seguro ou perigoso. Zero registros nesta base não significa ausência de violência.</Text>
             <Text style={styles.heading}>Notícias e relatos locais</Text>
@@ -445,12 +449,12 @@ export default function MapScreen() {
           </> : null}
           {topic === "pavement" ? <>
             <Text style={styles.heading}>Solicitações de tapa-buraco · raio de 1 km</Text>
-            {pavementData?.status==="AVAILABLE" ? <View style={[styles.card,{backgroundColor:"#FFF0E9"}]}>
+            {pavementData?.status==="AVAILABLE" ? <View style={[styles.card,{backgroundColor:p.inset}]}>
               <Text style={styles.heading}>{pavementData.totalRequests} pedidos no SP156 · {pavementOpen} abertos ou em andamento na publicação</Text>
               <Text style={styles.body}>Pedidos abertos entre {shortDate(pavementData.periodStart)} e {shortDate(pavementData.periodEnd)}. Status da publicação de {shortDate(pavementData.sourceUpdatedAt)}{pavementData.stale?" · atualização pendente":""}.</Text>
               <Text style={styles.subtitle}>{pavementData.meaning}</Text>
               <Text style={styles.subtitle}>Sem pedido registrado não significa que o pavimento esteja bom. A localização é aproximada e vários pedidos podem se referir ao mesmo problema.</Text>
-              {pavementData.sourceUrl ? <Pressable accessibilityRole="link" onPress={()=>Linking.openURL(pavementData.sourceUrl!).catch(e=>setError(message(e)))}><Text style={{color:"#B5532A",fontWeight:"700",paddingVertical:8}}>Consultar dados originais do SP156 ↗</Text></Pressable> : null}
+              {pavementData.sourceUrl ? <Pressable accessibilityRole="link" onPress={()=>Linking.openURL(pavementData.sourceUrl!).catch(e=>setError(message(e)))}><Text style={{color:p.orange,fontWeight:"700",paddingVertical:8}}>Consultar dados originais do SP156 ↗</Text></Pressable> : null}
             </View> : <Text style={styles.body}>{pavementError||pavementData?.status==="UNAVAILABLE"?"Base pública SP156 indisponível. Isso não confirma pavimento em boas condições.":"Consultando solicitações do SP156…"}</Text>}
             {pavementData?.items?.map((item,index)=><View key={`${item.openedAt}-${item.street}-${item.number}-${index}`} style={styles.card}>
               <Text style={styles.label}>SP156 · {item.status} · {item.distanceMeters} m do ponto</Text>
@@ -465,7 +469,7 @@ export default function MapScreen() {
           {topic === "access" ? <>
             <Text style={styles.heading}>Trânsito da viagem</Text>
             {!route ? <Text style={styles.body}>Defina origem e destino e trace a viagem para consultar o trânsito entre os dois pontos.</Text>
-              : traffic?.status==="AVAILABLE" ? <View style={[styles.card,{backgroundColor:"#EBF3FF"}]}>
+              : traffic?.status==="AVAILABLE" ? <View style={[styles.card,{backgroundColor:p.inset}]}>
                 <Text style={styles.heading}>{trafficCondition}</Text>
                 <Text style={styles.body}>{Math.ceil(traffic.travelTimeSeconds/60)} min estimados para a viagem · {traffic.delaySeconds>=60?`aproximadamente ${Math.ceil(traffic.delaySeconds/60)} min de atraso pelo trânsito`:"sem atraso relevante estimado"}.</Text>
                 <Text style={styles.subtitle}>{traffic.source} · consultado em {when(traffic.checkedAt)}. A avaliação considera somente o trânsito, não a segurança da região.</Text>
@@ -473,13 +477,13 @@ export default function MapScreen() {
               </View> : <Text style={styles.body}>{trafficError||traffic?.status==="UNAVAILABLE"?`Trânsito ao vivo indisponível. A rota do mapa estima ${Math.ceil(route.duration/60)} min sem essa avaliação.`:"Consultando o trânsito desta viagem…"}</Text>}
             <Text style={styles.heading}>Histórico de vias e acesso · até 1 km</Text>
             <Text style={styles.body}>Solicitações públicas sobre circulação, acesso, alagamentos, árvores e reparos estruturais, além de relatos revisados e notícias locais.</Text>
-            {accessData?.status==="AVAILABLE" ? <View style={[styles.card,{backgroundColor:"#EBF3FF"}]}>
+            {accessData?.status==="AVAILABLE" ? <View style={[styles.card,{backgroundColor:p.inset}]}>
               <Text style={styles.heading}>{accessData.totalRequests} solicitações à Prefeitura sobre vias e acesso</Text>
               <Text style={styles.body}>{accessOpen} constavam abertas ou em andamento na publicação do SP156.</Text>
               <Text style={styles.body}>{accessData.categories?.ACESSO ?? 0} de circulação/acesso · {accessData.categories?.ALAGAMENTO ?? 0} de alagamento · {accessData.categories?.OBSTACULO ?? 0} de árvore/galho · {accessData.categories?.ESTRUTURA ?? 0} de reparos estruturais.</Text>
               <Text style={styles.subtitle}>Pedidos abertos entre {shortDate(accessData.periodStart)} e {shortDate(accessData.periodEnd)}. Status da publicação de {shortDate(accessData.sourceUpdatedAt)}{accessData.stale?" · atualização pendente":""}.</Text>
               <Text style={styles.subtitle}>{accessData.meaning} Ausência de pedidos não confirma via livre.</Text>
-              {accessData.sourceUrl ? <Pressable accessibilityRole="link" onPress={()=>Linking.openURL(accessData.sourceUrl!).catch(e=>setError(message(e)))}><Text style={{color:"#2563B5",fontWeight:"700",paddingVertical:8}}>Consultar dados originais do SP156 ↗</Text></Pressable> : null}
+              {accessData.sourceUrl ? <Pressable accessibilityRole="link" onPress={()=>Linking.openURL(accessData.sourceUrl!).catch(e=>setError(message(e)))}><Text style={{color:p.blue,fontWeight:"700",paddingVertical:8}}>Consultar dados originais do SP156 ↗</Text></Pressable> : null}
             </View> : <Text style={styles.body}>{accessError||accessData?.status==="UNAVAILABLE"?"Base pública SP156 indisponível. Relatos e notícias ainda podem aparecer abaixo.":"Consultando solicitações do SP156…"}</Text>}
             {accessData?.items?.length ? <Text style={styles.heading}>Solicitações próximas · {(accessData.totalRequests ?? 0) > accessData.items.length ? `${accessData.items.length} mais recentes` : "lista disponível"}</Text> : null}
             {accessData?.items?.map((item,index)=><View key={`${item.openedAt}-${item.street}-${item.number}-${index}`} style={styles.card}>
@@ -506,7 +510,7 @@ export default function MapScreen() {
           {topicNews.map(n => <Pressable key={n.id} accessibilityRole="link" onPress={() => Linking.openURL(n.url).catch(e => setError(message(e)))} style={styles.card}>
             <Text style={styles.label}>{n.topic} · {n.source} · {when(n.publishedAt)}</Text>
             <Text style={styles.subtitle}>{n.scope === "LOCAL" ? "Local mencionado" : n.scope === "STREET" ? "Na via de acesso, sem trecho confirmado" : "Contexto do bairro, não do ponto"}: {n.matchedPlace}</Text>
-            <Text style={styles.heading}>{n.title}</Text><Text style={styles.subtitle}>Notícia publicada; não confirma situação ativa.</Text><Text style={{color:"#087F71"}}>Ler na fonte ↗</Text>
+            <Text style={styles.heading}>{n.title}</Text><Text style={styles.subtitle}>Notícia publicada; não confirma situação ativa.</Text><Text style={{color:p.accent}}>Ler na fonte ↗</Text>
           </Pressable>)}
           <Button title={reportOpen ? "Fechar relato" : "Relatar uma situação neste local"} secondary disabled={!focus} onPress={() => { setPoint(reportOpen ? null : focus); setReportOpen(!reportOpen); }} />
       {reportOpen ? (user ? (
@@ -569,17 +573,17 @@ export default function MapScreen() {
       </View> : null}
       {comparison && comparing ? <RouteOptions comparison={comparison} selected={selectedRoute}
         onClose={() => setComparing(false)} onSelect={index => { setSelectedRoute(index); setComparing(false); }} /> : null}
-      {route && !search ? <View style={{position:"absolute",bottom:0,left:0,right:0,height:84,padding:12,gap:10,flexDirection:"row",backgroundColor:"white",borderTopWidth:1,borderTopColor:"#E1E8E5"}}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Comparar trajetos" onPress={() => setComparing(true)} style={{flex:1,justifyContent:"center",paddingHorizontal:12,borderRadius:16,backgroundColor:"#17211D"}}>
+      {route && !search ? <View style={{position:"absolute",bottom:0,left:0,right:0,height:84,padding:12,gap:10,flexDirection:"row",backgroundColor:p.surface,borderTopWidth:1,borderTopColor:p.border}}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Comparar trajetos" onPress={() => setComparing(true)} style={{flex:1,justifyContent:"center",paddingHorizontal:12,borderRadius:16,backgroundColor:"#24383e"}}>
           <Text style={{color:"white",fontWeight:"700",fontSize:16}}>{(route.distance/1000).toFixed(1)} km · {Math.round(route.duration/60)} min</Text>
           <Text style={{color:"#E0EBE6",fontSize:12}}>Comparar trajetos</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="Cancelar trajeto" onPress={cancelRoute} style={({pressed}) => ({minHeight:56,paddingHorizontal:16,borderRadius:16,flexDirection:"row",alignItems:"center",justifyContent:"center",gap:8,backgroundColor:pressed?"#F7D7D2":"#FFF0ED",borderWidth:1,borderColor:"#E9B5AD"})}>
-          <Svg width={18} height={18} viewBox="0 0 24 24" stroke="#A33224" strokeWidth={2.5} strokeLinecap="round"><Path d="m6 6 12 12M18 6 6 18" /></Svg>
-          <Text style={{color:"#A33224",fontWeight:"700",fontSize:14}}>Cancelar trajeto</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel="Cancelar trajeto" onPress={cancelRoute} style={({pressed}) => ({minHeight:56,paddingHorizontal:16,borderRadius:16,flexDirection:"row",alignItems:"center",justifyContent:"center",gap:8,backgroundColor:pressed?p.accentSurface:p.inset,borderWidth:1,borderColor:p.border})}>
+          <Svg width={18} height={18} viewBox="0 0 24 24" stroke={p.danger} strokeWidth={2.5} strokeLinecap="round"><Path d="m6 6 12 12M18 6 6 18" /></Svg>
+          <Text style={{color:p.danger,fontWeight:"700",fontSize:14}}>Cancelar trajeto</Text>
         </Pressable>
       </View> : null}
-      {showRouteAction ? <View style={{position:"absolute",bottom:0,left:0,right:0,height:84,padding:12,backgroundColor:"white",borderTopWidth:1,borderTopColor:"#E1E8E5"}}>
+      {showRouteAction ? <View style={{position:"absolute",bottom:0,left:0,right:0,height:84,padding:12,backgroundColor:p.surface,borderTopWidth:1,borderTopColor:p.border}}>
         <Pressable accessibilityRole="button" accessibilityLabel={routing ? "Calculando percurso" : "Traçar percurso"} accessibilityState={{disabled:routing,busy:routing}} disabled={routing} onPress={calculate} style={({pressed}) => ({flex:1,minHeight:56,flexDirection:"row",alignItems:"center",justifyContent:"center",gap:12,borderRadius:16,backgroundColor:routing?"#526C63":pressed?"#075E54":"#087F71"})}>
           <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><Path d="M4 20V9a4 4 0 0 1 4-4h12m-5-4 5 4-5 4" /></Svg>
           <Text style={{color:"white",fontSize:18,fontWeight:"700"}}>{routing ? "Calculando percurso…" : "Traçar percurso"}</Text>

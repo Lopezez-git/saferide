@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Text, View } from "react-native";
 import {
   Page,
-  styles,
+  useAppStyles,
   Button,
   Field,
   Chip,
@@ -20,6 +20,7 @@ const categories = {
   EXPERIENCIA: "Experiências",
 };
 function Comments({ post, onChange }: { post: Post; onChange: () => void }) {
+  const styles = useAppStyles();
   const { token, user } = useSession();
   const q = useResource<Comment[]>("/posts/" + post.id + "/comments");
   const [body, setBody] = useState("");
@@ -47,7 +48,7 @@ function Comments({ post, onChange }: { post: Post; onChange: () => void }) {
     <View style={{ gap: 12 }}>
       <ResourceState {...q} />
       {q.data?.map((c) => (
-        <View key={c.id} style={[styles.card, { backgroundColor: "#F3F6F0" }]}>
+        <View key={c.id} style={[styles.card, { backgroundColor: styles.page.backgroundColor }]}>
           <Text style={styles.label}>{c.author}</Text>
           <Text style={styles.body}>{c.body}</Text>
           {user?.id === c.authorId ? (
@@ -92,6 +93,7 @@ function Comments({ post, onChange }: { post: Post; onChange: () => void }) {
   );
 }
 export default function Community() {
+  const styles = useAppStyles();
   const { token, user } = useSession();
   const q = useResource<Post[]>("/posts");
   const [filter, setFilter] = useState("TODOS");

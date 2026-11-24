@@ -2,8 +2,8 @@ import Svg, { Path, Circle, type SvgProps } from "react-native-svg";
 import { Tabs } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SessionProvider } from "../lib/session";
-import { colors } from "../components/ui";
-import { SimulationThemeProvider } from "../lib/simulationTheme";
+
+import { SimulationThemeProvider, useSimulationTheme } from "../lib/simulationTheme";
 function TabIcon({ name, color, size }: { name: string; color: SvgProps["stroke"]; size: number }) {
   return <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden={true}>
     {name === "index" ? <Path d="M3 5l6-2 6 2 6-2v16l-6 2-6-2-6 2V5zm6-2v16m6-14v16" /> : null}
@@ -16,17 +16,21 @@ function TabIcon({ name, color, size }: { name: string; color: SvgProps["stroke"
   </Svg>;
 }
 export default function Layout() {
-  return (
-    <SessionProvider><SimulationThemeProvider>
-      <StatusBar style="dark" />
+  return <SessionProvider><SimulationThemeProvider><Navigation /></SimulationThemeProvider></SessionProvider>;
+}
+function Navigation() {
+  const {theme, palette: p} = useSimulationTheme();
+  return (<>
+      <StatusBar style={theme === "dark" ? "light" : "dark"} />
       <Tabs
         screenOptions={({ route }) => ({
           headerTitle: "SafeRide",
-          headerTintColor: colors.ink,
-          headerStyle: { backgroundColor: colors.paper },
-          tabBarActiveTintColor: colors.teal,
-          tabBarStyle: { backgroundColor: "white", minHeight: 68, paddingTop: 7 },
-          tabBarInactiveTintColor: "#718079",
+          headerTintColor: p.text,
+          headerStyle: { backgroundColor: p.surface },
+          tabBarActiveTintColor: p.accent,
+          tabBarStyle: { backgroundColor: p.surface, borderTopColor: p.border, minHeight: 68, paddingTop: 7 },
+          sceneStyle: { backgroundColor: p.background },
+          tabBarInactiveTintColor: p.muted,
           tabBarLabelPosition: "below-icon",
           tabBarIcon: ({ color, size }) => <TabIcon name={route.name} color={color} size={size} />,
           tabBarLabelStyle: { fontSize: 12, fontWeight: "600" },
@@ -40,6 +44,6 @@ export default function Layout() {
         <Tabs.Screen name="settings" options={{ title: "Ajustes", headerTitle: "Configurações" }} />
         <Tabs.Screen name="profile" options={{ title: "Perfil", href: null }} />
       </Tabs>
-    </SimulationThemeProvider></SessionProvider>
+    </>
   );
 }

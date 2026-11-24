@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Text, View } from "react-native";
 import {
   Page,
-  styles,
+  useAppStyles,
   Field,
   Button,
   Chip,
@@ -13,6 +13,7 @@ import { useSession } from "../lib/session";
 import { api, User, message, Report } from "../lib/client";
 import { useResource } from "../lib/useResource";
 function Access() {
+  const styles = useAppStyles();
   const session = useSession();
   const [register, setRegister] = useState(false);
   const [email, setEmail] = useState("");
@@ -92,6 +93,7 @@ function Access() {
   );
 }
 function Account({ user }: { user: User }) {
+  const styles = useAppStyles();
   const session = useSession();
   const [name, setName] = useState(user.name);
   const [activity, setActivity] = useState(user.activity);
@@ -218,6 +220,7 @@ function Account({ user }: { user: User }) {
   );
 }
 function Moderation() {
+  const styles = useAppStyles();
   const { token } = useSession();
   const q = useResource<Report[]>("/moderation/reports", token);
   const [reason, setReason] = useState(
@@ -278,6 +281,7 @@ function Moderation() {
   );
 }
 export default function Profile() {
+  const styles = useAppStyles();
   const { user, ready } = useSession();
   return (
     <Page

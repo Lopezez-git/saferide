@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { Text, View } from "react-native";
 import { api, message, type Report } from "../lib/client";
-import { Button, styles } from "./ui";
+import { Button, useAppStyles } from "./ui";
 
 export default function ReportConfirmation({ report, token, onChange }: {
   report: Report;
   token: string | null;
   onChange: () => void;
 }) {
+  const styles = useAppStyles();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   async function vote() {

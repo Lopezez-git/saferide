@@ -1,5 +1,5 @@
 import { Modal, ScrollView, Text, View } from "react-native";
-import { Button, styles } from "./ui";
+import { Button, useAppStyles } from "./ui";
 
 export type RouteOption = {
   duration: number;
@@ -31,9 +31,10 @@ function period(value: string | null) {
 }
 
 export default function RouteOptions({ comparison, selected, onSelect, onClose }: Props) {
+  const styles = useAppStyles();
   return <Modal visible transparent animationType="fade" onRequestClose={onClose}>
     <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#10231c77", padding: 18 }}>
-      <View style={{ backgroundColor: "white", borderRadius: 20, padding: 18, gap: 12, maxHeight: "90%", maxWidth: 540, width: "100%" }}>
+      <View style={{ backgroundColor: styles.card.backgroundColor, borderRadius: 20, padding: 18, gap: 12, maxHeight: "90%", maxWidth: 540, width: "100%" }}>
         <Text accessibilityRole="header" style={styles.title}>Comparar trajetos</Text>
         <ScrollView contentContainerStyle={{ gap: 14 }}>
           <Text style={styles.body}>{comparison.routes.length === 1 ? "O serviço de rotas encontrou um único caminho." : "Escolha o caminho que deseja ver no mapa."} Os totais consideram até {comparison.radiusMeters} m de cada percurso.</Text>

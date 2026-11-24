@@ -2,7 +2,7 @@ import { Linking, Text, View } from "react-native";
 import { useState } from "react";
 import {
   Page,
-  styles,
+  useAppStyles,
   Button,
   Feedback,
   ResourceState,
@@ -22,6 +22,7 @@ type News = {
   }[];
 };
 export default function NewsScreen() {
+  const styles = useAppStyles();
   const q = useResource<News>("/news");
   const [error, setError] = useState("");
   return (

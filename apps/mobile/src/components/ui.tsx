@@ -11,16 +11,12 @@ import {
   View,
 } from "react-native";
 import { Link } from "expo-router";
-export const colors = {
-  ink: "#153E38",
-  teal: "#087F71",
-  paper: "#F3F6F0",
-  muted: "#526C63",
-  line: "#D9E3DA",
-  gold: "#D08D29",
-};
-export const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.paper },
+import { palettes, useSimulationTheme } from "../lib/simulationTheme";
+
+type Palette = typeof palettes.dark;
+function createStyles(p: Palette) {
+  return StyleSheet.create({
+  page: { flex: 1, backgroundColor: p.background },
   content: {
     padding: 20,
     gap: 16,
@@ -32,28 +28,28 @@ export const styles = StyleSheet.create({
   title: {
     fontSize: 30,
     fontWeight: "700",
-    color: colors.ink,
+    color: p.text,
     letterSpacing: -1,
   },
-  subtitle: { fontSize: 14, lineHeight: 22, color: colors.muted },
+  subtitle: { fontSize: 14, lineHeight: 22, color: p.muted },
   card: {
-    backgroundColor: "white",
+    backgroundColor: p.surface,
     borderRadius: 18,
     padding: 18,
     gap: 10,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: p.border,
   },
-  heading: { fontSize: 19, fontWeight: "700", color: colors.ink },
+  heading: { fontSize: 19, fontWeight: "700", color: p.text },
   label: {
     fontSize: 11,
     fontWeight: "700",
-    color: colors.teal,
+    color: p.accent,
     letterSpacing: 1.5,
   },
-  body: { fontSize: 15, lineHeight: 23, color: colors.ink },
+  body: { fontSize: 15, lineHeight: 23, color: p.text },
   button: {
-    backgroundColor: colors.teal,
+    backgroundColor: "#087F71",
     borderRadius: 12,
     padding: 14,
     minHeight: 48,
@@ -62,7 +58,7 @@ export const styles = StyleSheet.create({
   },
   buttonText: { color: "white", fontWeight: "700", fontSize: 14 },
   tag: {
-    backgroundColor: "#E2EBDA",
+    backgroundColor: p.accentSurface,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
@@ -70,32 +66,39 @@ export const styles = StyleSheet.create({
   row: { flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "center" },
   input: {
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: p.border,
     borderRadius: 12,
     padding: 13,
     minHeight: 48,
     fontSize: 15,
-    backgroundColor: "white",
-    color: colors.ink,
+    backgroundColor: p.surface,
+    color: p.text,
   },
   chip: {
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: p.border,
     paddingHorizontal: 14,
     paddingVertical: 11,
     borderRadius: 24,
-    backgroundColor: "white",
+    backgroundColor: p.surface,
     minHeight: 44,
   },
-  error: { color: "#A63829", fontSize: 14, lineHeight: 21 },
-  success: { color: colors.teal, fontSize: 14, lineHeight: 21 },
-});
+  error: { color: p.danger, fontSize: 14, lineHeight: 21 },
+  success: { color: p.accent, fontSize: 14, lineHeight: 21 },
+  });
+}
+const sheets = { light: createStyles(palettes.light), dark: createStyles(palettes.dark) };
+export function useAppStyles() {
+  return sheets[useSimulationTheme().theme];
+}
+
 export function Page({
   title,
   subtitle,
   children,
   compact = false,
 }: PropsWithChildren<{ title: string; subtitle: string; compact?: boolean }>) {
+  const styles = useAppStyles();
   const { width } = useWindowDimensions();
   const small = width < 480;
   return (
@@ -130,6 +133,8 @@ export function Button({
   disabled?: boolean;
   secondary?: boolean;
 }) {
+  const styles = useAppStyles();
+  const {palette: p} = useSimulationTheme();
   return (
     <Pressable
       accessibilityRole="button"
@@ -137,13 +142,13 @@ export function Button({
       disabled={disabled}
       style={[
         styles.button,
-        secondary ? { backgroundColor: "#E2EBDA" } : null,
+        secondary ? { backgroundColor: p.accentSurface } : null,
         disabled ? { opacity: 0.5 } : null,
       ]}
       onPress={onPress}
     >
       <Text
-        style={[styles.buttonText, secondary ? { color: colors.ink } : null]}
+        style={[styles.buttonText, secondary ? { color: p.text } : null]}
       >
         {title}
       </Text>
@@ -159,6 +164,8 @@ export function Chip({
   selected?: boolean;
   onPress: () => void;
 }) {
+  const styles = useAppStyles();
+  const {palette: p} = useSimulationTheme();
   return (
     <Pressable
       accessibilityRole="button"
@@ -167,13 +174,13 @@ export function Chip({
       style={[
         styles.chip,
         selected
-          ? { backgroundColor: colors.ink, borderColor: colors.ink }
+          ? { backgroundColor: p.text, borderColor: p.text }
           : null,
       ]}
     >
       <Text
         style={{
-          color: selected ? "white" : colors.ink,
+          color: selected ? p.surface : p.text,
           fontSize: 13,
           fontWeight: "600",
         }}
@@ -184,12 +191,14 @@ export function Chip({
   );
 }
 export function Field({ label, ...props }: TextInputProps & { label: string }) {
+  const styles = useAppStyles();
+  const {palette: p} = useSimulationTheme();
   return (
     <View style={{ gap: 6 }}>
       <Text style={styles.subtitle}>{label}</Text>
       <TextInput
         accessibilityLabel={label}
-        placeholderTextColor="#81928A"
+        placeholderTextColor={p.muted}
         {...props}
         style={[
           styles.input,
@@ -207,6 +216,7 @@ export function Feedback({
   error?: string;
   success?: string;
 }) {
+  const styles = useAppStyles();
   return (
     <>
       {error ? (
@@ -231,8 +241,10 @@ export function ResourceState({
   error: string;
   refresh: () => void;
 }) {
+  const styles = useAppStyles();
+  const {palette: p} = useSimulationTheme();
   return loading ? (
-    <ActivityIndicator accessibilityLabel="Carregando" color={colors.teal} />
+    <ActivityIndicator accessibilityLabel="Carregando" color={p.accent} />
   ) : error ? (
     <View style={styles.card}>
       <Feedback error={error} />
@@ -241,12 +253,14 @@ export function ResourceState({
   ) : null;
 }
 export function SignInNotice() {
+  const styles = useAppStyles();
+  const {palette: p} = useSimulationTheme();
   return (
     <View style={styles.card}>
       <Text style={styles.body}>Entre na sua conta para participar.</Text>
       <Link
         href="/profile"
-        style={{ color: colors.teal, fontWeight: "700", paddingVertical: 10 }}
+        style={{ color: p.accent, fontWeight: "700", paddingVertical: 10 }}
       >
         Entrar ou criar conta →
       </Link>
