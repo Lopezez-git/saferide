@@ -22,7 +22,10 @@ async function owner() {
  if(!identity) identity=(async()=>{const stored=await rideStorage.get(OWNER);if(stored)return stored;const {key}=await api<{key:string}>('/rides/key',{method:'POST'});await rideStorage.set(OWNER,key);return key;})().catch(error=>{identity=null;throw error;});
  return identity;
 }
-export async function createRideId() { await owner();return (await api<{key:string}>('/rides/key',{method:'POST'})).key; }
+export async function createRideId(): Promise<string> {
+ if (typeof globalThis.crypto?.randomUUID === 'function') return globalThis.crypto.randomUUID();
+ return (await api<{key:string}>('/rides/key',{method:'POST'})).key;
+}
 async function ids():Promise<string[]> { return JSON.parse(await rideStorage.get(INDEX)??'[]'); }
 let writes: Promise<unknown>=Promise.resolve();
 function write(ride:Ride, expectedVersion?:string) { const task=writes.then(async()=>{if(expectedVersion){const current=JSON.parse(await rideStorage.get(recordKey(ride.id))??'null') as Ride|null;if(current?.updatedAt!==expectedVersion)return;}await rideStorage.set(recordKey(ride.id),JSON.stringify(ride));const all=await ids();if(!all.includes(ride.id))await rideStorage.set(INDEX,JSON.stringify([ride.id,...all]));});writes=task.catch(()=>{});return task; }
