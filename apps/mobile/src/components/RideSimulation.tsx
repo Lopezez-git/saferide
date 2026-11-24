@@ -14,7 +14,7 @@ import SimulationProgress from './SimulationProgress';
 import RideFeedback from './RideFeedback';
 import { overlay } from '../lib/overlay';
 import { nearbyScenario, offers, legProgress, simulationDriver, simulationReducer, SimulationPhase, OFFER_SECONDS } from '../lib/simulation';
-const interlagos = {latitude:-23.701, longitude:-46.697};
+const demoStart = offers[0].driver;
 
 
 
@@ -46,12 +46,12 @@ function useSimulationController({ onExit, onMapData, height, initialPosition }:
   const player = useAudioPlayer(require('../../assets/ride-chime.wav'));
   const audioStatus = useAudioPlayerStatus(player);
   const announced = useRef(false);
-  const [origin,setOrigin] = useState<MapPoint>(()=>initialPosition ?? interlagos);
+  const [origin,setOrigin] = useState<MapPoint>(()=>initialPosition ?? demoStart);
   const [usingGps] = useState(!!initialPosition);
-  const {offer,route:current} = useMemo(()=>nearbyScenario(origin,index),[origin,index]);
+  const {offer,route:current} = useMemo(()=>nearbyScenario(origin,index,!usingGps),[origin,index,usingGps]);
   const [nextDecision,setNextDecision] = useState<'open'|'reserved'|'declined'>('open');
   const nextIndex = (index + 1) % offers.length;
-  const {offer:nextOffer,route:nextRoute} = useMemo(()=>nearbyScenario(offer.destination,nextIndex),[offer.destination,nextIndex]);
+  const {offer:nextOffer,route:nextRoute} = useMemo(()=>nearbyScenario(offer.destination,nextIndex,!usingGps),[offer.destination,nextIndex,usingGps]);
   const remainingSeconds = current.trip.duration * (1 - legProgress(phase,elapsed).trip);
   const nearDropoff = phase === 'trip' && remainingSeconds <= 300;
   const active = focused && (foreground || overlayActive);
@@ -60,7 +60,7 @@ function useSimulationController({ onExit, onMapData, height, initialPosition }:
   const introVisible = phase === 'intro' || phase === 'idle';
   const waiting = phase === 'searching' || introVisible;
   const offering = phase === 'offer' || phase === 'accepting';
-  const cardHeight = offering ? Math.min(340,height*0.48) : Math.min(224,height*0.34);
+  const cardHeight = offering || (nearDropoff && nextDecision==='open') ? Math.min(220,height*0.38) : Math.min(135,height*0.28);
   useEffect(() => {
     if (phase !== 'offer' && !(nearDropoff && nextDecision === 'open')) { announced.current = false; return; }
     if (!active || !sound || !audioStatus.isLoaded || announced.current) return;
@@ -106,7 +106,7 @@ function useSimulationController({ onExit, onMapData, height, initialPosition }:
       rideId.current=null;checkpoint.current='';
       setSaveNotice(saved?'Viagem concluída e salva no histórico':'Viagem salva no dispositivo · envio pendente');
       setOrigin(offer.destination);
-      if(nextDecision!=='reserved'){ dispatch({type:'next'}); setNextDecision('open'); }
+      if(nextDecision!=='reserved') setNextDecision('open');
       setCompletionError(false);setAudioError('');setFeedbackRideId(id);setPaused(true);dispatch({type:'next'});
     }).catch(()=>{if(current){setCompletionError(true);setSaveNotice('Não foi possível salvar a conclusão. Tente novamente para continuar.');}});
     return()=>{current=false;};
@@ -228,11 +228,8 @@ export default function RideSimulation(props: SimulationProps) {
     />}
     <IntroPanel model={model}/>
     <SearchPanel model={model}/>
-    {model.offering ? <View style={[s.searchingPanel,{backgroundColor:c.surface,borderColor:c.border,gap:8}]}>
-      <Text style={{color:c.muted}}>Controles da demonstração · {offer.platform}</Text>
-      <RideActions model={model}/>
-      {!!model.saveNotice && <Text style={{color:c.muted}}>{model.saveNotice}</Text>}
-    </View> : <OfferPanel model={model}/>}
+    {model.offering || (model.nearDropoff && model.nextDecision==='open') ?
+      <RequestPanel model={model}/> : !waiting && <OfferPanel model={model}/>}
     <RideFeedback rideId={model.feedbackRideId} onClose={model.finishFeedback} />
   </View></View>;
 }
@@ -277,7 +274,7 @@ function IntroPanel({model}: PanelProps) {
       ].map(topic=><View key={topic.label} style={s.introTopic}><Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={topic.color} strokeWidth={1.6}><Path d={topic.path}/></Svg><Text style={{fontSize:11,color:c.muted}}>{topic.label}</Text></View>)}</View>
       <View style={[s.searchStatus,{borderColor:c.border,backgroundColor:c.surface}]}>
         <View style={[s.row,{justifyContent:'center'}]}><View style={s.dot}/><Text style={[s.searchTitle,{color:c.text}]}>Preparando sua experiência</Text></View>
-        <Text style={[s.searchCaption,{color:c.muted}]}>{model.usingGps?'Partida da posição do aparelho':'Partida simulada em Interlagos'} · percursos estimados em linha reta.</Text>
+        <Text style={[s.searchCaption,{color:c.muted}]}>{model.usingGps?'Partida da posição do aparelho':'Partida simulada na região de Socorro'} · percursos estimados em linha reta.</Text>
         <View accessibilityRole="progressbar" accessibilityLabel="Apresentação do SafeRide" accessibilityValue={{min:0,max:5,now:phase==='intro'?elapsed:5}} style={[s.progress,{backgroundColor:c.inset}]}><View style={[s.progressFill,{backgroundColor:c.accent,width:`${phase==='intro'?elapsed/5*100:100}%`}]}/></View>
       </View>
       <Text style={[s.footnote,{color:c.muted,marginTop:18}]}>MODO SIMULAÇÃO{'\n'}A plataforma envia a oferta. O SafeRide mostra os ganhos e o contexto do destino.</Text>
@@ -285,14 +282,27 @@ function IntroPanel({model}: PanelProps) {
 }
 
 function SearchPanel({model}: PanelProps) {
-  const { c, phase, elapsed, reducedMotion, saveNotice } = model;
+  const { c, phase, elapsed, reducedMotion } = model;
   return <SimulationMotion visible={phase==='searching'} reducedMotion={reducedMotion} fromY={50} duration={480} testID="simulation-search" style={[s.searchingPanel,{backgroundColor:c.surface,borderColor:c.border}]}>
-      <View style={s.row}><View style={s.dot}/><Text style={[s.eyebrow,{color:c.accent}]}>DEMONSTRAÇÃO</Text></View>
-      <Text accessibilityLiveRegion="polite" style={[s.stageTitle,{color:c.text,marginTop:12}]}>Aguardando oferta simulada da {model.offer.platform}…</Text>
-      <Text style={[s.searchCaption,{color:c.muted,marginVertical:16}]}>Uma oferta simulada chega em {phase==='searching'?Math.max(1,Math.ceil(5-elapsed)):0}s</Text>
-      <View accessibilityRole="progressbar" accessibilityLabel="Aguardando oferta da plataforma" accessibilityValue={{min:0,max:5,now:phase==='searching'?elapsed:5}} style={[s.progress,{backgroundColor:c.inset}]}><View style={[s.progressFill,{width:`${phase==='searching'?elapsed/5*100:100}%`}]}/></View>
-    {saveNotice?<Text style={[s.footnote,{color:c.muted,marginTop:12}]}>{saveNotice}</Text>:null}
+      <Text accessibilityLiveRegion="polite" style={[s.stageTitle,{color:c.text}]}>Localizando corrida…</Text>
+      <SimulationProgress value={elapsed/5} color={c.accent} background={c.inset} reducedMotion={reducedMotion}/>
     </SimulationMotion>;
+}
+
+function RequestPanel({model}: PanelProps) {
+  const {c, saving, offering, elapsed, reducedMotion} = model;
+  const request = offering ? model.offer : model.nextOffer;
+  return <View style={[s.searchingPanel,{backgroundColor:c.surface,borderColor:c.border,gap:8,padding:16}]}>
+    <Text style={[s.eyebrow,{color:c.accent}]}>{offering ? 'Nova corrida' : 'Próxima corrida após o desembarque'} · {request.platform}</Text>
+    <Text style={{color:c.text}}>Embarque · {request.pickup.name}</Text>
+    <Text style={{color:c.text}}>Destino · {request.destination.name}</Text>
+    {offering && <SimulationProgress value={1-elapsed/OFFER_SECONDS} color={c.accent} background={c.inset} reducedMotion={reducedMotion}/>}
+    <View style={s.row}>
+      <Pressable accessibilityRole="button" disabled={saving} onPress={()=>offering ? model.changePhase('declined') : model.setNextDecision('declined')} style={[s.secondary,{borderColor:c.border}]}><Text style={{color:c.text}}>Recusar corrida</Text></Pressable>
+      <Pressable accessibilityRole="button" disabled={saving} onPress={()=>offering ? model.accept() : model.setNextDecision('reserved')} style={[s.accept,{flex:1}]}><Text style={s.acceptText}>{saving?'Salvando…':'Aceitar corrida'}</Text></Pressable>
+    </View>
+    {offering && /Falha|Não foi|pendente/.test(model.saveNotice) && <Text style={{color:c.orange}}>{model.saveNotice}</Text>}
+  </View>;
 }
 
 function OfferPanel({model}: PanelProps) {
@@ -305,13 +315,8 @@ function OfferPanel({model}: PanelProps) {
         <TripDetails model={model}/>
         {audioError?<Text style={{color:c.orange,fontSize:12,marginTop:6}}>{audioError}</Text>:null}
       </ScrollView>
-      <View style={[s.actions,{borderTopColor:c.border}]}>
-        {model.nearDropoff && model.nextDecision==='open' ? <View style={s.row}>
-          <Pressable accessibilityRole="button" onPress={()=>model.setNextDecision('declined')} style={[s.secondary,{borderColor:c.border}]}><Text style={{color:c.text}}>Simular recusa</Text></Pressable>
-          <Pressable accessibilityRole="button" onPress={()=>model.setNextDecision('reserved')} style={s.accept}><Text style={s.acceptText}>Simular aceite na {model.nextOffer.platform}</Text></Pressable>
-        </View> : <RideActions model={model}/>}
-        {importantNotice ? <Text accessibilityLiveRegion="polite" style={[s.footnote,{color:c.orange}]}>{importantNotice}</Text> : null}
-      </View>
+      {importantNotice && <Text style={[s.footnote,{color:c.orange}]}>{importantNotice}</Text>}
+      {model.completionError && <Pressable accessibilityRole="button" onPress={()=>{model.setCompletionError(false);model.retryCompletion();}} style={s.accept}><Text style={s.acceptText}>Salvar e continuar</Text></Pressable>}
     </SimulationMotion>;
 }
 
@@ -332,30 +337,6 @@ function TripDetails({model}: PanelProps) {
     <Text style={[s.address,{color:c.muted}]} numberOfLines={2}>{stageAddress(model)}</Text>
     {paused&&!boarding?<Text style={[s.passenger,{color:c.orange}]}>Simulação pausada</Text>:null}
   </View>;
-}
-
-function BoardingActions({model}: PanelProps) {
-  const {c,paused,setPaused} = model;
-  return <View style={s.row}>
-    <Text style={{flex:1,color:c.muted,fontSize:12}}>{paused?'Embarque pausado':'Partida automática em instantes'}</Text>
-    <Pressable accessibilityRole="button" accessibilityLabel={paused?'Continuar embarque':'Pausar embarque'} onPress={()=>setPaused(value=>!value)} style={[s.secondary,{borderColor:c.border}]}><Text style={{color:c.text}}>{paused?'Continuar':'Pausar'}</Text></Pressable>
-  </View>;
-}
-
-function RideActions({model}: PanelProps) {
-  const { c, offering, elapsed, saving, changePhase, accept, moving, phase, paused, setPaused, completionError, setCompletionError, retryCompletion, reducedMotion } = model;
-  if (offering) return <>
-
-          <SimulationProgress key="offer" value={1-elapsed/OFFER_SECONDS} color={c.accent} background={c.inset} reducedMotion={reducedMotion}/>
-          <View style={s.row}><Pressable accessibilityRole="button" accessibilityLabel={`Simular recusa na ${model.offer.platform}`} disabled={saving} onPress={()=>changePhase('declined')} style={[s.secondary,{borderColor:c.border}]}><Text style={{color:c.text,fontWeight:'600'}}>Simular recusa</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel={`Simular aceite na ${model.offer.platform}`} disabled={saving} onPress={()=>accept()} style={[s.accept,{flex:1,opacity:saving ? 0.6 : 1}]}><Text style={s.acceptText}>{saving?'Salvando…':'Simular aceite'} {saving?null:<Text style={{fontSize:12}}>· {Math.max(0,OFFER_SECONDS-Math.floor(elapsed))}s</Text>}</Text></Pressable></View>
-</>;
-  if (phase === 'boarding') return <BoardingActions model={model}/>;
-  if (moving) return <>
-          <SimulationProgress key={phase} value={elapsed/(phase==='pickup'?14:28)} color={c.accent} background={c.inset} reducedMotion={reducedMotion}/>
-          <View style={s.row}><Pressable accessibilityRole="button" disabled={saving} onPress={()=>setPaused(value=>!value)} style={[s.accept,{flex:1}]}><Text style={s.acceptText}>{paused?'Continuar':'Pausar'}</Text></Pressable><Pressable accessibilityRole="button" disabled={saving} onPress={()=>changePhase('declined')} style={[s.secondary,{borderColor:c.border}]}><Text style={{color:c.text}}>Simular cancelamento</Text></Pressable></View>
-</>;
-  if (completionError) return <Pressable accessibilityRole="button" onPress={()=>{setCompletionError(false);retryCompletion();}} style={s.accept}><Text style={s.acceptText}>Salvar e continuar</Text></Pressable>;
-  return <Text style={[s.searchCaption,{color:c.muted}]}>Salvando a viagem para buscar a próxima…</Text>;
 }
 
 const s=StyleSheet.create({

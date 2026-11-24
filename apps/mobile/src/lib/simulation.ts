@@ -18,15 +18,35 @@ function offset(origin: MapPoint, meters: number, degrees: number): MapPoint {
   return {latitude:end/rad, longitude:(origin.longitude+delta/rad+540)%360-180};
 }
 
-export function nearbyScenario(driver: MapPoint, index: number) {
+type Stop = Offer['pickup'];
+
+function coordinateStop(point: MapPoint): Stop {
+  return {...point, name: point.latitude.toFixed(5) + ', ' + point.longitude.toFixed(5)};
+}
+
+function distanceBetween(a: MapPoint, b: MapPoint) {
+  const radians = Math.PI / 180;
+  const h = Math.sin((b.latitude-a.latitude)*radians/2)**2 +
+    Math.cos(a.latitude*radians)*Math.cos(b.latitude*radians)*Math.sin((b.longitude-a.longitude)*radians/2)**2;
+  return 12742000 * Math.asin(Math.sqrt(Math.min(1,h)));
+}
+
+export function nearbyScenario(driver: MapPoint, index: number, namedDemo = false) {
   const approach = 650 + 220 * index;
   const journey = 2600 + 550 * index;
-  const pickup = {...offset(driver, approach, 65 + 120*index), name:'Embarque simulado nas proximidades'};
-  const destination = {...offset(pickup, journey, 120 + 110*index), name:'Destino simulado na região'};
-  function leg(a: MapPoint, b: MapPoint, distance: number): Route {
+  let pickup = coordinateStop(offset(driver, approach, 65 + 120*index));
+  let destination = coordinateStop(offset(pickup, journey, 120 + 110*index));
+  if (namedDemo) {
+    const {pickup: station, destination: street} = offers[0];
+    const atStation = distanceBetween(driver, station) <= distanceBetween(driver, street);
+    pickup = atStation ? station : street;
+    destination = atStation ? street : station;
+  }
+  function leg(a: MapPoint, b: MapPoint): Route {
+    const distance = distanceBetween(a,b);
     return {distance, duration:Math.round(distance/6), geometry:{coordinates:[[a.longitude,a.latitude],[b.longitude,b.latitude]]}};
   }
-  return {offer:{...offers[index],driver,pickup,destination}, route:{pickup:leg(driver,pickup,approach),trip:leg(pickup,destination,journey)}};
+  return {offer:{...offers[index],driver,pickup,destination}, route:{pickup:leg(driver,pickup),trip:leg(pickup,destination)}};
 }
 
 export function routeBody(from: MapPoint, to: MapPoint) { return { fromLat: from.latitude, fromLon: from.longitude, toLat: to.latitude, toLon: to.longitude }; }
