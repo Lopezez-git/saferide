@@ -6,15 +6,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { useSimulationTheme } from '../lib/simulationTheme';
 import SimulationMotion, { useReducedMotion } from './SimulationMotion';
-import type { MapData } from "./mapHtml";
+import type { MapData, MapPoint } from "./mapHtml";
 
 import { createRideId, saveRide, submitRideFeedback, type FeedbackCategory, type Ride } from '../lib/rideHistory';
 import SimulationContext from '../components/SimulationContext';
 import SimulationProgress from './SimulationProgress';
 import RideFeedback from './RideFeedback';
 import { overlay } from '../lib/overlay';
-import routeSamples from '../lib/simulation-routes.json';
-import { offers, legProgress, simulationDriver, simulationReducer, SimulationPhase, OFFER_SECONDS } from '../lib/simulation';
+import { nearbyScenario, offers, legProgress, simulationDriver, simulationReducer, SimulationPhase, OFFER_SECONDS } from '../lib/simulation';
+const interlagos = {latitude:-23.701, longitude:-46.697};
 
 
 
@@ -22,8 +22,8 @@ const money = (value: number) => value.toLocaleString('pt-BR', { style:'currency
 const km = (value: number) => (value/1000).toLocaleString('pt-BR',{maximumFractionDigits:1});
 function Person({ color = 'white' }: Readonly<{color?: string}>) { return <Svg width={19} height={19} viewBox="0 0 24 24" fill={color}><Circle cx={12} cy={7} r={4}/><Path d="M4 21v-3a8 8 0 0116 0v3z"/></Svg>; }
 
-type SimulationProps = Readonly<{ onExit: () => void; onMapData: (data: MapData) => void; height: number; }>;
-function useSimulationController({ onExit, onMapData, height }: SimulationProps) {
+type SimulationProps = Readonly<{ onExit: () => void; onMapData: (data: MapData) => void; height: number; initialPosition: MapPoint|null; }>;
+function useSimulationController({ onExit, onMapData, height, initialPosition }: SimulationProps) {
   const inset = useSafeAreaInsets();
   const { palette: c } = useSimulationTheme();
   const reducedMotion = useReducedMotion();
@@ -46,11 +46,12 @@ function useSimulationController({ onExit, onMapData, height }: SimulationProps)
   const player = useAudioPlayer(require('../../assets/ride-chime.wav'));
   const audioStatus = useAudioPlayerStatus(player);
   const announced = useRef(false);
-  const offer = offers[index];
-  const current = routeSamples.routes[index];
+  const [origin,setOrigin] = useState<MapPoint>(()=>initialPosition ?? interlagos);
+  const [usingGps] = useState(!!initialPosition);
+  const {offer,route:current} = useMemo(()=>nearbyScenario(origin,index),[origin,index]);
   const [nextDecision,setNextDecision] = useState<'open'|'reserved'|'declined'>('open');
   const nextIndex = (index + 1) % offers.length;
-  const nextOffer = offers[nextIndex];
+  const {offer:nextOffer,route:nextRoute} = useMemo(()=>nearbyScenario(offer.destination,nextIndex),[offer.destination,nextIndex]);
   const remainingSeconds = current.trip.duration * (1 - legProgress(phase,elapsed).trip);
   const nearDropoff = phase === 'trip' && remainingSeconds <= 300;
   const active = focused && (foreground || overlayActive);
@@ -104,11 +105,12 @@ function useSimulationController({ onExit, onMapData, height }: SimulationProps)
       if(!current||rideId.current!==id)return;
       rideId.current=null;checkpoint.current='';
       setSaveNotice(saved?'Viagem concluída e salva no histórico':'Viagem salva no dispositivo · envio pendente');
+      setOrigin(offer.destination);
       if(nextDecision!=='reserved'){ dispatch({type:'next'}); setNextDecision('open'); }
       setCompletionError(false);setAudioError('');setFeedbackRideId(id);setPaused(true);dispatch({type:'next'});
     }).catch(()=>{if(current){setCompletionError(true);setSaveNotice('Não foi possível salvar a conclusão. Tente novamente para continuar.');}});
     return()=>{current=false;};
-  },[phase,completionAttempt,nextDecision]);
+  },[phase,completionAttempt,nextDecision,offer.destination]);
   function finishFeedback() {
     setFeedbackRideId(null);
     setPaused(false);
@@ -138,6 +140,7 @@ function useSimulationController({ onExit, onMapData, height }: SimulationProps)
           const saved=await saveRide(snapshot(rideId.current,'CANCELLED'));
           setSaveNotice(saved?'Cancelamento salvo no histórico':'Cancelamento salvo localmente · envio pendente');
         } catch {setSaveNotice('Não foi possível salvar o cancelamento. Tente novamente.');setSaving(false);return;}
+        setOrigin(simulationDriver(phase,elapsed,offer,current) ?? origin);
         rideId.current=null;checkpoint.current='';setSaving(false);
       } else setSaveNotice('');
       setNextDecision('open');setPaused(false);setAudioError('');dispatch({type:'next'});return;
@@ -188,10 +191,10 @@ function useSimulationController({ onExit, onMapData, height }: SimulationProps)
     return { key: `${index}:${phase}`, coordinates: leg.geometry.coordinates, elapsed, duration: phase === 'pickup' ? 14 : 28, running: active && !paused && !saving };
   }, [phase,current,index,elapsed,active,paused,saving]);
   const visibleRoute = passengerOnboard ? current.trip.geometry.coordinates : route;
-  const mapData = useMemo(()=>({ simulation:true,navigation:moving,driverMotion,passengerOnboard,simulationPreview:prepareCamera?route:null,reduceMotion:reducedMotion!==false,reports:[],origin:waiting?null:offer.pickup,destination:waiting?null:offer.destination,selected:null,route:waiting?null:visibleRoute,approachRoute:waiting||passengerOnboard?undefined:current.pickup.geometry.coordinates,driver:waiting?null:driver,bottomInset:(waiting?offerHeight:cardHeight)+26,topInset:top+(moving ? 52 : 148) }),[offer,current,route,visibleRoute,driver,moving,driverMotion,passengerOnboard,waiting,prepareCamera,reducedMotion,cardHeight,offerHeight,top]);
+  const mapData = useMemo(()=>({ simulation:true,navigation:moving,driverMotion,passengerOnboard,simulationPreview:prepareCamera?route:null,reduceMotion:reducedMotion!==false,reports:[],origin:waiting?null:offer.pickup,destination:waiting?null:offer.destination,selected:null,route:waiting?null:visibleRoute,approachRoute:waiting||passengerOnboard?undefined:current.pickup.geometry.coordinates,driver,bottomInset:(waiting?offerHeight:cardHeight)+26,topInset:top+(moving ? 52 : 148) }),[offer,current,route,visibleRoute,driver,moving,driverMotion,passengerOnboard,waiting,prepareCamera,reducedMotion,cardHeight,offerHeight,top]);
   useEffect(() => { onMapData(mapData); }, [mapData,onMapData]);
   const compact = height < 720;
-  return { nextRoute:routeSamples.routes[nextIndex],nextOffer,nearDropoff,nextDecision,setNextDecision,remainingSeconds,c, reducedMotion, phase, elapsed, index, paused, setPaused, sound, setSound, saving, saveNotice, completionError, setCompletionError, retryCompletion, audioError, offer, current, active, moving, introVisible, waiting, offering, cardHeight, accept, changePhase, exitSimulation, minutes, distance, top, compact, feedbackRideId, finishFeedback };
+  return { usingGps,nextRoute,nextOffer,nearDropoff,nextDecision,setNextDecision,remainingSeconds,c, reducedMotion, phase, elapsed, index, paused, setPaused, sound, setSound, saving, saveNotice, completionError, setCompletionError, retryCompletion, audioError, offer, current, active, moving, introVisible, waiting, offering, cardHeight, accept, changePhase, exitSimulation, minutes, distance, top, compact, feedbackRideId, finishFeedback };
 }
 type SimulationModel = ReturnType<typeof useSimulationController>;
 type PanelProps = Readonly<{ model: SimulationModel }>;
@@ -223,7 +226,7 @@ export default function RideSimulation(props: SimulationProps) {
       <Text accessibilityLiveRegion="polite" style={{color:c.accent,fontWeight:'700'}}>{model.nextDecision==='reserved'?'Próxima corrida reservada':'Oferta para depois do desembarque'}</Text>
       <Text style={{color:c.text}}>{model.nextOffer.passenger} · {money(model.nextOffer.fare)}</Text>
       <Text style={{color:c.muted}}>Embarque: {model.nextOffer.pickup.name}</Text>
-      <Text style={{color:c.muted}}>Desembarque atual em cerca de {Math.max(1,Math.ceil(model.remainingSeconds/60))} min</Text>
+      <Text style={{color:c.muted}}>Desembarque atual em cerca de {Math.max(1,Math.ceil(model.remainingSeconds/60))} min · depois, {Math.ceil(next.pickup.duration/60)} min até o próximo embarque</Text>
       {model.nextDecision==='open' && <>
         <Text style={{color:c.text}}>Destino: {model.nextOffer.destination.name}</Text>
         <Text style={{color:c.muted}}>{km(nextMeters)} km · {Math.ceil(nextSeconds/60)} min no total · {model.nextOffer.category} · ★ {model.nextOffer.rating}</Text>
@@ -282,7 +285,7 @@ function IntroPanel({model}: PanelProps) {
       ].map(topic=><View key={topic.label} style={s.introTopic}><Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={topic.color} strokeWidth={1.6}><Path d={topic.path}/></Svg><Text style={{fontSize:11,color:c.muted}}>{topic.label}</Text></View>)}</View>
       <View style={[s.searchStatus,{borderColor:c.border,backgroundColor:c.surface}]}>
         <View style={[s.row,{justifyContent:'center'}]}><View style={s.dot}/><Text style={[s.searchTitle,{color:c.text}]}>Preparando sua experiência</Text></View>
-        <Text style={[s.searchCaption,{color:c.muted}]}>Vamos buscar uma corrida simulada em São Paulo.</Text>
+        <Text style={[s.searchCaption,{color:c.muted}]}>{model.usingGps?'Partida da posição do aparelho':'Partida simulada em Interlagos'} · percursos estimados em linha reta.</Text>
         <View accessibilityRole="progressbar" accessibilityLabel="Apresentação do SafeRide" accessibilityValue={{min:0,max:5,now:phase==='intro'?elapsed:5}} style={[s.progress,{backgroundColor:c.inset}]}><View style={[s.progressFill,{backgroundColor:c.accent,width:`${phase==='intro'?elapsed/5*100:100}%`}]}/></View>
       </View>
       <Text style={[s.footnote,{color:c.muted,marginTop:18}]}>MODO SIMULAÇÃO{'\n'}Passageiros fictícios · contexto de bases públicas</Text>
