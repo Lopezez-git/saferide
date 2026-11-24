@@ -23,7 +23,6 @@ type News = {
 };
 export default function NewsScreen() {
   const q = useResource<News>("/news");
-  const [demo, setDemo] = useState(false);
   const [error, setError] = useState("");
   return (
     <Page
@@ -37,10 +36,7 @@ export default function NewsScreen() {
       <Button
         title="Consultar notícias salvas"
         secondary
-        onPress={() => {
-          setDemo(false);
-          q.refresh();
-        }}
+        onPress={q.refresh}
       />
       <ResourceState {...q} />
       <Feedback error={error} />
@@ -85,29 +81,6 @@ export default function NewsScreen() {
           Nenhuma notícia elegível salva. Isso não indica ausência de
           ocorrências.
         </Text>
-      ) : null}
-      <Button
-        title={
-          demo
-            ? "Ocultar exemplo fictício"
-            : "Ver exemplo fictício para apresentação"
-        }
-        secondary
-        onPress={() => setDemo(!demo)}
-      />
-      {demo ? (
-        <View style={styles.card}>
-          <Text style={styles.label}>
-            DEMONSTRAÇÃO • NÃO É UMA NOTÍCIA REAL
-          </Text>
-          <Text style={styles.heading}>
-            Obra altera acesso a uma rua de exemplo
-          </Text>
-          <Text style={styles.body}>
-            Este cartão mostra como uma notícia seria apresentada. Não tem
-            ligação com um evento real nem entra nos alertas.
-          </Text>
-        </View>
       ) : null}
     </Page>
   );
