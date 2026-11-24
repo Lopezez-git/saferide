@@ -63,6 +63,11 @@ function useSimulationController({ onExit, onMapData, height, autoStart = false 
       setLocationError(error instanceof Error ? error.message : 'Localização indisponível.');
     } finally { setLocating(false); }
   }
+  const [nextDecision,setNextDecision] = useState<'open'|'reserved'|'declined'>('open');
+  const nextIndex = (index + 1) % offers.length;
+  const nextOffer = position ? nearbyScenario(offer.destination,nextIndex).offer : offers[nextIndex];
+  const remainingSeconds = current.trip.duration * (1 - legProgress(phase,elapsed).trip);
+  const nearDropoff = phase === 'trip' && remainingSeconds <= 300;
   const active = focused && (foreground || overlayActive);
   const moving = phase === 'pickup' || phase === 'boarding' || phase === 'trip';
   const passengerOnboard = phase === 'boarding' || phase === 'trip';
@@ -71,14 +76,14 @@ function useSimulationController({ onExit, onMapData, height, autoStart = false 
   const offering = phase === 'offer' || phase === 'accepting';
   const cardHeight = offering ? Math.min(340,height*0.48) : Math.min(224,height*0.34);
   useEffect(() => {
-    if (phase !== 'offer') { announced.current = false; return; }
+    if (phase !== 'offer' && !(nearDropoff && nextDecision === 'open')) { announced.current = false; return; }
     if (!active || !sound || !audioStatus.isLoaded || announced.current) return;
     announced.current = true;
     void player.seekTo(0).then(() => player.play()).catch(() => setAudioError('Som indisponível neste dispositivo.'));
-  }, [phase,active,sound,audioStatus.isLoaded,player]);
+  }, [phase,nearDropoff,nextDecision,active,sound,audioStatus.isLoaded,player]);
   useFocusEffect(useCallback(() => { setFocused(true); return () => { setFocused(false); }; },[]));
   useEffect(() => { const listener=AppState.addEventListener('change',value=>{setForeground(value==='active');setOverlayActive(overlay.running());});return ()=>listener.remove(); },[]);
-  useEffect(() => { if(!active || !sound || phase!=='offer')player.pause(); },[active,sound,phase,player]);
+  useEffect(() => { if(!active || !sound || (phase!=='offer' && !nearDropoff))player.pause(); },[active,sound,phase,nearDropoff,player]);
   useEffect(() => {
     if(!active || paused || saving || !(phase==='intro'||phase==='searching'||phase==='offer'||moving))return;
     const timer=setInterval(()=>dispatch({type:'tick'}),250);
@@ -114,12 +119,22 @@ function useSimulationController({ onExit, onMapData, height, autoStart = false 
       if(!current||rideId.current!==id)return;
       rideId.current=null;checkpoint.current='';
       setSaveNotice(saved?'Viagem concluída e salva no histórico':'Viagem salva no dispositivo · envio pendente');
+      if(position) setPosition({...position,...offer.destination});
+      if(nextDecision!=='reserved'){ dispatch({type:'next'}); setNextDecision('open'); }
       setCompletionError(false);setAudioError('');setFeedbackRideId(id);setPaused(true);dispatch({type:'next'});
     }).catch(()=>{if(current){setCompletionError(true);setSaveNotice('Não foi possível salvar a conclusão. Tente novamente para continuar.');}});
     return()=>{current=false;};
-  },[phase,completionAttempt]);
-  async function accept() {
-    if(saving||accepting.current||phase!=='offer')return;
+  },[phase,completionAttempt,nextDecision,position,offer.destination]);
+  function finishFeedback() {
+    setFeedbackRideId(null);
+    setPaused(false);
+    if(nextDecision==='reserved'){
+      setNextDecision('open');
+      void accept(true);
+    }
+  }
+  async function accept(reserved = false) {
+    if(saving||accepting.current||(reserved ? phase!=='searching' : phase!=='offer'))return;
     accepting.current=true;dispatch({type:'phase',phase:'accepting'});
     setSaving(true);setSaveNotice('Salvando corrida…');
     try {
@@ -141,7 +156,7 @@ function useSimulationController({ onExit, onMapData, height, autoStart = false 
         } catch {setSaveNotice('Não foi possível salvar o cancelamento. Tente novamente.');setSaving(false);return;}
         rideId.current=null;checkpoint.current='';setSaving(false);
       } else setSaveNotice('');
-      setPaused(false);setAudioError('');dispatch({type:'next'});return;
+      setNextDecision('open');setPaused(false);setAudioError('');dispatch({type:'next'});return;
     }
     dispatch({type:'phase',phase:next});setPaused(false);
   }
@@ -167,10 +182,10 @@ function useSimulationController({ onExit, onMapData, height, autoStart = false 
     if(!feedbackRideId)return;
     try { await submitRideFeedback(feedbackRideId,[category]);setSaveNotice('Feedback salvo no banco.'); }
     catch { setSaveNotice('Não foi possível salvar o feedback. Responda depois no histórico.'); }
-    setFeedbackRideId(null);setPaused(false);
+    finishFeedback();
   }
-  const overlayHandlers=useRef({feedback:notificationFeedback,later:()=>{setFeedbackRideId(null);setPaused(false);},stopped:()=>setOverlayActive(false)});
-  useEffect(()=>{overlayHandlers.current={feedback:notificationFeedback,later:()=>{setFeedbackRideId(null);setPaused(false);},stopped:()=>setOverlayActive(false)};});
+  const overlayHandlers=useRef({feedback:notificationFeedback,later:finishFeedback,stopped:()=>setOverlayActive(false)});
+  useEffect(()=>{overlayHandlers.current={feedback:notificationFeedback,later:finishFeedback,stopped:()=>setOverlayActive(false)};});
   useEffect(()=>{const subscription=overlay.listen(action=>{if(action==='feedback:POTHOLE')void overlayHandlers.current.feedback('POTHOLE');if(action==='feedback:BAD_ROAD')void overlayHandlers.current.feedback('BAD_ROAD');if(action==='feedback:INSECURE')void overlayHandlers.current.feedback('INSECURE');if(action==='later')overlayHandlers.current.later();if(action==='stopped')overlayHandlers.current.stopped();});return ()=>subscription?.remove();},[]);
   useEffect(()=>{overlay.phase(feedbackRideId?'feedback':phase);},[feedbackRideId,phase]);
   useEffect(()=>()=>{overlay.phase('idle');overlay.update('Inicie uma corrida simulada no SafeRide para consultar o contexto.');},[]);
@@ -192,7 +207,7 @@ function useSimulationController({ onExit, onMapData, height, autoStart = false 
   const mapData = useMemo(()=>({ simulation:true,navigation:moving,driverMotion,passengerOnboard,simulationPreview:prepareCamera?route:null,reduceMotion:reducedMotion!==false,reports:[],origin:waiting?null:offer.pickup,destination:waiting?null:offer.destination,selected:null,route:waiting?null:visibleRoute,approachRoute:waiting||passengerOnboard?undefined:current.pickup.geometry.coordinates,driver:waiting?null:driver,bottomInset:(waiting?offerHeight:cardHeight)+26,topInset:top+(moving ? 52 : 148) }),[offer,current,route,visibleRoute,driver,moving,driverMotion,passengerOnboard,waiting,prepareCamera,reducedMotion,cardHeight,offerHeight,top]);
   useEffect(() => { onMapData(mapData); }, [mapData,onMapData]);
   const compact = height < 720;
-  return { startNearby,locating,locationError,c, reducedMotion, phase, elapsed, index, paused, setPaused, sound, setSound, saving, saveNotice, completionError, setCompletionError, retryCompletion, audioError, offer, current, active, moving, introVisible, waiting, offering, cardHeight, accept, changePhase, exitSimulation, start, minutes, distance, top, compact, feedbackRideId, setFeedbackRideId };
+  return { nextOffer,nearDropoff,nextDecision,setNextDecision,remainingSeconds,startNearby,locating,locationError,c, reducedMotion, phase, elapsed, index, paused, setPaused, sound, setSound, saving, saveNotice, completionError, setCompletionError, retryCompletion, audioError, offer, current, active, moving, introVisible, waiting, offering, cardHeight, accept, changePhase, exitSimulation, start, minutes, distance, top, compact, feedbackRideId, finishFeedback };
 }
 type SimulationModel = ReturnType<typeof useSimulationController>;
 type PanelProps = Readonly<{ model: SimulationModel }>;
@@ -216,10 +231,20 @@ export default function RideSimulation(props: SimulationProps) {
       pickupSeconds={model.current.pickup.duration} top={top+52}
       active={active} visible={phase === 'offer'} reducedMotion={reducedMotion}
     />}
+    {model.nearDropoff && model.nextDecision!=='declined' && <View style={{position:'absolute',top:top+52,left:12,right:12,padding:12,gap:6,borderRadius:14,backgroundColor:c.surface}}>
+      <Text accessibilityLiveRegion="polite" style={{color:c.accent,fontWeight:'700'}}>{model.nextDecision==='reserved'?'Próxima corrida reservada':'Oferta para depois do desembarque'}</Text>
+      <Text style={{color:c.text}}>{model.nextOffer.passenger} · {money(model.nextOffer.fare)}</Text>
+      <Text style={{color:c.muted}}>Embarque: {model.nextOffer.pickup.name}</Text>
+      <Text style={{color:c.muted}}>Desembarque atual em cerca de {Math.max(1,Math.ceil(model.remainingSeconds/60))} min</Text>
+      {model.nextDecision==='open' && <View style={s.row}>
+        <Pressable accessibilityRole="button" onPress={()=>model.setNextDecision('declined')} style={[s.secondary,{borderColor:c.border}]}><Text style={{color:c.text}}>Recusar</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={()=>model.setNextDecision('reserved')} style={s.accept}><Text style={s.acceptText}>Aceitar próxima</Text></Pressable>
+      </View>}
+    </View>}
     <IntroPanel model={model}/>
     <SearchPanel model={model}/>
     <OfferPanel model={model}/>
-    <RideFeedback rideId={model.feedbackRideId} onClose={()=>{model.setFeedbackRideId(null);model.setPaused(false);}} />
+    <RideFeedback rideId={model.feedbackRideId} onClose={model.finishFeedback} />
   </View></View>;
 }
 function stageHeading(phase: SimulationPhase) {
@@ -344,7 +369,7 @@ function RideActions({model}: PanelProps) {
   const { c, offering, elapsed, saving, changePhase, accept, moving, phase, paused, setPaused, completionError, setCompletionError, retryCompletion, reducedMotion } = model;
   if (offering) return <>
           <SimulationProgress key="offer" value={1-elapsed/OFFER_SECONDS} color={c.accent} background={c.inset} reducedMotion={reducedMotion}/>
-          <View style={s.row}><Pressable accessibilityRole="button" accessibilityLabel="Recusar corrida" disabled={saving} onPress={()=>changePhase('declined')} style={[s.secondary,{borderColor:c.border}]}><Text style={{color:c.text,fontWeight:'600'}}>Recusar</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Aceitar corrida simulada" disabled={saving} onPress={accept} style={[s.accept,{flex:1,opacity:saving ? 0.6 : 1}]}><Text style={s.acceptText}>{saving?'Salvando…':'Aceitar corrida'} {saving?null:<Text style={{fontSize:12}}>· {Math.max(0,OFFER_SECONDS-Math.floor(elapsed))}s</Text>}</Text></Pressable></View>
+          <View style={s.row}><Pressable accessibilityRole="button" accessibilityLabel="Recusar corrida" disabled={saving} onPress={()=>changePhase('declined')} style={[s.secondary,{borderColor:c.border}]}><Text style={{color:c.text,fontWeight:'600'}}>Recusar</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Aceitar corrida simulada" disabled={saving} onPress={()=>accept()} style={[s.accept,{flex:1,opacity:saving ? 0.6 : 1}]}><Text style={s.acceptText}>{saving?'Salvando…':'Aceitar corrida'} {saving?null:<Text style={{fontSize:12}}>· {Math.max(0,OFFER_SECONDS-Math.floor(elapsed))}s</Text>}</Text></Pressable></View>
 </>;
   if (phase === 'boarding') return <BoardingActions model={model}/>;
   if (moving) return <>
