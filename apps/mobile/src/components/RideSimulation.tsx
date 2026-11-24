@@ -13,7 +13,6 @@ import SimulationContext from '../components/SimulationContext';
 import SimulationProgress from './SimulationProgress';
 import RideFeedback from './RideFeedback';
 import { overlay } from '../lib/overlay';
-import routeSamples from '../lib/simulation-routes.json';
 import { locate, type DevicePosition } from "../lib/location";
 import { nearbyScenario, offers, legProgress, simulationDriver, simulationReducer, SimulationPhase, OFFER_SECONDS } from '../lib/simulation';
 
@@ -23,12 +22,12 @@ const money = (value: number) => value.toLocaleString('pt-BR', { style:'currency
 const km = (value: number) => (value/1000).toLocaleString('pt-BR',{maximumFractionDigits:1});
 function Person({ color = 'white' }: Readonly<{color?: string}>) { return <Svg width={19} height={19} viewBox="0 0 24 24" fill={color}><Circle cx={12} cy={7} r={4}/><Path d="M4 21v-3a8 8 0 0116 0v3z"/></Svg>; }
 
-type SimulationProps = Readonly<{ onExit: () => void; onMapData: (data: MapData) => void; height: number; autoStart?: boolean }>;
-function useSimulationController({ onExit, onMapData, height, autoStart = false }: SimulationProps) {
+type SimulationProps = Readonly<{ onExit: () => void; onMapData: (data: MapData) => void; height: number; }>;
+function useSimulationController({ onExit, onMapData, height, initialPosition }: SimulationProps & {initialPosition:DevicePosition}) {
   const inset = useSafeAreaInsets();
   const { palette: c } = useSimulationTheme();
   const reducedMotion = useReducedMotion();
-  const [{phase,elapsed,offerIndex:index=0},dispatch] = useReducer(simulationReducer,{phase:autoStart?'intro':'idle',elapsed:0,offerIndex:0});
+  const [{phase,elapsed,offerIndex:index=0},dispatch] = useReducer(simulationReducer,{phase:'intro',elapsed:0,offerIndex:0});
   const [paused,setPaused] = useState(false);
   const [focused,setFocused] = useState(false);
   const [foreground,setForeground] = useState(AppState.currentState === 'active');
@@ -47,25 +46,11 @@ function useSimulationController({ onExit, onMapData, height, autoStart = false 
   const player = useAudioPlayer(require('../../assets/ride-chime.wav'));
   const audioStatus = useAudioPlayerStatus(player);
   const announced = useRef(false);
-  const [position,setPosition] = useState<DevicePosition|null>(null);
-  const [locating,setLocating] = useState(false);
-  const [locationError,setLocationError] = useState('');
-  const nearby = useMemo(()=>position ? nearbyScenario(position,index) : null,[position,index]);
-  const offer = nearby?.offer ?? offers[index];
-  const current = nearby?.route ?? routeSamples.routes[index];
-  async function startNearby() {
-    setLocating(true);
-    setLocationError('');
-    try {
-      setPosition(await locate());
-      start();
-    } catch (error) {
-      setLocationError(error instanceof Error ? error.message : 'Localização indisponível.');
-    } finally { setLocating(false); }
-  }
+  const [position,setPosition] = useState(initialPosition);
+  const {offer,route:current} = useMemo(()=>nearbyScenario(position,index),[position,index]);
   const [nextDecision,setNextDecision] = useState<'open'|'reserved'|'declined'>('open');
   const nextIndex = (index + 1) % offers.length;
-  const nextOffer = position ? nearbyScenario(offer.destination,nextIndex).offer : offers[nextIndex];
+  const nextOffer = nearbyScenario(offer.destination,nextIndex).offer;
   const remainingSeconds = current.trip.duration * (1 - legProgress(phase,elapsed).trip);
   const nearDropoff = phase === 'trip' && remainingSeconds <= 300;
   const active = focused && (foreground || overlayActive);
@@ -119,7 +104,7 @@ function useSimulationController({ onExit, onMapData, height, autoStart = false 
       if(!current||rideId.current!==id)return;
       rideId.current=null;checkpoint.current='';
       setSaveNotice(saved?'Viagem concluída e salva no histórico':'Viagem salva no dispositivo · envio pendente');
-      if(position) setPosition({...position,...offer.destination});
+      setPosition({...position,...offer.destination});
       if(nextDecision!=='reserved'){ dispatch({type:'next'}); setNextDecision('open'); }
       setCompletionError(false);setAudioError('');setFeedbackRideId(id);setPaused(true);dispatch({type:'next'});
     }).catch(()=>{if(current){setCompletionError(true);setSaveNotice('Não foi possível salvar a conclusão. Tente novamente para continuar.');}});
@@ -190,7 +175,6 @@ function useSimulationController({ onExit, onMapData, height, autoStart = false 
   useEffect(()=>{overlay.phase(feedbackRideId?'feedback':phase);},[feedbackRideId,phase]);
   useEffect(()=>()=>{overlay.phase('idle');overlay.update('Inicie uma corrida simulada no SafeRide para consultar o contexto.');},[]);
 
-  function start() { setAudioError(''); void changePhase('intro'); }
   const route = useMemo(()=>[...current.pickup.geometry.coordinates,...current.trip.geometry.coordinates],[current]);
   const driver = useMemo(() => simulationDriver(phase, elapsed, offer, current), [phase,elapsed,offer,current]);
   const minutes = Math.ceil((current.pickup.duration+current.trip.duration)/60);
@@ -207,12 +191,32 @@ function useSimulationController({ onExit, onMapData, height, autoStart = false 
   const mapData = useMemo(()=>({ simulation:true,navigation:moving,driverMotion,passengerOnboard,simulationPreview:prepareCamera?route:null,reduceMotion:reducedMotion!==false,reports:[],origin:waiting?null:offer.pickup,destination:waiting?null:offer.destination,selected:null,route:waiting?null:visibleRoute,approachRoute:waiting||passengerOnboard?undefined:current.pickup.geometry.coordinates,driver:waiting?null:driver,bottomInset:(waiting?offerHeight:cardHeight)+26,topInset:top+(moving ? 52 : 148) }),[offer,current,route,visibleRoute,driver,moving,driverMotion,passengerOnboard,waiting,prepareCamera,reducedMotion,cardHeight,offerHeight,top]);
   useEffect(() => { onMapData(mapData); }, [mapData,onMapData]);
   const compact = height < 720;
-  return { nextOffer,nearDropoff,nextDecision,setNextDecision,remainingSeconds,startNearby,locating,locationError,c, reducedMotion, phase, elapsed, index, paused, setPaused, sound, setSound, saving, saveNotice, completionError, setCompletionError, retryCompletion, audioError, offer, current, active, moving, introVisible, waiting, offering, cardHeight, accept, changePhase, exitSimulation, start, minutes, distance, top, compact, feedbackRideId, finishFeedback };
+  return { nextOffer,nearDropoff,nextDecision,setNextDecision,remainingSeconds,c, reducedMotion, phase, elapsed, index, paused, setPaused, sound, setSound, saving, saveNotice, completionError, setCompletionError, retryCompletion, audioError, offer, current, active, moving, introVisible, waiting, offering, cardHeight, accept, changePhase, exitSimulation, minutes, distance, top, compact, feedbackRideId, finishFeedback };
 }
 type SimulationModel = ReturnType<typeof useSimulationController>;
 type PanelProps = Readonly<{ model: SimulationModel }>;
 
 export default function RideSimulation(props: SimulationProps) {
+  const {palette:c} = useSimulationTheme();
+  const [position,setPosition] = useState<DevicePosition|null>(null);
+  const [error,setError] = useState('');
+  const [attempt,retry] = useReducer((n:number)=>n+1,0);
+  useEffect(()=>{
+    let active = true;
+    locate().then(value=>{if(active) setPosition(value);}).catch(reason=>{
+      if(active) setError(reason instanceof Error ? reason.message : 'Localização indisponível.');
+    });
+    return ()=>{active=false;};
+  },[attempt]);
+  if(position) return <LocatedSimulation {...props} initialPosition={position}/>;
+  return <View style={[StyleSheet.absoluteFill,{backgroundColor:c.surface,justifyContent:'center',padding:24,gap:16}]}>
+    <Text accessibilityLiveRegion="polite" style={{color:c.text}}>{error || 'Localizando o motorista…'}</Text>
+    {!!error && <Pressable accessibilityRole="button" onPress={()=>{setError('');retry();}} style={s.accept}><Text style={s.acceptText}>Tentar novamente</Text></Pressable>}
+    <Pressable accessibilityRole="button" onPress={props.onExit}><Text style={{color:c.accent,textAlign:'center'}}>Voltar ao mapa</Text></Pressable>
+  </View>;
+}
+
+function LocatedSimulation(props: SimulationProps & {initialPosition:DevicePosition}) {
   const model = useSimulationController(props);
   const { c, reducedMotion, introVisible, top, sound, setSound, saving, exitSimulation, index, offer, active, waiting, phase } = model;
   return <View pointerEvents="box-none" style={[StyleSheet.absoluteFill,{alignItems:'center'}]}>
@@ -275,7 +279,7 @@ function stageAddress({phase,offer,distance}: SimulationModel) {
 }
 
 function IntroPanel({model}: PanelProps) {
-  const { c, introVisible, reducedMotion, top, phase, elapsed, start } = model;
+  const { c, introVisible, reducedMotion, top, phase, elapsed } = model;
   return <SimulationMotion visible={introVisible} reducedMotion={reducedMotion} fromY={54} duration={650} style={[s.intro,{top:top+64}]} testID="simulation-intro">
     <ScrollView contentContainerStyle={s.introContent} showsVerticalScrollIndicator={false}>
       <View style={[s.radar,{borderColor:c.border}]}><View style={[s.radarInner,{backgroundColor:c.accentSurface}]}><Svg width={48} height={48} viewBox="0 0 24 24" fill="none" stroke={c.accent} strokeWidth={1.5}><Path d="M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3zM8 12l3 3 5-6"/></Svg></View></View>
@@ -288,12 +292,8 @@ function IntroPanel({model}: PanelProps) {
       ].map(topic=><View key={topic.label} style={s.introTopic}><Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={topic.color} strokeWidth={1.6}><Path d={topic.path}/></Svg><Text style={{fontSize:11,color:c.muted}}>{topic.label}</Text></View>)}</View>
       <View style={[s.searchStatus,{borderColor:c.border,backgroundColor:c.surface}]}>
         <View style={[s.row,{justifyContent:'center'}]}><View style={s.dot}/><Text style={[s.searchTitle,{color:c.text}]}>Preparando sua experiência</Text></View>
-        <Text style={[s.searchCaption,{color:c.muted}]}>{phase==='idle'?'Use sua posição para receber ofertas fictícias próximas, com trajetos em linha reta.':'Em seguida, vamos buscar uma corrida.'}</Text>
-        {phase==='idle'?<View style={{gap:8}}>
-          <Pressable accessibilityRole="button" disabled={model.locating} onPress={model.startNearby} style={s.accept}><Text style={s.acceptText}>{model.locating?'Localizando…':'Usar minha localização'}</Text></Pressable>
-          <Pressable accessibilityRole="button" disabled={model.locating} onPress={start}><Text style={{color:c.accent,textAlign:'center'}}>Usar percurso de São Paulo</Text></Pressable>
-          {model.locationError ? <Text accessibilityRole="alert" style={{color:c.text}}>{model.locationError}</Text> : null}
-        </View>:<View accessibilityRole="progressbar" accessibilityLabel="Apresentação do SafeRide" accessibilityValue={{min:0,max:5,now:phase==='intro'?elapsed:5}} style={[s.progress,{backgroundColor:c.inset}]}><View style={[s.progressFill,{backgroundColor:c.accent,width:`${phase==='intro'?elapsed/5*100:100}%`}]}/></View>}
+        <Text style={[s.searchCaption,{color:c.muted}]}>Vamos buscar uma corrida simulada perto de você.</Text>
+        <View accessibilityRole="progressbar" accessibilityLabel="Apresentação do SafeRide" accessibilityValue={{min:0,max:5,now:phase==='intro'?elapsed:5}} style={[s.progress,{backgroundColor:c.inset}]}><View style={[s.progressFill,{backgroundColor:c.accent,width:`${phase==='intro'?elapsed/5*100:100}%`}]}/></View>
       </View>
       <Text style={[s.footnote,{color:c.muted,marginTop:18}]}>MODO SIMULAÇÃO{'\n'}Passageiros fictícios · contexto de bases públicas</Text>
     </ScrollView></SimulationMotion>;
