@@ -174,18 +174,17 @@ function useSimulationController({ onExit, onMapData, height, autoStart = false 
     return { key: `${index}:${phase}`, coordinates: leg.geometry.coordinates, elapsed, duration: phase === 'pickup' ? 14 : 28, running: active && !paused && !saving };
   }, [phase,current,index,elapsed,active,paused,saving]);
   const visibleRoute = passengerOnboard ? current.trip.geometry.coordinates : route;
-  const mapData = useMemo(()=>({ simulation:true,navigation:moving,driverMotion,passengerOnboard,simulationPreview:prepareCamera?route:null,reduceMotion:reducedMotion!==false,reports:[],origin:waiting?null:offer.pickup,destination:waiting?null:offer.destination,selected:null,route:waiting?null:visibleRoute,approachRoute:waiting||passengerOnboard?undefined:current.pickup.geometry.coordinates,driver:waiting?null:driver,bottomInset:(waiting?offerHeight:cardHeight)+26,topInset:top+148 }),[offer,current,route,visibleRoute,driver,moving,driverMotion,passengerOnboard,waiting,prepareCamera,reducedMotion,cardHeight,offerHeight,top]);
+  const mapData = useMemo(()=>({ simulation:true,navigation:moving,driverMotion,passengerOnboard,simulationPreview:prepareCamera?route:null,reduceMotion:reducedMotion!==false,reports:[],origin:waiting?null:offer.pickup,destination:waiting?null:offer.destination,selected:null,route:waiting?null:visibleRoute,approachRoute:waiting||passengerOnboard?undefined:current.pickup.geometry.coordinates,driver:waiting?null:driver,bottomInset:(waiting?offerHeight:cardHeight)+26,topInset:top+(moving ? 52 : 148) }),[offer,current,route,visibleRoute,driver,moving,driverMotion,passengerOnboard,waiting,prepareCamera,reducedMotion,cardHeight,offerHeight,top]);
   useEffect(() => { onMapData(mapData); }, [mapData,onMapData]);
   const compact = height < 720;
-  const finished = phase === 'done' || phase === 'declined' || phase === 'expired';
-  return { c, reducedMotion, phase, elapsed, index, paused, setPaused, sound, setSound, saving, saveNotice, completionError, setCompletionError, retryCompletion, audioError, offer, current, active, moving, introVisible, waiting, offering, cardHeight, accept, changePhase, exitSimulation, start, minutes, distance, top, compact, finished, feedbackRideId, setFeedbackRideId };
+  return { c, reducedMotion, phase, elapsed, index, paused, setPaused, sound, setSound, saving, saveNotice, completionError, setCompletionError, retryCompletion, audioError, offer, current, active, moving, introVisible, waiting, offering, cardHeight, accept, changePhase, exitSimulation, start, minutes, distance, top, compact, feedbackRideId, setFeedbackRideId };
 }
 type SimulationModel = ReturnType<typeof useSimulationController>;
 type PanelProps = Readonly<{ model: SimulationModel }>;
 
 export default function RideSimulation(props: SimulationProps) {
   const model = useSimulationController(props);
-  const { c, reducedMotion, introVisible, top, sound, setSound, saving, exitSimulation, index, offer, active, waiting, finished } = model;
+  const { c, reducedMotion, introVisible, top, sound, setSound, saving, exitSimulation, index, offer, active, waiting, phase } = model;
   return <View pointerEvents="box-none" style={[StyleSheet.absoluteFill,{alignItems:'center'}]}>
     <SimulationMotion visible={introVisible} reducedMotion={reducedMotion} duration={380} style={StyleSheet.absoluteFill}><View style={[StyleSheet.absoluteFill,{backgroundColor:c.surface+'f2'}]}/></SimulationMotion>
     <View pointerEvents="box-none" style={{flex:1,width:'100%',maxWidth:520}}>
@@ -196,8 +195,12 @@ export default function RideSimulation(props: SimulationProps) {
         <Pressable accessibilityRole="button" accessibilityLabel="Encerrar simulação" disabled={saving} onPress={exitSimulation} style={[s.tool,{backgroundColor:c.surface}]}><Text style={{color:c.text,fontSize:22}}>×</Text></Pressable>
       </View>
     </View>
-    <SimulationContext key={index} offer={offer} meters={model.distance}
-      seconds={model.current.pickup.duration + model.current.trip.duration} pickupSeconds={model.current.pickup.duration} top={top+52} active={active} visible={!waiting&&!finished} reducedMotion={reducedMotion}/>
+    {(waiting || phase === 'offer') && <SimulationContext
+      key={index} offer={offer} meters={model.distance}
+      seconds={model.current.pickup.duration + model.current.trip.duration}
+      pickupSeconds={model.current.pickup.duration} top={top+52}
+      active={active} visible={phase === 'offer'} reducedMotion={reducedMotion}
+    />}
     <IntroPanel model={model}/>
     <SearchPanel model={model}/>
     <OfferPanel model={model}/>
