@@ -223,7 +223,7 @@ export default function RideSimulation(props: SimulationProps) {
     />}
     {model.nearDropoff && model.nextDecision!=='declined' && <View style={{position:'absolute',top:top+52,left:12,right:12,maxHeight:Math.max(100,props.height-top-model.cardHeight-84),padding:10,gap:6,borderRadius:14,backgroundColor:c.surface}}>
       <ScrollView style={{flexShrink:1}} contentContainerStyle={{gap:4}}>
-      <Text accessibilityLiveRegion="polite" style={{color:c.accent,fontWeight:'700'}}>{model.nextDecision==='reserved'?'Próxima corrida reservada':'Oferta para depois do desembarque'}</Text>
+      <Text accessibilityLiveRegion="polite" style={{color:c.accent,fontWeight:'700'}}>{model.nextDecision==='reserved'?`Aceite simulado na ${model.nextOffer.platform}`:`Próxima oferta · ${model.nextOffer.platform} (simulada)`}</Text>
       <Text style={{color:c.text}}>{model.nextOffer.passenger} · {money(model.nextOffer.fare)}</Text>
       <Text style={{color:c.muted}}>Embarque: {model.nextOffer.pickup.name}</Text>
       <Text style={{color:c.muted}}>Desembarque atual em cerca de {Math.max(1,Math.ceil(model.remainingSeconds/60))} min · depois, {Math.ceil(next.pickup.duration/60)} min até o próximo embarque</Text>
@@ -233,9 +233,10 @@ export default function RideSimulation(props: SimulationProps) {
         <SimulationContext inline offer={model.nextOffer} meters={nextMeters} seconds={nextSeconds} pickupSeconds={next.pickup.duration} active={active} reducedMotion={reducedMotion}/>
       </>}
       </ScrollView>
+      {model.nextDecision==='open' && <Text style={{color:c.muted}}>Decisão na {model.nextOffer.platform} · demonstração</Text>}
       {model.nextDecision==='open' && <View style={s.row}>
-        <Pressable accessibilityRole="button" onPress={()=>model.setNextDecision('declined')} style={[s.secondary,{borderColor:c.border}]}><Text style={{color:c.text}}>Recusar</Text></Pressable>
-        <Pressable accessibilityRole="button" onPress={()=>model.setNextDecision('reserved')} style={s.accept}><Text style={s.acceptText}>Aceitar próxima</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={()=>model.setNextDecision('declined')} style={[s.secondary,{borderColor:c.border}]}><Text style={{color:c.text}}>Simular recusa</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={()=>model.setNextDecision('reserved')} style={s.accept}><Text style={s.acceptText}>Simular aceite</Text></Pressable>
       </View>}
     </View>}
     <IntroPanel model={model}/>
@@ -245,7 +246,7 @@ export default function RideSimulation(props: SimulationProps) {
   </View></View>;
 }
 function stageHeading(phase: SimulationPhase) {
-  if (phase === 'offer' || phase === 'accepting') return 'NOVA SOLICITAÇÃO';
+  if (phase === 'offer' || phase === 'accepting') return 'OFERTA SIMULADA';
   if (phase === 'pickup') return 'BUSCAR PASSAGEIRO';
   if (phase === 'boarding') return 'EMBARQUE CONFIRMADO';
   if (phase === 'trip') return 'VIAGEM EM ANDAMENTO';
@@ -277,7 +278,7 @@ function IntroPanel({model}: PanelProps) {
     <ScrollView contentContainerStyle={s.introContent} showsVerticalScrollIndicator={false}>
       <View style={[s.radar,{borderColor:c.border}]}><View style={[s.radarInner,{backgroundColor:c.accentSurface}]}><Svg width={48} height={48} viewBox="0 0 24 24" fill="none" stroke={c.accent} strokeWidth={1.5}><Path d="M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3zM8 12l3 3 5-6"/></Svg></View></View>
       <Text style={[s.introBrand,{color:c.text}]}>Safe<Text style={{color:c.accent}}>Ride</Text></Text>
-      <Text style={[s.introTitle,{color:c.text}]}>Mais informação.{'\n'}Melhores decisões.</Text>
+      <Text style={[s.introTitle,{color:c.text}]}>Contexto para ofertas da Uber e da 99</Text>
       <View style={s.introTopics}>{[
         {label:'Segurança',path:'M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3z',color:c.blue},
         {label:'Pavimento',path:'M7 3L3 21M17 3l4 18M12 3v4m0 4v3m0 4v3',color:c.orange},
@@ -288,17 +289,17 @@ function IntroPanel({model}: PanelProps) {
         <Text style={[s.searchCaption,{color:c.muted}]}>{model.usingGps?'Partida da posição do aparelho':'Partida simulada em Interlagos'} · percursos estimados em linha reta.</Text>
         <View accessibilityRole="progressbar" accessibilityLabel="Apresentação do SafeRide" accessibilityValue={{min:0,max:5,now:phase==='intro'?elapsed:5}} style={[s.progress,{backgroundColor:c.inset}]}><View style={[s.progressFill,{backgroundColor:c.accent,width:`${phase==='intro'?elapsed/5*100:100}%`}]}/></View>
       </View>
-      <Text style={[s.footnote,{color:c.muted,marginTop:18}]}>MODO SIMULAÇÃO{'\n'}Passageiros fictícios · contexto de bases públicas</Text>
+      <Text style={[s.footnote,{color:c.muted,marginTop:18}]}>MODO SIMULAÇÃO{'\n'}A plataforma envia a oferta. O SafeRide mostra os ganhos e o contexto do destino.</Text>
     </ScrollView></SimulationMotion>;
 }
 
 function SearchPanel({model}: PanelProps) {
   const { c, phase, elapsed, reducedMotion, saveNotice } = model;
   return <SimulationMotion visible={phase==='searching'} reducedMotion={reducedMotion} fromY={50} duration={480} testID="simulation-search" style={[s.searchingPanel,{backgroundColor:c.surface,borderColor:c.border}]}>
-      <View style={s.row}><View style={s.dot}/><Text style={[s.eyebrow,{color:c.accent}]}>VOCÊ ESTÁ ONLINE</Text></View>
-      <Text accessibilityLiveRegion="polite" style={[s.stageTitle,{color:c.text,marginTop:12}]}>Buscando uma corrida próxima…</Text>
+      <View style={s.row}><View style={s.dot}/><Text style={[s.eyebrow,{color:c.accent}]}>DEMONSTRAÇÃO</Text></View>
+      <Text accessibilityLiveRegion="polite" style={[s.stageTitle,{color:c.text,marginTop:12}]}>Aguardando oferta simulada da {model.offer.platform}…</Text>
       <Text style={[s.searchCaption,{color:c.muted,marginVertical:16}]}>Uma oferta simulada chega em {phase==='searching'?Math.max(1,Math.ceil(5-elapsed)):0}s</Text>
-      <View accessibilityRole="progressbar" accessibilityLabel="Buscando corrida simulada" accessibilityValue={{min:0,max:5,now:phase==='searching'?elapsed:5}} style={[s.progress,{backgroundColor:c.inset}]}><View style={[s.progressFill,{width:`${phase==='searching'?elapsed/5*100:100}%`}]}/></View>
+      <View accessibilityRole="progressbar" accessibilityLabel="Aguardando oferta da plataforma" accessibilityValue={{min:0,max:5,now:phase==='searching'?elapsed:5}} style={[s.progress,{backgroundColor:c.inset}]}><View style={[s.progressFill,{width:`${phase==='searching'?elapsed/5*100:100}%`}]}/></View>
     {saveNotice?<Text style={[s.footnote,{color:c.muted,marginTop:12}]}>{saveNotice}</Text>:null}
     </SimulationMotion>;
 }
@@ -309,7 +310,7 @@ function OfferPanel({model}: PanelProps) {
   return <SimulationMotion visible={!waiting} reducedMotion={reducedMotion} fromY={110} duration={650} delay={160} testID="simulation-offer" style={[s.offer,{height:cardHeight,backgroundColor:c.surface,borderColor:c.border}]}>
       <View style={[s.handle,{backgroundColor:c.border}]}/>
       <ScrollView style={{flex:1}} contentContainerStyle={{paddingHorizontal:16,paddingBottom:4}} showsVerticalScrollIndicator={false}>
-        <View style={[s.row,{justifyContent:'space-between',marginBottom:5}]}><Text style={[s.eyebrow,{color:c.accent}]}>{stageHeading(phase)}</Text><Text style={{color:c.muted,fontSize:12}}>{offer.category}</Text></View>
+        <View style={[s.row,{justifyContent:'space-between',marginBottom:5}]}><Text style={[s.eyebrow,{color:c.accent}]}>{offer.platform} · {stageHeading(phase)}</Text><Text style={{color:c.muted,fontSize:12}}>{offer.category}</Text></View>
         {offering ? <OfferDetails model={model}/> : <TripDetails model={model}/>}
         {audioError?<Text style={{color:c.orange,fontSize:12,marginTop:6}}>{audioError}</Text>:null}
       </ScrollView>
@@ -361,13 +362,14 @@ function BoardingActions({model}: PanelProps) {
 function RideActions({model}: PanelProps) {
   const { c, offering, elapsed, saving, changePhase, accept, moving, phase, paused, setPaused, completionError, setCompletionError, retryCompletion, reducedMotion } = model;
   if (offering) return <>
+          <Text style={{color:c.muted,fontSize:12}}>Decisão na {model.offer.platform} · demonstração</Text>
           <SimulationProgress key="offer" value={1-elapsed/OFFER_SECONDS} color={c.accent} background={c.inset} reducedMotion={reducedMotion}/>
-          <View style={s.row}><Pressable accessibilityRole="button" accessibilityLabel="Recusar corrida" disabled={saving} onPress={()=>changePhase('declined')} style={[s.secondary,{borderColor:c.border}]}><Text style={{color:c.text,fontWeight:'600'}}>Recusar</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Aceitar corrida simulada" disabled={saving} onPress={()=>accept()} style={[s.accept,{flex:1,opacity:saving ? 0.6 : 1}]}><Text style={s.acceptText}>{saving?'Salvando…':'Aceitar corrida'} {saving?null:<Text style={{fontSize:12}}>· {Math.max(0,OFFER_SECONDS-Math.floor(elapsed))}s</Text>}</Text></Pressable></View>
+          <View style={s.row}><Pressable accessibilityRole="button" accessibilityLabel={`Simular recusa na ${model.offer.platform}`} disabled={saving} onPress={()=>changePhase('declined')} style={[s.secondary,{borderColor:c.border}]}><Text style={{color:c.text,fontWeight:'600'}}>Simular recusa</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel={`Simular aceite na ${model.offer.platform}`} disabled={saving} onPress={()=>accept()} style={[s.accept,{flex:1,opacity:saving ? 0.6 : 1}]}><Text style={s.acceptText}>{saving?'Salvando…':'Simular aceite'} {saving?null:<Text style={{fontSize:12}}>· {Math.max(0,OFFER_SECONDS-Math.floor(elapsed))}s</Text>}</Text></Pressable></View>
 </>;
   if (phase === 'boarding') return <BoardingActions model={model}/>;
   if (moving) return <>
           <SimulationProgress key={phase} value={elapsed/(phase==='pickup'?14:28)} color={c.accent} background={c.inset} reducedMotion={reducedMotion}/>
-          <View style={s.row}><Pressable accessibilityRole="button" disabled={saving} onPress={()=>setPaused(value=>!value)} style={[s.accept,{flex:1}]}><Text style={s.acceptText}>{paused?'Continuar':'Pausar'}</Text></Pressable><Pressable accessibilityRole="button" disabled={saving} onPress={()=>changePhase('declined')} style={[s.secondary,{borderColor:c.border}]}><Text style={{color:c.text}}>Cancelar</Text></Pressable></View>
+          <View style={s.row}><Pressable accessibilityRole="button" disabled={saving} onPress={()=>setPaused(value=>!value)} style={[s.accept,{flex:1}]}><Text style={s.acceptText}>{paused?'Continuar':'Pausar'}</Text></Pressable><Pressable accessibilityRole="button" disabled={saving} onPress={()=>changePhase('declined')} style={[s.secondary,{borderColor:c.border}]}><Text style={{color:c.text}}>Simular cancelamento</Text></Pressable></View>
 </>;
   if (completionError) return <Pressable accessibilityRole="button" onPress={()=>{setCompletionError(false);retryCompletion();}} style={s.accept}><Text style={s.acceptText}>Salvar e continuar</Text></Pressable>;
   return <Text style={[s.searchCaption,{color:c.muted}]}>Salvando a viagem para buscar a próxima…</Text>;

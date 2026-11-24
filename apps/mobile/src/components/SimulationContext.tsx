@@ -41,7 +41,7 @@ function SimulationContext({ offer, meters, seconds, pickupSeconds, top, active,
     if(!visible){overlay.update('Aguardando oferta simulada no SafeRide.');return;}
     const safety=policeSummary(police);
     const reportsText=reports===undefined?'Consultando relatos':reports===null?'Relatos indisponíveis':reports.length?reports.map(r=>feedbackOptions.find(o=>o.value===r.category)?.label).filter(Boolean).join(', '):'Nenhum relato encontrado';
-    overlay.update(`Oferta simulada · ${offer.passenger} · ${offer.fare.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}\nEmbarque: ${pickupMinutes} min\nValor bruto: ${rateLabel}\nDestino: ${offer.destination.name}\nSegurança: ${safety.value} · SSP histórico até ${date(police?.periodEnd)}\nPavimento: ${pavementSummary(pavement)} · SP156 ${date(pavement?.sourceUpdatedAt)}\nTrânsito: ${trafficSummary(traffic)}\nTrajeto simulado: ${reportsText}`);
+    overlay.update(`SafeRide · contexto da oferta simulada (${offer.platform}) · ${offer.passenger} · ${offer.fare.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}\nEmbarque: ${pickupMinutes} min\nValor bruto: ${rateLabel}\nDestino: ${offer.destination.name}\nSegurança: ${safety.value} · SSP histórico até ${date(police?.periodEnd)}\nPavimento: ${pavementSummary(pavement)} · SP156 ${date(pavement?.sourceUpdatedAt)}\nTrânsito: ${trafficSummary(traffic)}\nTrajeto simulado: ${reportsText}`);
   },[active,visible,offer,police,pavement,traffic,reports,rateLabel,pickupMinutes]);
   const cards = [
     { label: 'Segurança', color: c.blue, path: 'M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3z', ...policeSummary(police) },
@@ -52,7 +52,7 @@ function SimulationContext({ offer, meters, seconds, pickupSeconds, top, active,
     <View style={styles.header}>
       <Pressable accessibilityRole="button" accessibilityLabel="Ver fontes do SafeRide" onPress={() => setDetail(true)} style={{ flex: 1, flexDirection:'row',alignItems:'center',gap:8,minHeight:40 }}>
         <View style={{width:27,height:27,borderRadius:9,backgroundColor:c.accentSurface,alignItems:'center',justifyContent:'center'}}><Svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke={c.accent} strokeWidth={2}><Path d="M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3zM8 12l3 3 5-6"/></Svg></View>
-        <Text style={[styles.brand,{color:c.text}]}>SafeRide</Text><Text style={[styles.subtitle,{color:c.muted}]}>CONTEXTO NO DESTINO</Text>
+        <Text style={[styles.brand,{color:c.text}]}>SafeRide</Text><Text style={[styles.subtitle,{color:c.muted}]}>CONTEXTO · {offer.platform}</Text>
       </Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel={collapsed ? 'Expandir SafeRide' : 'Recolher SafeRide'} accessibilityState={{expanded:!collapsed}} onPress={() => setCollapsed(!collapsed)} style={styles.toggle}><Text style={{ color:c.muted, fontSize:20 }}>{collapsed ? '+' : '−'}</Text></Pressable>
     </View>

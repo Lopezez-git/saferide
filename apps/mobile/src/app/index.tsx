@@ -585,8 +585,8 @@ export default function MapScreen() {
           <Text style={{color:"white",fontSize:18,fontWeight:"700"}}>{routing ? "Calculando percurso…" : "Traçar percurso"}</Text>
         </Pressable>
       </View> : null}
-      {!search && !sheetOpen ? <Pressable accessibilityRole="button" accessibilityLabel="Iniciar simulação de corrida" onPress={() => { Keyboard.dismiss(); setSimulationData(null); setSimulating(true); }} style={({pressed}) => ({position:"absolute",right:16,bottom:showRouteFooter?100:18,backgroundColor:pressed?"#075E54":"#087F71",borderRadius:28,paddingHorizontal:18,height:54,flexDirection:"row",alignItems:"center",gap:8,boxShadow:"0 4px 16px #0004",borderWidth:1,borderColor:"#74CDBD"})}>
-        <Svg width={20} height={20} viewBox="0 0 24 24" fill="white"><Path d="M8 4l12 8-12 8V4z" /></Svg><Text style={{color:"white",fontWeight:"700",fontSize:14}}>Simular corrida</Text>
+      {!search && !sheetOpen ? <Pressable accessibilityRole="button" accessibilityLabel="Iniciar demonstração de oferta" onPress={() => { Keyboard.dismiss(); setSimulationData(null); setSimulating(true); }} style={({pressed}) => ({position:"absolute",right:16,bottom:showRouteFooter?100:18,backgroundColor:pressed?"#075E54":"#087F71",borderRadius:28,paddingHorizontal:18,height:54,flexDirection:"row",alignItems:"center",gap:8,boxShadow:"0 4px 16px #0004",borderWidth:1,borderColor:"#74CDBD"})}>
+        <Svg width={20} height={20} viewBox="0 0 24 24" fill="white"><Path d="M8 4l12 8-12 8V4z" /></Svg><Text style={{color:"white",fontWeight:"700",fontSize:14}}>Demonstrar oferta</Text>
       </Pressable> : null}
       </> : <RideSimulation initialPosition={position} height={mapHeight} onMapData={setSimulationData} onExit={() => setSimulating(false)} />}
 
