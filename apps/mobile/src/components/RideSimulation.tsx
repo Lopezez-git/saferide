@@ -14,7 +14,8 @@ import SimulationProgress from './SimulationProgress';
 import RideFeedback from './RideFeedback';
 import { overlay } from '../lib/overlay';
 import routeSamples from '../lib/simulation-routes.json';
-import { offers, legProgress, simulationDriver, simulationReducer, SimulationPhase, OFFER_SECONDS } from '../lib/simulation';
+import { locate, type DevicePosition } from "../lib/location";
+import { nearbyScenario, offers, legProgress, simulationDriver, simulationReducer, SimulationPhase, OFFER_SECONDS } from '../lib/simulation';
 
 
 
@@ -46,8 +47,22 @@ function useSimulationController({ onExit, onMapData, height, autoStart = false 
   const player = useAudioPlayer(require('../../assets/ride-chime.wav'));
   const audioStatus = useAudioPlayerStatus(player);
   const announced = useRef(false);
-  const offer = offers[index];
-  const current = routeSamples.routes[index];
+  const [position,setPosition] = useState<DevicePosition|null>(null);
+  const [locating,setLocating] = useState(false);
+  const [locationError,setLocationError] = useState('');
+  const nearby = useMemo(()=>position ? nearbyScenario(position,index) : null,[position,index]);
+  const offer = nearby?.offer ?? offers[index];
+  const current = nearby?.route ?? routeSamples.routes[index];
+  async function startNearby() {
+    setLocating(true);
+    setLocationError('');
+    try {
+      setPosition(await locate());
+      start();
+    } catch (error) {
+      setLocationError(error instanceof Error ? error.message : 'Localização indisponível.');
+    } finally { setLocating(false); }
+  }
   const active = focused && (foreground || overlayActive);
   const moving = phase === 'pickup' || phase === 'boarding' || phase === 'trip';
   const passengerOnboard = phase === 'boarding' || phase === 'trip';
@@ -177,7 +192,7 @@ function useSimulationController({ onExit, onMapData, height, autoStart = false 
   const mapData = useMemo(()=>({ simulation:true,navigation:moving,driverMotion,passengerOnboard,simulationPreview:prepareCamera?route:null,reduceMotion:reducedMotion!==false,reports:[],origin:waiting?null:offer.pickup,destination:waiting?null:offer.destination,selected:null,route:waiting?null:visibleRoute,approachRoute:waiting||passengerOnboard?undefined:current.pickup.geometry.coordinates,driver:waiting?null:driver,bottomInset:(waiting?offerHeight:cardHeight)+26,topInset:top+(moving ? 52 : 148) }),[offer,current,route,visibleRoute,driver,moving,driverMotion,passengerOnboard,waiting,prepareCamera,reducedMotion,cardHeight,offerHeight,top]);
   useEffect(() => { onMapData(mapData); }, [mapData,onMapData]);
   const compact = height < 720;
-  return { c, reducedMotion, phase, elapsed, index, paused, setPaused, sound, setSound, saving, saveNotice, completionError, setCompletionError, retryCompletion, audioError, offer, current, active, moving, introVisible, waiting, offering, cardHeight, accept, changePhase, exitSimulation, start, minutes, distance, top, compact, feedbackRideId, setFeedbackRideId };
+  return { startNearby,locating,locationError,c, reducedMotion, phase, elapsed, index, paused, setPaused, sound, setSound, saving, saveNotice, completionError, setCompletionError, retryCompletion, audioError, offer, current, active, moving, introVisible, waiting, offering, cardHeight, accept, changePhase, exitSimulation, start, minutes, distance, top, compact, feedbackRideId, setFeedbackRideId };
 }
 type SimulationModel = ReturnType<typeof useSimulationController>;
 type PanelProps = Readonly<{ model: SimulationModel }>;
@@ -248,8 +263,12 @@ function IntroPanel({model}: PanelProps) {
       ].map(topic=><View key={topic.label} style={s.introTopic}><Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={topic.color} strokeWidth={1.6}><Path d={topic.path}/></Svg><Text style={{fontSize:11,color:c.muted}}>{topic.label}</Text></View>)}</View>
       <View style={[s.searchStatus,{borderColor:c.border,backgroundColor:c.surface}]}>
         <View style={[s.row,{justifyContent:'center'}]}><View style={s.dot}/><Text style={[s.searchTitle,{color:c.text}]}>Preparando sua experiência</Text></View>
-        <Text style={[s.searchCaption,{color:c.muted}]}>Em seguida, vamos buscar uma corrida.</Text>
-        {phase==='idle'?<Pressable accessibilityRole="button" onPress={start} style={s.accept}><Text style={s.acceptText}>Começar simulação</Text></Pressable>:<View accessibilityRole="progressbar" accessibilityLabel="Apresentação do SafeRide" accessibilityValue={{min:0,max:5,now:phase==='intro'?elapsed:5}} style={[s.progress,{backgroundColor:c.inset}]}><View style={[s.progressFill,{backgroundColor:c.accent,width:`${phase==='intro'?elapsed/5*100:100}%`}]}/></View>}
+        <Text style={[s.searchCaption,{color:c.muted}]}>{phase==='idle'?'Use sua posição para receber ofertas fictícias próximas, com trajetos em linha reta.':'Em seguida, vamos buscar uma corrida.'}</Text>
+        {phase==='idle'?<View style={{gap:8}}>
+          <Pressable accessibilityRole="button" disabled={model.locating} onPress={model.startNearby} style={s.accept}><Text style={s.acceptText}>{model.locating?'Localizando…':'Usar minha localização'}</Text></Pressable>
+          <Pressable accessibilityRole="button" disabled={model.locating} onPress={start}><Text style={{color:c.accent,textAlign:'center'}}>Usar percurso de São Paulo</Text></Pressable>
+          {model.locationError ? <Text accessibilityRole="alert" style={{color:c.text}}>{model.locationError}</Text> : null}
+        </View>:<View accessibilityRole="progressbar" accessibilityLabel="Apresentação do SafeRide" accessibilityValue={{min:0,max:5,now:phase==='intro'?elapsed:5}} style={[s.progress,{backgroundColor:c.inset}]}><View style={[s.progressFill,{backgroundColor:c.accent,width:`${phase==='intro'?elapsed/5*100:100}%`}]}/></View>}
       </View>
       <Text style={[s.footnote,{color:c.muted,marginTop:18}]}>MODO SIMULAÇÃO{'\n'}Passageiros fictícios · contexto de bases públicas</Text>
     </ScrollView></SimulationMotion>;

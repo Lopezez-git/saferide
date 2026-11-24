@@ -587,7 +587,7 @@ export default function MapScreen() {
       {!search && !sheetOpen ? <Pressable accessibilityRole="button" accessibilityLabel="Iniciar simulação de corrida" onPress={() => { Keyboard.dismiss(); setSimulationData(null); setSimulating(true); }} style={({pressed}) => ({position:"absolute",right:16,bottom:showRouteFooter?100:18,backgroundColor:pressed?"#075E54":"#087F71",borderRadius:28,paddingHorizontal:18,height:54,flexDirection:"row",alignItems:"center",gap:8,boxShadow:"0 4px 16px #0004",borderWidth:1,borderColor:"#74CDBD"})}>
         <Svg width={20} height={20} viewBox="0 0 24 24" fill="white"><Path d="M8 4l12 8-12 8V4z" /></Svg><Text style={{color:"white",fontWeight:"700",fontSize:14}}>Simular corrida</Text>
       </Pressable> : null}
-      </> : <RideSimulation height={mapHeight} onMapData={setSimulationData} autoStart onExit={() => setSimulating(false)} />}
+      </> : <RideSimulation height={mapHeight} onMapData={setSimulationData} onExit={() => setSimulating(false)} />}
 
     </View>
   );
