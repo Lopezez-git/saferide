@@ -13,8 +13,8 @@ import SimulationContext from '../components/SimulationContext';
 import SimulationProgress from './SimulationProgress';
 import RideFeedback from './RideFeedback';
 import { overlay } from '../lib/overlay';
-import { nearbyScenario, offers, legProgress, simulationDriver, simulationReducer, SimulationPhase, OFFER_SECONDS } from '../lib/simulation';
-const demoStart = offers[0].driver;
+import { demoCircuit, localCircuit, roadScenario, routeBody, type DriverStop, type RoadCircuit, type Route, offers, legProgress, simulationDriver, simulationReducer, type SimulationPhase, OFFER_SECONDS } from '../lib/simulation';
+import { api } from '../lib/client';
 
 
 
@@ -23,7 +23,8 @@ const km = (value: number) => (value/1000).toLocaleString('pt-BR',{maximumFracti
 function Person({ color = 'white' }: Readonly<{color?: string}>) { return <Svg width={19} height={19} viewBox="0 0 24 24" fill={color}><Circle cx={12} cy={7} r={4}/><Path d="M4 21v-3a8 8 0 0116 0v3z"/></Svg>; }
 
 type SimulationProps = Readonly<{ onExit: () => void; onMapData: (data: MapData) => void; height: number; initialPosition: MapPoint|null; }>;
-function useSimulationController({ onExit, onMapData, height, initialPosition }: SimulationProps) {
+type RoadProps = SimulationProps & { circuit: RoadCircuit; routeNotice: string };
+function useSimulationController({ onExit, onMapData, height, circuit, routeNotice }: RoadProps) {
   const inset = useSafeAreaInsets();
   const { palette: c } = useSimulationTheme();
   const reducedMotion = useReducedMotion();
@@ -46,12 +47,11 @@ function useSimulationController({ onExit, onMapData, height, initialPosition }:
   const player = useAudioPlayer(require('../../assets/ride-chime.wav'));
   const audioStatus = useAudioPlayerStatus(player);
   const announced = useRef(false);
-  const [origin,setOrigin] = useState<MapPoint>(()=>initialPosition ?? demoStart);
-  const [usingGps] = useState(!!initialPosition);
-  const {offer,route:current} = useMemo(()=>nearbyScenario(origin,index,!usingGps),[origin,index,usingGps]);
+  const [origin,setOrigin] = useState<DriverStop>('start');
+  const {offer,route:current,arrival} = useMemo(()=>roadScenario(circuit,origin,index),[circuit,origin,index]);
   const [nextDecision,setNextDecision] = useState<'open'|'reserved'|'declined'>('open');
   const nextIndex = (index + 1) % offers.length;
-  const {offer:nextOffer,route:nextRoute} = useMemo(()=>nearbyScenario(offer.destination,nextIndex,!usingGps),[offer.destination,nextIndex,usingGps]);
+  const {offer:nextOffer,route:nextRoute} = useMemo(()=>roadScenario(circuit,arrival,nextIndex),[circuit,arrival,nextIndex]);
   const remainingSeconds = current.trip.duration * (1 - legProgress(phase,elapsed).trip);
   const nearDropoff = phase === 'trip' && remainingSeconds <= 300;
   const active = focused && (foreground || overlayActive);
@@ -82,7 +82,7 @@ function useSimulationController({ onExit, onMapData, height, initialPosition }:
       fare:offer.fare,plannedDistanceMeters:Math.round(current.pickup.distance+current.trip.distance),
       distanceMeters:Math.round(current.pickup.distance*pickupFraction+current.trip.distance*tripFraction),
       simulatedSeconds:Math.round(current.pickup.duration*pickupFraction+current.trip.duration*tripFraction),
-      activeSeconds:Math.floor(14*pickupFraction+28*tripFraction+boardingSeconds(phase,elapsed)),status,createdAt:acceptedAt.current,
+      activeSeconds:Math.floor((current.pickup.distance > 0 ? 14 : 0)*pickupFraction+28*tripFraction+boardingSeconds(phase,elapsed)),status,createdAt:acceptedAt.current,
       finishedAt:status==='IN_PROGRESS'?null:new Date().toISOString()};
   }
   const latestSnapshot=useRef(snapshot);
@@ -105,12 +105,12 @@ function useSimulationController({ onExit, onMapData, height, initialPosition }:
       if(!current||rideId.current!==id)return;
       rideId.current=null;checkpoint.current='';
       setSaveNotice(saved?'Viagem concluída e salva no histórico':'Viagem salva no dispositivo · envio pendente');
-      setOrigin(offer.destination);
+      setOrigin(arrival);
       if(nextDecision!=='reserved') setNextDecision('open');
       setCompletionError(false);setAudioError('');setFeedbackRideId(id);setPaused(true);dispatch({type:'next'});
     }).catch(()=>{if(current){setCompletionError(true);setSaveNotice('Não foi possível salvar a conclusão. Tente novamente para continuar.');}});
     return()=>{current=false;};
-  },[phase,completionAttempt,nextDecision,offer.destination]);
+  },[phase,completionAttempt,nextDecision,arrival]);
   function finishFeedback() {
     setFeedbackRideId(null);
     setPaused(false);
@@ -127,25 +127,17 @@ function useSimulationController({ onExit, onMapData, height, initialPosition }:
       const id=await createRideId();acceptedAt.current=new Date().toISOString();
       const saved=await saveRide(snapshot(id,'IN_PROGRESS'));rideId.current=id;checkpoint.current='';
       setSaveNotice(saved?'Corrida salva no histórico':'Salva neste dispositivo · envio pendente');
-      dispatch({type:'phase',phase:'pickup'});setPaused(false);
+      dispatch({type:'phase',phase:current.pickup.distance > 0 ? 'pickup' : 'boarding'});setPaused(false);
     } catch {setSaveNotice('Não foi possível iniciar o registro. Verifique a conexão e tente aceitar novamente.');dispatch({type:'phase',phase:'offer'});}
     finally{accepting.current=false;setSaving(false);}
   }
-  async function changePhase(next:SimulationPhase) {
-    if(saving)return;
-    if(next==='declined'){
-      if(rideId.current&&moving){
-        setSaving(true);setPaused(true);
-        try {
-          const saved=await saveRide(snapshot(rideId.current,'CANCELLED'));
-          setSaveNotice(saved?'Cancelamento salvo no histórico':'Cancelamento salvo localmente · envio pendente');
-        } catch {setSaveNotice('Não foi possível salvar o cancelamento. Tente novamente.');setSaving(false);return;}
-        setOrigin(simulationDriver(phase,elapsed,offer,current) ?? origin);
-        rideId.current=null;checkpoint.current='';setSaving(false);
-      } else setSaveNotice('');
-      setNextDecision('open');setPaused(false);setAudioError('');dispatch({type:'next'});return;
-    }
-    dispatch({type:'phase',phase:next});setPaused(false);
+  function declineOffer() {
+    if (saving || phase !== 'offer') return;
+    setSaveNotice('');
+    setNextDecision('open');
+    setPaused(false);
+    setAudioError('');
+    dispatch({type:'next'});
   }
   async function exitSimulation() {
     if (saving) return;
@@ -194,12 +186,46 @@ function useSimulationController({ onExit, onMapData, height, initialPosition }:
   const mapData = useMemo(()=>({ simulation:true,navigation:moving,driverMotion,passengerOnboard,simulationPreview:prepareCamera?route:null,reduceMotion:reducedMotion!==false,reports:[],origin:waiting?null:offer.pickup,destination:waiting?null:offer.destination,selected:null,route:waiting?null:visibleRoute,approachRoute:waiting||passengerOnboard?undefined:current.pickup.geometry.coordinates,driver,bottomInset:(waiting?offerHeight:cardHeight)+26,topInset:top+(moving ? 52 : 148) }),[offer,current,route,visibleRoute,driver,moving,driverMotion,passengerOnboard,waiting,prepareCamera,reducedMotion,cardHeight,offerHeight,top]);
   useEffect(() => { onMapData(mapData); }, [mapData,onMapData]);
   const compact = height < 720;
-  return { usingGps,nextRoute,nextOffer,nearDropoff,nextDecision,setNextDecision,remainingSeconds,c, reducedMotion, phase, elapsed, index, paused, setPaused, sound, setSound, saving, saveNotice, completionError, setCompletionError, retryCompletion, audioError, offer, current, active, moving, introVisible, waiting, offering, cardHeight, accept, changePhase, exitSimulation, minutes, distance, top, compact, feedbackRideId, finishFeedback };
+  return { routeNotice,nextRoute,nextOffer,nearDropoff,nextDecision,setNextDecision,remainingSeconds,c, reducedMotion, phase, elapsed, index, paused, setPaused, sound, setSound, saving, saveNotice, completionError, setCompletionError, retryCompletion, audioError, offer, current, active, moving, introVisible, waiting, offering, cardHeight, accept, declineOffer, exitSimulation, minutes, distance, top, compact, feedbackRideId, finishFeedback };
 }
 type SimulationModel = ReturnType<typeof useSimulationController>;
 type PanelProps = Readonly<{ model: SimulationModel }>;
 
 export default function RideSimulation(props: SimulationProps) {
+  const [start] = useState(props.initialPosition);
+  const [circuit, setCircuit] = useState<RoadCircuit | null>(start ? null : demoCircuit);
+  const { palette: c } = useSimulationTheme();
+  useEffect(() => {
+    if (!start) return;
+    const controller = new AbortController();
+    async function fetchLeg(from: MapPoint, to: MapPoint) {
+      if (controller.signal.aborted) throw new Error('Consulta encerrada.');
+      const leg = await api<Route>('/route', { method: 'POST', body: routeBody(from, to), signal: controller.signal });
+      if (!(leg.distance > 0 && leg.duration > 0 && leg.geometry.coordinates.length >= 2))
+        throw new Error('Trajeto indisponível.');
+      return leg;
+    }
+    let first = true;
+    localCircuit(start, async (from, to) => {
+      // The route API limits how often it can call the driving directions provider.
+      if (!first) await new Promise(resolve => setTimeout(resolve, 1150));
+      first = false;
+      return fetchLeg(from, to);
+    }).then(result => { if (!controller.signal.aborted) setCircuit(result); })
+      .catch(() => { if (!controller.signal.aborted) setCircuit(demoCircuit); });
+    return () => controller.abort();
+  }, [start]);
+  if (!circuit) return <View style={[StyleSheet.absoluteFill,{alignItems:'center',justifyContent:'center',gap:18,backgroundColor:c.surface}]}>
+    <Text style={{color:c.text}}>Calculando o trajeto pelas ruas…</Text>
+    <Pressable accessibilityRole="button" onPress={props.onExit}><Text style={{color:c.accent}}>Voltar ao mapa</Text></Pressable>
+  </View>;
+  const routeNotice = circuit !== demoCircuit ? 'Percurso pelas vias próximas à sua posição.' :
+    start ? 'Rota local indisponível. Usando o trajeto viário de demonstração em Socorro.' :
+    'Percurso de demonstração pelas ruas de Socorro.';
+  return <RoadSimulation {...props} circuit={circuit} routeNotice={routeNotice} />;
+}
+
+function RoadSimulation(props: RoadProps) {
   const model = useSimulationController(props);
   const { c, reducedMotion, introVisible, top, sound, setSound, saving, exitSimulation, index, offer, active, waiting, phase } = model;
   const next = model.nextRoute;
@@ -274,7 +300,7 @@ function IntroPanel({model}: PanelProps) {
       ].map(topic=><View key={topic.label} style={s.introTopic}><Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={topic.color} strokeWidth={1.6}><Path d={topic.path}/></Svg><Text style={{fontSize:11,color:c.muted}}>{topic.label}</Text></View>)}</View>
       <View style={[s.searchStatus,{borderColor:c.border,backgroundColor:c.surface}]}>
         <View style={[s.row,{justifyContent:'center'}]}><View style={s.dot}/><Text style={[s.searchTitle,{color:c.text}]}>Preparando sua experiência</Text></View>
-        <Text style={[s.searchCaption,{color:c.muted}]}>{model.usingGps?'Partida da posição do aparelho':'Partida simulada na região de Socorro'} · percursos estimados em linha reta.</Text>
+        <Text style={[s.searchCaption,{color:c.muted}]}>{model.routeNotice}</Text>
         <View accessibilityRole="progressbar" accessibilityLabel="Apresentação do SafeRide" accessibilityValue={{min:0,max:5,now:phase==='intro'?elapsed:5}} style={[s.progress,{backgroundColor:c.inset}]}><View style={[s.progressFill,{backgroundColor:c.accent,width:`${phase==='intro'?elapsed/5*100:100}%`}]}/></View>
       </View>
       <Text style={[s.footnote,{color:c.muted,marginTop:18}]}>MODO SIMULAÇÃO{'\n'}A plataforma envia a oferta. O SafeRide mostra os ganhos e o contexto do destino.</Text>
@@ -298,7 +324,7 @@ function RequestPanel({model}: PanelProps) {
     <Text style={{color:c.text}}>Destino · {request.destination.name}</Text>
     {offering && <SimulationProgress value={1-elapsed/OFFER_SECONDS} color={c.accent} background={c.inset} reducedMotion={reducedMotion}/>}
     <View style={s.row}>
-      <Pressable accessibilityRole="button" disabled={saving} onPress={()=>offering ? model.changePhase('declined') : model.setNextDecision('declined')} style={[s.secondary,{borderColor:c.border}]}><Text style={{color:c.text}}>Recusar corrida</Text></Pressable>
+      <Pressable accessibilityRole="button" disabled={saving} onPress={()=>offering ? model.declineOffer() : model.setNextDecision('declined')} style={[s.secondary,{borderColor:c.border}]}><Text style={{color:c.text}}>Recusar corrida</Text></Pressable>
       <Pressable accessibilityRole="button" disabled={saving} onPress={()=>offering ? model.accept() : model.setNextDecision('reserved')} style={[s.accept,{flex:1}]}><Text style={s.acceptText}>{saving?'Salvando…':'Aceitar corrida'}</Text></Pressable>
     </View>
     {offering && /Falha|Não foi|pendente/.test(model.saveNotice) && <Text style={{color:c.orange}}>{model.saveNotice}</Text>}

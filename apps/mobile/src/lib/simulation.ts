@@ -1,3 +1,4 @@
+import roads from './simulation-routes.json';
 import type { MapPoint } from '../components/mapHtml';
 
 export type Route = { distance: number; duration: number; geometry: { coordinates: number[][] } };
@@ -24,29 +25,49 @@ function coordinateStop(point: MapPoint): Stop {
   return {...point, name: point.latitude.toFixed(5) + ', ' + point.longitude.toFixed(5)};
 }
 
-function distanceBetween(a: MapPoint, b: MapPoint) {
-  const radians = Math.PI / 180;
-  const h = Math.sin((b.latitude-a.latitude)*radians/2)**2 +
-    Math.cos(a.latitude*radians)*Math.cos(b.latitude*radians)*Math.sin((b.longitude-a.longitude)*radians/2)**2;
-  return 12742000 * Math.asin(Math.sqrt(Math.min(1,h)));
+export type RoadCircuit = { approach: Route; outbound: Route; inbound: Route; station: Stop; street: Stop };
+export type DriverStop = 'start' | 'station' | 'street';
+
+export function roadPoint(route: Route, end = false): MapPoint {
+  const points = route.geometry.coordinates;
+  const [longitude, latitude] = points[end ? points.length - 1 : 0];
+  return { longitude, latitude };
 }
 
-export function nearbyScenario(driver: MapPoint, index: number, namedDemo = false) {
-  const approach = 650 + 220 * index;
-  const journey = 2600 + 550 * index;
-  let pickup = coordinateStop(offset(driver, approach, 65 + 120*index));
-  let destination = coordinateStop(offset(pickup, journey, 120 + 110*index));
-  if (namedDemo) {
-    const {pickup: station, destination: street} = offers[0];
-    const atStation = distanceBetween(driver, station) <= distanceBetween(driver, street);
-    pickup = atStation ? station : street;
-    destination = atStation ? street : station;
-  }
-  function leg(a: MapPoint, b: MapPoint): Route {
-    const distance = distanceBetween(a,b);
-    return {distance, duration:Math.round(distance/6), geometry:{coordinates:[[a.longitude,a.latitude],[b.longitude,b.latitude]]}};
-  }
-  return {offer:{...offers[index],driver,pickup,destination}, route:{pickup:leg(driver,pickup),trip:leg(pickup,destination)}};
+const socorro = roads.routes[0];
+export const demoCircuit: RoadCircuit = {
+  approach: socorro.pickup, outbound: socorro.trip, inbound: roads.socorroReturn,
+  station: { ...offers[0].pickup, ...roadPoint(socorro.trip) },
+  street: { ...offers[0].destination, ...roadPoint(socorro.trip, true) },
+};
+
+type FetchLeg = (from: MapPoint, to: MapPoint) => Promise<Route>;
+export async function localCircuit(driver: MapPoint, fetchLeg: FetchLeg): Promise<RoadCircuit> {
+  const approach = await fetchLeg(driver, offset(driver, 650, 65));
+  const station = coordinateStop(roadPoint(approach, true));
+  const outbound = await fetchLeg(station, offset(station, 2600, 120));
+  const street = coordinateStop(roadPoint(outbound, true));
+  const inbound = await fetchLeg(street, station);
+  const connected = (a: MapPoint, b: MapPoint) =>
+    Math.abs(a.latitude - b.latitude) < 0.00001 && Math.abs(a.longitude - b.longitude) < 0.00001;
+  if (!connected(station, roadPoint(outbound)) || !connected(street, roadPoint(inbound)) ||
+      !connected(station, roadPoint(inbound, true))) throw new Error('Trechos sem conexão viária.');
+  return { approach, outbound, inbound, station, street };
+}
+
+export function roadScenario(circuit: RoadCircuit, origin: DriverStop, index: number) {
+  const inbound = origin === 'street';
+  const trip = inbound ? circuit.inbound : circuit.outbound;
+  const pickup = inbound ? circuit.street : circuit.station;
+  const destination = inbound ? circuit.station : circuit.street;
+  const point = trip.geometry.coordinates[0];
+  const approach = origin === 'start' ? circuit.approach :
+    { distance: 0, duration: 0, geometry: { coordinates: [point, point] } };
+  return {
+    offer: { ...offers[index], driver: roadPoint(approach), pickup, destination },
+    route: { pickup: approach, trip },
+    arrival: (inbound ? 'station' : 'street') as DriverStop,
+  };
 }
 
 export function routeBody(from: MapPoint, to: MapPoint) { return { fromLat: from.latitude, fromLon: from.longitude, toLat: to.latitude, toLon: to.longitude }; }
