@@ -8,10 +8,10 @@ import {
   Chip,
   Feedback,
   ResourceState,
-} from "../components/ui";
-import { useSession } from "../lib/session";
-import { api, User, message, Report } from "../lib/client";
-import { useResource } from "../lib/useResource";
+} from "../../components/ui";
+import { useSession } from "../../lib/session";
+import { api, User, message, Report } from "../../lib/client";
+import { useResource } from "../../lib/useResource";
 function Access() {
   const styles = useAppStyles();
   const session = useSession();

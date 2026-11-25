@@ -9,10 +9,10 @@ import {
   Feedback,
   ResourceState,
   SignInNotice,
-} from "../components/ui";
-import { api, Post, Comment, message, when } from "../lib/client";
-import { useSession } from "../lib/session";
-import { useResource } from "../lib/useResource";
+} from "../../components/ui";
+import { api, Post, Comment, message, when } from "../../lib/client";
+import { useSession } from "../../lib/session";
+import { useResource } from "../../lib/useResource";
 const categories = {
   DICA: "Dicas",
   DUVIDA: "Dúvidas",
