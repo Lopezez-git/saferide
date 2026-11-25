@@ -1,3 +1,4 @@
+import { newsLink } from "../lib/newsLink";
 import { useSimulationTheme } from "../lib/simulationTheme";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Text, View, ScrollView, Pressable, TextInput, Keyboard, Linking, useWindowDimensions } from "react-native";
@@ -506,11 +507,14 @@ export default function MapScreen() {
             <Text style={styles.subtitle}>Revisão não comprova o fato.{r.validUntil ? ` Válido até ${when(r.validUntil)}.` : ""}</Text>
           </View>)}
           {topic === "access" && accessNews.length > 0 ? <Text style={styles.heading}>Notícias publicadas · local, rua ou bairro</Text> : null}
-          {topicNews.map(n => <Pressable key={n.id} accessibilityRole="link" onPress={() => Linking.openURL(n.url).catch(e => setError(message(e)))} style={styles.card}>
+          {topicNews.map(n => {
+            const link = newsLink(n);
+            return <Pressable key={n.id} accessibilityRole="link" onPress={() => Linking.openURL(link.url).catch(e => setError(message(e)))} style={styles.card}>
             <Text style={styles.label}>{n.topic} · {n.source} · {when(n.publishedAt)}</Text>
             <Text style={styles.subtitle}>{n.scope === "LOCAL" ? "Local mencionado" : n.scope === "STREET" ? "Na via de acesso, sem trecho confirmado" : "Contexto do bairro, não do ponto"}: {n.matchedPlace}</Text>
-            <Text style={styles.heading}>{n.title}</Text><Text style={styles.subtitle}>Notícia publicada; não confirma situação ativa.</Text><Text style={{color:p.accent}}>Ler na fonte ↗</Text>
-          </Pressable>)}
+            <Text style={styles.heading}>{n.title}</Text><Text style={styles.subtitle}>Notícia publicada; não confirma situação ativa.</Text><Text style={{color:p.accent}}>{link.label}</Text>
+          </Pressable>;
+          })}
           {user ? <Button title={reportOpen ? "Fechar relato" : "Relatar uma situação neste local"} secondary disabled={!focus} onPress={() => { setPoint(reportOpen ? null : focus); setReportOpen(!reportOpen); }} /> : null}
       {reportOpen && user ? (
         <View style={styles.card}>

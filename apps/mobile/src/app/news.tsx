@@ -1,3 +1,4 @@
+import { newsLink } from "../lib/newsLink";
 import { Linking, Text, View } from "react-native";
 import { useState } from "react";
 import {
@@ -59,7 +60,9 @@ export default function NewsScreen() {
           ) : null}
         </View>
       ) : null}
-      {q.data?.items.map((n) => (
+      {q.data?.items.map((n) => {
+        const link = newsLink(n);
+        return (
         <View key={n.id} style={styles.card}>
           <Text style={styles.label}>{n.source}</Text>
           <Text style={styles.heading}>{n.title}</Text>
@@ -69,14 +72,16 @@ export default function NewsScreen() {
           </Text>
           <Text style={styles.subtitle}>Coletada: {when(n.collectedAt)}</Text>
           <Button
-            title="Ler na fonte original ↗"
+            title={link.label}
             secondary
             onPress={() => {
-              Linking.openURL(n.url).catch((e) => setError(message(e)));
+              setError("");
+              Linking.openURL(link.url).catch((e) => setError(message(e)));
             }}
           />
         </View>
-      ))}
+        );
+      })}
       {q.data?.items.length === 0 ? (
         <Text style={styles.subtitle}>
           Nenhuma notícia elegível salva. Isso não indica ausência de
