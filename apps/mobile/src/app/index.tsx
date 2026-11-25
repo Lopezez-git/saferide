@@ -8,7 +8,6 @@ import {
   Field,
   Feedback,
   ResourceState,
-  SignInNotice,
 } from "../components/ui";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path, Circle } from "react-native-svg";
@@ -465,7 +464,7 @@ export default function MapScreen() {
             <Text style={styles.heading}>Relatos e notícias locais</Text>
             <Text style={styles.body}>{pavement.length} relato(s) da comunidade · {pavementNews.length} notícia(s) de pavimento. Cada fonte tem data e alcance próprios.</Text>
           </> : null}
-          {topic === "community" ? <><Text style={styles.heading}>Quem passa por aqui</Text><Text style={styles.body}>{actualNearby.length?"Relatos de motoristas próximos do ponto selecionado.":"A comunidade ainda não tem relatos reais deste local. Compartilhe o que você observou para ajudar quem passa por aqui."}</Text><Button title="Abrir comunidade" secondary onPress={() => router.push("/community")} /></> : null}
+          {topic === "community" ? <><Text style={styles.heading}>Quem passa por aqui</Text><Text style={styles.body}>{actualNearby.length?"Relatos de motoristas próximos do ponto selecionado.":"Ainda não há relatos de motoristas para este local."}</Text><Button title="Abrir comunidade" secondary onPress={() => router.push("/community")} /></> : null}
           {topic === "access" ? <>
             <Text style={styles.heading}>Trânsito da viagem</Text>
             {!route ? <Text style={styles.body}>Defina origem e destino e trace a viagem para consultar o trânsito entre os dois pontos.</Text>
@@ -512,8 +511,8 @@ export default function MapScreen() {
             <Text style={styles.subtitle}>{n.scope === "LOCAL" ? "Local mencionado" : n.scope === "STREET" ? "Na via de acesso, sem trecho confirmado" : "Contexto do bairro, não do ponto"}: {n.matchedPlace}</Text>
             <Text style={styles.heading}>{n.title}</Text><Text style={styles.subtitle}>Notícia publicada; não confirma situação ativa.</Text><Text style={{color:p.accent}}>Ler na fonte ↗</Text>
           </Pressable>)}
-          <Button title={reportOpen ? "Fechar relato" : "Relatar uma situação neste local"} secondary disabled={!focus} onPress={() => { setPoint(reportOpen ? null : focus); setReportOpen(!reportOpen); }} />
-      {reportOpen ? (user ? (
+          {user ? <Button title={reportOpen ? "Fechar relato" : "Relatar uma situação neste local"} secondary disabled={!focus} onPress={() => { setPoint(reportOpen ? null : focus); setReportOpen(!reportOpen); }} /> : null}
+      {reportOpen && user ? (
         <View style={styles.card}>
           <Text style={styles.heading}>Relatar uma situação</Text>
           <Text style={styles.subtitle}>
@@ -555,9 +554,7 @@ export default function MapScreen() {
             onPress={submit}
           />
         </View>
-      ) : (
-        <SignInNotice />
-      )) : null}
+      ) : null}
 
           {origin && destination ? <View style={styles.card}>
             <Text style={styles.heading}>Trajeto selecionado</Text>

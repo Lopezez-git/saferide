@@ -1,3 +1,4 @@
+import { Redirect } from "expo-router";
 import { useState } from "react";
 import { Text, View } from "react-native";
 import {
@@ -12,86 +13,6 @@ import {
 import { useSession } from "../../lib/session";
 import { api, User, message, Report } from "../../lib/client";
 import { useResource } from "../../lib/useResource";
-function Access() {
-  const styles = useAppStyles();
-  const session = useSession();
-  const [register, setRegister] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  async function submit() {
-    setBusy(true);
-    setError("");
-    try {
-      const result = await api<{ token: string; user: User }>(
-        register ? "/auth/register" : "/auth/login",
-        {
-          method: "POST",
-          body: { email, password, ...(register ? { name } : {}) },
-        },
-      );
-      await session.accept(result);
-      setPassword("");
-    } catch (e) {
-      setError(message(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <View style={styles.card}>
-      <Text style={styles.heading}>
-        {register ? "Faça parte da comunidade" : "Bom ter você por aqui."}
-      </Text>
-      {register ? (
-        <Field
-          label="Nome público"
-          value={name}
-          onChangeText={setName}
-          maxLength={80}
-        />
-      ) : null}
-      <Field
-        label="E-mail"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        autoComplete="email"
-        maxLength={200}
-      />
-      <Field
-        label="Senha"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        autoCapitalize="none"
-        maxLength={72}
-      />
-      {register ? (
-        <Text style={styles.subtitle}>
-          Use uma senha de teste com pelo menos 8 caracteres.
-        </Text>
-      ) : null}
-      <Feedback error={error} />
-      <Button
-        title={busy ? "Aguarde…" : register ? "Criar minha conta" : "Entrar"}
-        onPress={submit}
-        disabled={busy || !email || !password || (register && !name.trim())}
-      />
-      <Button
-        title={register ? "Já tenho conta" : "Quero criar uma conta"}
-        secondary
-        onPress={() => {
-          setRegister(!register);
-          setError("");
-        }}
-      />
-    </View>
-  );
-}
 function Account({ user }: { user: User }) {
   const styles = useAppStyles();
   const session = useSession();
@@ -283,6 +204,7 @@ function Moderation() {
 export default function Profile() {
   const styles = useAppStyles();
   const { user, ready } = useSession();
+  if (ready && !user) return <Redirect href="/settings" />;
   return (
     <Page
       title="Seu espaço."
@@ -292,9 +214,7 @@ export default function Profile() {
         <Text style={styles.body}>Restaurando sua sessão…</Text>
       ) : user ? (
         <Account key={user.id} user={user} />
-      ) : (
-        <Access />
-      )}
+      ) : null}
       <View style={styles.card}>
         <Text style={styles.heading}>Sobre a caixinha</Text>
         <Text style={styles.subtitle}>

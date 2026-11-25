@@ -1,12 +1,10 @@
-import { useFocusEffect, useRouter } from "expo-router";
-import { Button } from "../../components/ui";
+import { useFocusEffect } from "expo-router";
 import { AppState, Platform, Switch, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { palettes, useSimulationTheme } from '../../lib/simulationTheme';
 import { useCallback, useState } from 'react';
 import { overlay } from '../../lib/overlay';
 
 export default function Settings() {
-  const router = useRouter();
   const {theme,setTheme,palette:p,error}=useSimulationTheme();
   const s = sheets[theme];
   const hasNotifications = overlay.available();
@@ -53,8 +51,6 @@ export default function Settings() {
     }
   }
   return <ScrollView style={{flex:1,backgroundColor:p.background}} contentContainerStyle={s.page}>
-    <Button secondary title="Comunidade" onPress={() => router.push("/community")} />
-    <Button secondary title="Meu perfil e reputação" onPress={() => router.push("/profile")} />
     <Text style={s.label}>AVISOS DA SIMULAÇÃO</Text>
     {hasNotifications ? <>
       <Text style={s.description}>Receba o resumo da oferta e o lembrete de avaliar o trajeto nas notificações do Android.</Text>

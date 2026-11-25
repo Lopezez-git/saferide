@@ -8,7 +8,6 @@ import {
   Chip,
   Feedback,
   ResourceState,
-  SignInNotice,
 } from "../../components/ui";
 import { api, Post, Comment, message, when } from "../../lib/client";
 import { useSession } from "../../lib/session";
@@ -85,9 +84,7 @@ function Comments({ post, onChange }: { post: Post; onChange: () => void }) {
             disabled={busy || !body.trim()}
           />
         </>
-      ) : (
-        <SignInNotice />
-      )}
+      ) : null}
       <Feedback error={error} />
     </View>
   );
@@ -167,9 +164,7 @@ export default function Community() {
             disabled={busy || !body.trim()}
           />
         </View>
-      ) : (
-        <SignInNotice />
-      )}
+      ) : null}
       <Feedback error={error} success={success} />
       <View style={styles.row}>
         <Chip

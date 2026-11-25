@@ -10,7 +10,6 @@ import {
   TextInputProps,
   View,
 } from "react-native";
-import { Link } from "expo-router";
 import { palettes, useSimulationTheme } from "../lib/simulationTheme";
 
 type Palette = typeof palettes.dark;
@@ -251,19 +250,4 @@ export function ResourceState({
       <Button title="Tentar novamente" onPress={refresh} />
     </View>
   ) : null;
-}
-export function SignInNotice() {
-  const styles = useAppStyles();
-  const {palette: p} = useSimulationTheme();
-  return (
-    <View style={styles.card}>
-      <Text style={styles.body}>Entre na sua conta para participar.</Text>
-      <Link
-        href="/profile"
-        style={{ color: p.accent, fontWeight: "700", paddingVertical: 10 }}
-      >
-        Entrar ou criar conta →
-      </Link>
-    </View>
-  );
 }
