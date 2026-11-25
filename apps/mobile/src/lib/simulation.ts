@@ -1,12 +1,75 @@
+import roads from './simulation-routes.json';
 import type { MapPoint } from '../components/mapHtml';
 
 export type Route = { distance: number; duration: number; geometry: { coordinates: number[][] } };
-export type Offer = { passenger: string; pickup: MapPoint & { name: string }; destination: MapPoint & { name: string }; driver: MapPoint; fare: number; rating: string; reviews: number; category: string };
+export type Offer = { platform: 'Uber' | '99'; passenger: string; pickup: MapPoint & { name: string }; destination: MapPoint & { name: string }; driver: MapPoint; fare: number; rating: string; reviews: number; category: string };
 export const offers: Offer[] = [
-  { passenger: 'Mariana Costa', pickup: { latitude: -23.6628226, longitude: -46.7111852, name: 'Estação Socorro, Santo Amaro' }, destination: { latitude: -23.6821152, longitude: -46.7017165, name: 'Rua Professor Oswaldo Quirino Simões, Socorro' }, driver: { latitude: -23.6702, longitude: -46.7064 }, fare: 11.03, rating: '4,89', reviews: 952, category: 'Bag' },
-  { passenger: 'Lucas Almeida', pickup: { latitude: -23.5614, longitude: -46.6559, name: 'MASP · Avenida Paulista, Bela Vista' }, destination: { latitude: -23.6234167, longitude: -46.6985436, name: 'Morumbi Shopping · Av. Roque Petroni Júnior, 1089' }, driver: { latitude: -23.568, longitude: -46.659 }, fare: 32.70, rating: '4,96', reviews: 318, category: 'Comfort' },
-  { passenger: 'Ana Souza', pickup: { latitude: -23.6234167, longitude: -46.6985436, name: 'Morumbi Shopping · Vila Cordeiro' }, destination: { latitude: -23.5874, longitude: -46.6576, name: 'Parque Ibirapuera · Avenida Pedro Álvares Cabral' }, driver: { latitude: -23.628, longitude: -46.696 }, fare: 24.80, rating: '4,92', reviews: 640, category: 'X' },
+  { platform:'Uber', passenger: 'Mariana Costa', pickup: { latitude: -23.6628226, longitude: -46.7111852, name: 'Estação Socorro, Santo Amaro' }, destination: { latitude: -23.6821152, longitude: -46.7017165, name: 'Rua Professor Oswaldo Quirino Simões, Socorro' }, driver: { latitude: -23.6702, longitude: -46.7064 }, fare: 11.03, rating: '4,89', reviews: 952, category: 'Bag' },
+  { platform:'99', passenger: 'Lucas Almeida', pickup: { latitude: -23.5614, longitude: -46.6559, name: 'MASP · Avenida Paulista, Bela Vista' }, destination: { latitude: -23.6234167, longitude: -46.6985436, name: 'Morumbi Shopping · Av. Roque Petroni Júnior, 1089' }, driver: { latitude: -23.568, longitude: -46.659 }, fare: 32.70, rating: '4,96', reviews: 318, category: '99Plus' },
+  { platform:'Uber', passenger: 'Ana Souza', pickup: { latitude: -23.6234167, longitude: -46.6985436, name: 'Morumbi Shopping · Vila Cordeiro' }, destination: { latitude: -23.5874, longitude: -46.6576, name: 'Parque Ibirapuera · Avenida Pedro Álvares Cabral' }, driver: { latitude: -23.628, longitude: -46.696 }, fare: 24.80, rating: '4,92', reviews: 640, category: 'X' },
 ];
+// Great-circle offsets keep each fictional pickup nearby at any latitude.
+function offset(origin: MapPoint, meters: number, degrees: number): MapPoint {
+  const rad = Math.PI / 180;
+  const latitude = origin.latitude * rad;
+  const arc = meters / 6371000;
+  const bearing = degrees * rad;
+  const end = Math.asin(Math.sin(latitude)*Math.cos(arc) + Math.cos(latitude)*Math.sin(arc)*Math.cos(bearing));
+  const delta = Math.atan2(Math.sin(bearing)*Math.sin(arc)*Math.cos(latitude), Math.cos(arc)-Math.sin(latitude)*Math.sin(end));
+  return {latitude:end/rad, longitude:(origin.longitude+delta/rad+540)%360-180};
+}
+
+type Stop = Offer['pickup'];
+
+function coordinateStop(point: MapPoint): Stop {
+  return {...point, name: point.latitude.toFixed(5) + ', ' + point.longitude.toFixed(5)};
+}
+
+export type RoadCircuit = { approach: Route; outbound: Route; inbound: Route; station: Stop; street: Stop };
+export type DriverStop = 'start' | 'station' | 'street';
+
+export function roadPoint(route: Route, end = false): MapPoint {
+  const points = route.geometry.coordinates;
+  const [longitude, latitude] = points[end ? points.length - 1 : 0];
+  return { longitude, latitude };
+}
+
+const socorro = roads.routes[0];
+export const demoCircuit: RoadCircuit = {
+  approach: socorro.pickup, outbound: socorro.trip, inbound: roads.socorroReturn,
+  station: { ...offers[0].pickup, ...roadPoint(socorro.trip) },
+  street: { ...offers[0].destination, ...roadPoint(socorro.trip, true) },
+};
+
+type FetchLeg = (from: MapPoint, to: MapPoint) => Promise<Route>;
+export async function localCircuit(driver: MapPoint, fetchLeg: FetchLeg): Promise<RoadCircuit> {
+  const approach = await fetchLeg(driver, offset(driver, 650, 65));
+  const station = coordinateStop(roadPoint(approach, true));
+  const outbound = await fetchLeg(station, offset(station, 2600, 120));
+  const street = coordinateStop(roadPoint(outbound, true));
+  const inbound = await fetchLeg(street, station);
+  const connected = (a: MapPoint, b: MapPoint) =>
+    Math.abs(a.latitude - b.latitude) < 0.00001 && Math.abs(a.longitude - b.longitude) < 0.00001;
+  if (!connected(station, roadPoint(outbound)) || !connected(street, roadPoint(inbound)) ||
+      !connected(station, roadPoint(inbound, true))) throw new Error('Trechos sem conexão viária.');
+  return { approach, outbound, inbound, station, street };
+}
+
+export function roadScenario(circuit: RoadCircuit, origin: DriverStop, index: number) {
+  const inbound = origin === 'street';
+  const trip = inbound ? circuit.inbound : circuit.outbound;
+  const pickup = inbound ? circuit.street : circuit.station;
+  const destination = inbound ? circuit.station : circuit.street;
+  const point = trip.geometry.coordinates[0];
+  const approach = origin === 'start' ? circuit.approach :
+    { distance: 0, duration: 0, geometry: { coordinates: [point, point] } };
+  return {
+    offer: { ...offers[index], driver: roadPoint(approach), pickup, destination },
+    route: { pickup: approach, trip },
+    arrival: (inbound ? 'station' : 'street') as DriverStop,
+  };
+}
+
 export function routeBody(from: MapPoint, to: MapPoint) { return { fromLat: from.latitude, fromLon: from.longitude, toLat: to.latitude, toLon: to.longitude }; }
 export function pointAlong(points: number[][], fraction: number): MapPoint | null {
   if (!points.length) return null;

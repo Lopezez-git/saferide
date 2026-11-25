@@ -24,8 +24,8 @@ import java.util.Map;
 @RestController @Profile("prototype") @RequestMapping("/api/v1/pavement")
 public class PavementController {
  private final PublicDataRefresh.Snapshot snapshot;
- public PavementController(ObjectMapper mapper) {
-  snapshot=new PublicDataRefresh.Snapshot(mapper,"sp156-pavement.json");
+ public PavementController(@org.springframework.beans.factory.annotation.Qualifier("pavementData") PublicDataRefresh.Snapshot snapshot) {
+  this.snapshot=snapshot;
  }
 
  public static List<Map<String,Object>> nearby(JsonNode records,double latitude,double longitude) {

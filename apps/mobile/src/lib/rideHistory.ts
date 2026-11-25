@@ -12,7 +12,7 @@ export type Ride = {
  fare: number; distanceMeters: number; plannedDistanceMeters: number;
  simulatedSeconds: number; activeSeconds: number;
  status: 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
- createdAt: string; updatedAt?: string; finishedAt?: string | null; pending?: boolean;
+ createdAt: string; updatedAt?: string; finishedAt?: string | null; pending?: boolean; cachedOnly?: boolean;
  feedback?: FeedbackCategory[];
 };
 const INDEX='sr-ride-index', OWNER='sr-ride-owner';
@@ -22,7 +22,10 @@ async function owner() {
  if(!identity) identity=(async()=>{const stored=await rideStorage.get(OWNER);if(stored)return stored;const {key}=await api<{key:string}>('/rides/key',{method:'POST'});await rideStorage.set(OWNER,key);return key;})().catch(error=>{identity=null;throw error;});
  return identity;
 }
-export async function createRideId() { await owner();return (await api<{key:string}>('/rides/key',{method:'POST'})).key; }
+export async function createRideId(): Promise<string> {
+ if (typeof globalThis.crypto?.randomUUID === 'function') return globalThis.crypto.randomUUID();
+ return (await api<{key:string}>('/rides/key',{method:'POST'})).key;
+}
 async function ids():Promise<string[]> { return JSON.parse(await rideStorage.get(INDEX)??'[]'); }
 let writes: Promise<unknown>=Promise.resolve();
 function write(ride:Ride, expectedVersion?:string) { const task=writes.then(async()=>{if(expectedVersion){const current=JSON.parse(await rideStorage.get(recordKey(ride.id))??'null') as Ride|null;if(current?.updatedAt!==expectedVersion)return;}await rideStorage.set(recordKey(ride.id),JSON.stringify(ride));const all=await ids();if(!all.includes(ride.id))await rideStorage.set(INDEX,JSON.stringify([ride.id,...all]));});writes=task.catch(()=>{});return task; }
@@ -56,6 +59,8 @@ export async function loadRides():Promise<{items:Ride[];offline:boolean}> {
   await flush();const remote=await api<Ride[]>('/rides',{token:await owner()});
   const pending=(await local()).filter(r=>r.pending);
   for(const ride of remote)if(!pending.some(p=>p.id===ride.id))await write({...ride,pending:false});
-  return {items:(await local()).sort((a,b)=>b.createdAt.localeCompare(a.createdAt)),offline:false};
+  const remoteIds = new Set(remote.map(ride => ride.id));
+  const items = (await local()).map(ride => ({...ride, cachedOnly: !remoteIds.has(ride.id)}));
+  return {items:items.sort((a,b)=>b.createdAt.localeCompare(a.createdAt)),offline:false};
  } catch {return {items:(await local()).sort((a,b)=>b.createdAt.localeCompare(a.createdAt)),offline:true};}
 }

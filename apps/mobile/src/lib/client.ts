@@ -59,6 +59,10 @@ export type Report = {
   latitude: number;
   longitude: number;
   observedAt: string;
+  confirmations?: number;
+  authorPoints?: number;
+  confirmedByMe?: boolean;
+  canConfirm?: boolean;
   reviewedAt?: string;
   validUntil?: string;
   source?: string;

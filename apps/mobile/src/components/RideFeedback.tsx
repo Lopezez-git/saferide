@@ -1,9 +1,11 @@
+import { palettes, useSimulationTheme } from "../lib/simulationTheme";
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { FeedbackCategory, feedbackOptions, submitRideFeedback } from '../lib/rideHistory';
 
 type Props = Readonly<{rideId:string|null; onClose:()=>void; onSaved?:()=>void}>;
 export default function RideFeedback({rideId,onClose,onSaved}:Props) {
+ const s = sheets[useSimulationTheme().theme];
  const [sending,setSending]=useState(false);
  const [error,setError]=useState('');
  const [selected,setSelected]=useState<FeedbackCategory[]>([]);
@@ -30,14 +32,16 @@ export default function RideFeedback({rideId,onClose,onSaved}:Props) {
   </View></View>
  </Modal>;
 }
-const s=StyleSheet.create({
+const createStyles = (p: typeof palettes.dark) => StyleSheet.create({
  backdrop:{flex:1,backgroundColor:'#0009',justifyContent:'center',padding:22},
- card:{backgroundColor:'#fff',borderRadius:24,padding:22,gap:12,maxWidth:460,width:'100%',alignSelf:'center',maxHeight:'85%'},
- eyebrow:{color:'#087f71',fontWeight:'800',fontSize:11,letterSpacing:1},
- title:{color:'#172522',fontWeight:'800',fontSize:22},
- description:{color:'#63736f',fontSize:14,lineHeight:20},
- options:{flexGrow:0},option:{padding:14,marginBottom:8,borderRadius:14,backgroundColor:'#edf5f2'},
- optionText:{color:'#17473f',fontSize:16,fontWeight:'700'},
- selected:{borderWidth:2,borderColor:'#087f71'},send:{padding:14,alignItems:'center',borderRadius:14,backgroundColor:'#087f71'},sendText:{color:'#fff',fontWeight:'800'},
- later:{padding:12,alignItems:'center'},laterText:{color:'#526b65',fontWeight:'700'},error:{color:'#a33224',fontSize:13},
+ card:{backgroundColor:p.surface,borderRadius:24,padding:22,gap:12,maxWidth:460,width:'100%',alignSelf:'center',maxHeight:'85%'},
+ eyebrow:{color:p.accent,fontWeight:'800',fontSize:11,letterSpacing:1},
+ title:{color:p.text,fontWeight:'800',fontSize:22},
+ description:{color:p.muted,fontSize:14,lineHeight:20},
+ options:{flexGrow:0},option:{padding:14,marginBottom:8,borderRadius:14,backgroundColor:p.inset},
+ optionText:{color:p.text,fontSize:16,fontWeight:'700'},
+ selected:{borderWidth:2,borderColor:p.accent},send:{padding:14,alignItems:'center',borderRadius:14,backgroundColor:'#087f71'},sendText:{color:'#fff',fontWeight:'800'},
+ later:{padding:12,alignItems:'center'},laterText:{color:p.muted,fontWeight:'700'},error:{color:p.danger,fontSize:13},
 });
+
+const sheets = {light:createStyles(palettes.light), dark:createStyles(palettes.dark)};

@@ -44,3 +44,15 @@ test('traffic only labels an available provider result', () => {
   assert.equal(trafficSummary({ status: 'UNAVAILABLE', condition: 'LEVE' }), 'Indisponível');
   assert.equal(trafficSummary({ status: 'AVAILABLE', condition: 'UNKNOWN' }), 'Indisponível');
 });
+
+test('gross rates use the entire offer and handle incomplete route data', () => {
+  const { grossRates } = box.exports;
+  const rates = grossRates(11.02, 4100, 13 * 60);
+  assert.equal(rates.perKm.toFixed(2), '2.69');
+  assert.equal(rates.perMinute.toFixed(2), '0.85');
+  assert.equal(rates.perHour.toFixed(2), '50.86');
+  assert.equal(grossRates(11.03, 5700, 960).perKm.toFixed(2), '1.94');
+  assert.equal(grossRates(12, 0, 60), null);
+  assert.equal(grossRates(12, 1000, 0), null);
+  assert.equal(grossRates(NaN, 1000, 60), null);
+});

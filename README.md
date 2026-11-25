@@ -14,9 +14,21 @@ O protótipo consulta um histórico de veículos subtraídos da SSP-SP no entorn
 
 O card **Pavimento** também consulta solicitações públicas de tapa-buraco do SP156 no raio de 1 km. Mostra quantos pedidos constavam abertos ou finalizados na data da publicação, com rua, data e fonte. Pedido não comprova um buraco ativo; ausência de pedidos não comprova via em boas condições. Veja [fonte, importação e limitações do SP156](12-integracao-sp156.md).
 
+Na oferta simulada, o cartão do SafeRide exibe tempo até o embarque e receita bruta estimada por quilômetro, hora e minuto. O cálculo inclui o deslocamento até o passageiro e a viagem até o destino, usando os metros e segundos do percurso antes do arredondamento. Os mesmos valores seguem para a notificação Android.
+
 O painel do mapa reúne quatro assuntos: **Segurança, Pavimento, Trânsito e acesso, Comunidade**. Após traçar uma viagem, o card **Trânsito e acesso** consulta uma estimativa de atraso entre origem e destino pela TomTom e resume o resultado como trânsito tranquilo, moderado ou congestionado, com duração, atraso e horário da consulta. Isso exige uma chave pessoal configurada no backend; sem ela ou com falha, o card informa indisponibilidade, sem inventar um estado de trânsito. Veja [fonte, critérios e configuração](14-transito-da-viagem.md). Nos detalhes, continuam separados os pedidos históricos do SP156 sobre circulação, alagamentos, árvores e reparos estruturais, os relatos revisados e as notícias locais. Essas fontes não confirmam bloqueio ativo; veja [fonte e limites do SP156](13-integracao-sp156-acesso.md).
 
 A linha do trajeto usa OSRM e sua duração não inclui trânsito ao vivo. Para vias com o mesmo nome em bairros diferentes, o usuário precisa escolher o trecho correto. O mapa distingue o ponto cadastrado do destino do fim da via acessível a carros. Veja a [auditoria da rota Avenida Curió, Campanário → Morumbi Shopping](15-auditoria-rota-curio-morumbi.md).
+
+## Comparar trajetos e confirmar relatos
+
+Na aba **Mapa**, escolha uma origem e um destino e toque em **Traçar percurso**. O app solicita alternativas para carro ao OSRM. Quando há mais de um caminho, você pode comparar e escolher o traçado exibido. Se o provedor devolver um único caminho, a tela mostra os dados daquele percurso. Toque em **Comparar trajetos** no rodapé para rever a escolha.
+
+Cada percurso apresenta tempo, distância e três contagens em até 300 metros da linha da rota. São boletins históricos de veículos roubados ou furtados da SSP-SP, solicitações de tapa-buraco do SP156 e relatos comunitários publicados e vigentes. Um registro próximo a dois segmentos da mesma rota entra apenas uma vez nessa rota. Um trecho compartilhado pode contribuir para ambas as opções. As bases públicas cobrem a capital. O período aparece na comparação e uma base indisponível é identificada na tela. A extensão da rota e a cobertura das fontes influenciam os totais. Eles não medem a probabilidade de um incidente.
+
+Para participar, acesse **Ajustes → Meu perfil e reputação**, entre ou crie sua conta. Abra um ponto no mapa e escolha **Comunidade** para confirmar um relato revisado que você também observou. Cada participante pode confirmar uma vez e retirar sua confirmação. O autor recebe um ponto por relato publicado e outro por confirmação de outra conta. A moderação pode retirar o relato e seus pontos. O fim do período de exibição encerra novas confirmações e preserva o histórico de contribuição. No painel Comunidade, os relatos próximos aparecem por número de confirmações, pontos do autor e distância.
+
+A comparação usa `POST /api/v1/route/options`. O endpoint original `POST /api/v1/route` continua disponível. A migração Flyway V6 cria a tabela de confirmações. As notificações Android usam ofertas simuladas. A consulta de trânsito pela TomTom depende de `SAFERIDE_TOMTOM_API_KEY` no servidor.
 
 ## Modelo do produto e notificações
 

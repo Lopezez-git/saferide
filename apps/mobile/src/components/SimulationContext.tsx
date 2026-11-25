@@ -8,10 +8,10 @@ import { overlay } from '../lib/overlay';
 import { feedbackOptions, loadSimulatedCommunityFeedback, SimulatedCommunityFeedback } from '../lib/rideHistory';
 import { Offer, routeBody } from '../lib/simulation';
 
-import { type Police, type Pavement, type Traffic, policeSummary, pavementSummary, trafficSummary } from '../lib/simulationContext';
+import { type Police, type Pavement, type Traffic, policeSummary, pavementSummary, trafficSummary, grossRatesLabel } from '../lib/simulationContext';
 
 const date = (value?: string) => value ? value.split('-').reverse().join('/') : '—';
-function SimulationContext({ offer, top, active, visible = true, reducedMotion = false }: Readonly<{ offer: Offer; top: number; active: boolean; visible?: boolean; reducedMotion?: boolean | null }>) {
+function SimulationContext({ offer, meters, seconds, pickupSeconds, top, active, remainingMinutes, visible = true, reducedMotion = false }: Readonly<{ offer: Offer; meters: number; seconds: number; pickupSeconds: number; top?: number; remainingMinutes?: number; active: boolean; visible?: boolean; reducedMotion?: boolean | null }>) {
   const { palette: c } = useSimulationTheme();
   const [collapsed, setCollapsed] = useState(false);
   const [detail, setDetail] = useState(false);
@@ -31,6 +31,8 @@ function SimulationContext({ offer, top, active, visible = true, reducedMotion =
     loadSimulatedCommunityFeedback(routeQuery).then(items=>{if(!controller.signal.aborted)setCommunity({key:offer,items});}).catch(()=>{if(!controller.signal.aborted)setCommunity({key:offer,items:null});});
     return () => controller.abort();
   }, [offer, active]);
+  const rateLabel = grossRatesLabel(offer.fare, meters, seconds);
+  const pickupMinutes = Math.ceil(pickupSeconds / 60);
   const current = data?.key === offer ? data : null;
   const police = current?.police, pavement = current?.pavement, traffic = current?.traffic;
   const reports=community?.key===offer?community.items:undefined;
@@ -39,23 +41,28 @@ function SimulationContext({ offer, top, active, visible = true, reducedMotion =
     if(!visible){overlay.update('Aguardando oferta simulada no SafeRide.');return;}
     const safety=policeSummary(police);
     const reportsText=reports===undefined?'Consultando relatos':reports===null?'Relatos indisponíveis':reports.length?reports.map(r=>feedbackOptions.find(o=>o.value===r.category)?.label).filter(Boolean).join(', '):'Nenhum relato encontrado';
-    overlay.update(`Oferta simulada · ${offer.passenger} · ${offer.fare.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}\nDestino: ${offer.destination.name}\nSegurança: ${safety.value} · SSP histórico até ${date(police?.periodEnd)}\nPavimento: ${pavementSummary(pavement)} · SP156 ${date(pavement?.sourceUpdatedAt)}\nTrajeto simulado: ${reportsText}`);
-  },[active,visible,offer,police,pavement,reports]);
+    overlay.update(`SafeRide · contexto da oferta simulada (${offer.platform}) · ${offer.passenger} · ${offer.fare.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}\nEmbarque: ${pickupMinutes} min\nValor bruto: ${rateLabel}\nDestino: ${offer.destination.name}\nSegurança: ${safety.value} · SSP histórico até ${date(police?.periodEnd)}\nPavimento: ${pavementSummary(pavement)} · SP156 ${date(pavement?.sourceUpdatedAt)}\nTrânsito: ${trafficSummary(traffic)}\nTrajeto simulado: ${reportsText}`);
+  },[active,visible,offer,police,pavement,traffic,reports,rateLabel,pickupMinutes]);
   const cards = [
     { label: 'Segurança', color: c.blue, path: 'M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3z', ...policeSummary(police) },
     { label: 'Pavimento', color: c.orange, path: 'M7 3L3 21M17 3l4 18M12 3v4m0 4v3m0 4v3', value: pavementSummary(pavement), caption: 'Abertos na publicação' },
     { label: 'Trânsito', color: traffic?.condition === 'LEVE' ? c.accent : c.violet, path: 'M4 7h13l-3-3m3 3l-3 3M20 17H7l3-3m-3 3l3 3', value: trafficSummary(traffic), caption: traffic?.status === 'AVAILABLE' ? 'Ao vivo · TomTom' : 'Sem avaliação ao vivo' },
   ];
-  return <SimulationMotion visible={visible} reducedMotion={reducedMotion} fromY={-36} duration={520} delay={300} testID="simulation-notification" style={[styles.floating, { top, backgroundColor:c.surface,borderColor:c.border }]}>
+  return <SimulationMotion visible={visible} reducedMotion={reducedMotion} fromY={-36} duration={520} delay={0} testID="simulation-notification" style={[styles.floating, {top}, { backgroundColor:c.surface,borderColor:c.border }]}>
     <View style={styles.header}>
       <Pressable accessibilityRole="button" accessibilityLabel="Ver fontes do SafeRide" onPress={() => setDetail(true)} style={{ flex: 1, flexDirection:'row',alignItems:'center',gap:8,minHeight:40 }}>
         <View style={{width:27,height:27,borderRadius:9,backgroundColor:c.accentSurface,alignItems:'center',justifyContent:'center'}}><Svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke={c.accent} strokeWidth={2}><Path d="M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3zM8 12l3 3 5-6"/></Svg></View>
-        <Text style={[styles.brand,{color:c.text}]}>SafeRide</Text><Text style={[styles.subtitle,{color:c.muted}]}>NO DESTINO</Text>
+        <Text style={[styles.brand,{color:c.text}]}>SafeRide</Text><Text style={[styles.subtitle,{color:c.muted}]}>{remainingMinutes ? 'PRÓXIMA OFERTA' : 'OFERTA'} · {offer.platform} · SIMULAÇÃO</Text>
       </Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel={collapsed ? 'Expandir SafeRide' : 'Recolher SafeRide'} accessibilityState={{expanded:!collapsed}} onPress={() => setCollapsed(!collapsed)} style={styles.toggle}><Text style={{ color:c.muted, fontSize:20 }}>{collapsed ? '+' : '−'}</Text></Pressable>
     </View>
     {!collapsed ? <Pressable accessibilityRole="button" accessibilityLabel="Ver detalhes de segurança, pavimento e trânsito" onPress={() => setDetail(true)}>
 
+      <View style={{paddingHorizontal:14,paddingBottom:8}}>
+        <Text style={[styles.value,{color:c.text}]}>{offer.fare.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})} · {(meters/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})} km · {Math.ceil(seconds/60)} min</Text>
+        <Text style={[styles.label,{color:c.muted}]}>{remainingMinutes ? `Desembarque em ${remainingMinutes} min · próximo embarque ${pickupMinutes} min depois` : `Embarque em ${pickupMinutes} min`}</Text>
+        <Text style={[styles.value,{color:c.text}]}>{rateLabel}</Text>
+      </View>
       <View style={styles.grid}>{cards.map(card => <View key={card.label} style={styles.cell}>
         <View style={{ flexDirection:'row',alignItems:'center',gap:4 }}><Svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke={card.color} strokeWidth={1.8}><Path d={card.path}/></Svg><Text style={[styles.label,{color:c.muted}]}>{card.label}</Text></View>
         <Text style={[styles.value,{color:card.color}]} numberOfLines={1} adjustsFontSizeToFit>{card.value}</Text>
@@ -64,7 +71,7 @@ function SimulationContext({ offer, top, active, visible = true, reducedMotion =
     </Pressable> : null}
     <Modal visible={detail} transparent animationType="fade" onRequestClose={() => setDetail(false)}><View style={styles.scrim}><View style={[styles.detail,{backgroundColor:c.surface}]}>
       <View style={styles.header}><Text style={[styles.brand,{flex:1,color:c.text}]}>Fontes do SafeRide</Text><Pressable accessibilityRole="button" accessibilityLabel="Fechar fontes" onPress={() => setDetail(false)} style={styles.toggle}><Text style={{color:c.text,fontSize:25}}>×</Text></Pressable></View>
-      <ScrollView><Text style={[styles.body,{color:c.muted}]}>{offer.destination.name}</Text><Text style={[styles.body,{color:c.muted}]}>Segurança e pavimento: raio de 1 km do destino. Trânsito: percurso do embarque ao destino.</Text>
+      <ScrollView><Text style={[styles.body,{color:c.text}]}>Receita bruta da oferta dividida pela distância e pelo tempo estimados, incluindo a ida ao embarque. Despesas do veículo ficam fora do cálculo.</Text><Text style={[styles.body,{color:c.muted}]}>{offer.destination.name}</Text><Text style={[styles.body,{color:c.muted}]}>Segurança e pavimento: raio de 1 km do destino. Trânsito: percurso do embarque ao destino.</Text>
         <Text style={[styles.section,{color:c.text}]}>Segurança · SSP-SP</Text><Text style={[styles.body,{color:c.muted}]}>Roubo e furto de veículos de {police?.periodStart ?? '—'} a {police?.periodEnd ?? '—'}, filtrados pela hora atual de São Paulo. Histórico, não ocorrências ao vivo. Zero BOs não garante segurança.</Text>
         {police?.sourceUrl ? <Pressable onPress={() => Linking.openURL(police.sourceUrl!).catch(() => {})}><Text style={[styles.link,{color:c.accent}]}>Abrir publicação SSP ↗</Text></Pressable> : null}
         <Text style={[styles.section,{color:c.text}]}>Pavimento · SP156</Text><Text style={[styles.body,{color:c.muted}]}>Solicitações abertas ou em andamento na publicação de {date(pavement?.sourceUpdatedAt)}. Pedidos de tapa-buraco não são contagem de buracos atuais nem confirmação de pavimento ruim.</Text>

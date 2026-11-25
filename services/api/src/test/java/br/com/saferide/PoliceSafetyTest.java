@@ -10,7 +10,7 @@ class PoliceSafetyTest {
   assertThat(PoliceSafetyController.countsWithin(cells,-23.9,-46.8)).isEmpty();
  }
  @Test void browserCanReadThePoliceEndpoint() throws Exception {
-  var mvc=org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup(new PoliceSafetyController(new ObjectMapper())).build();
+  var mvc=org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup(new PoliceSafetyController(new br.com.saferide.prototype.PublicDataRefresh.Snapshot(new ObjectMapper(),"ssp-vehicles.json"))).build();
   mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/safety/police").param("latitude","-23.6234167").param("longitude","-46.6985436").header("Origin","http://localhost:8081"))
     .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
     .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("Access-Control-Allow-Origin","http://localhost:8081"))

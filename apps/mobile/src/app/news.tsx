@@ -1,8 +1,9 @@
+import { newsLink } from "../lib/newsLink";
 import { Linking, Text, View } from "react-native";
 import { useState } from "react";
 import {
   Page,
-  styles,
+  useAppStyles,
   Button,
   Feedback,
   ResourceState,
@@ -22,8 +23,8 @@ type News = {
   }[];
 };
 export default function NewsScreen() {
+  const styles = useAppStyles();
   const q = useResource<News>("/news");
-  const [demo, setDemo] = useState(false);
   const [error, setError] = useState("");
   return (
     <Page
@@ -37,10 +38,7 @@ export default function NewsScreen() {
       <Button
         title="Consultar notícias salvas"
         secondary
-        onPress={() => {
-          setDemo(false);
-          q.refresh();
-        }}
+        onPress={q.refresh}
       />
       <ResourceState {...q} />
       <Feedback error={error} />
@@ -62,7 +60,9 @@ export default function NewsScreen() {
           ) : null}
         </View>
       ) : null}
-      {q.data?.items.map((n) => (
+      {q.data?.items.map((n) => {
+        const link = newsLink(n);
+        return (
         <View key={n.id} style={styles.card}>
           <Text style={styles.label}>{n.source}</Text>
           <Text style={styles.heading}>{n.title}</Text>
@@ -72,42 +72,21 @@ export default function NewsScreen() {
           </Text>
           <Text style={styles.subtitle}>Coletada: {when(n.collectedAt)}</Text>
           <Button
-            title="Ler na fonte original ↗"
+            title={link.label}
             secondary
             onPress={() => {
-              Linking.openURL(n.url).catch((e) => setError(message(e)));
+              setError("");
+              Linking.openURL(link.url).catch((e) => setError(message(e)));
             }}
           />
         </View>
-      ))}
+        );
+      })}
       {q.data?.items.length === 0 ? (
         <Text style={styles.subtitle}>
           Nenhuma notícia elegível salva. Isso não indica ausência de
           ocorrências.
         </Text>
-      ) : null}
-      <Button
-        title={
-          demo
-            ? "Ocultar exemplo fictício"
-            : "Ver exemplo fictício para apresentação"
-        }
-        secondary
-        onPress={() => setDemo(!demo)}
-      />
-      {demo ? (
-        <View style={styles.card}>
-          <Text style={styles.label}>
-            DEMONSTRAÇÃO • NÃO É UMA NOTÍCIA REAL
-          </Text>
-          <Text style={styles.heading}>
-            Obra altera acesso a uma rua de exemplo
-          </Text>
-          <Text style={styles.body}>
-            Este cartão mostra como uma notícia seria apresentada. Não tem
-            ligação com um evento real nem entra nos alertas.
-          </Text>
-        </View>
       ) : null}
     </Page>
   );

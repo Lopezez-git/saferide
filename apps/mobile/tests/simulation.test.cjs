@@ -3,8 +3,9 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const ts=require('typescript');
 const vm=require('node:vm');
-const box={exports:{}};
-vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/lib/simulation.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,box);
+const roads = JSON.parse(fs.readFileSync('src/lib/simulation-routes.json', 'utf8'));
+const box = { exports: {}, require(id) { assert.equal(id, './simulation-routes.json'); return roads; } };
+vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/lib/simulation.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,esModuleInterop:true}}).outputText,box);
 const {simulationReducer:reduce,pointAlong}=box.exports;
 function advance(state,ticks){for(let i=0;i<ticks;i++)state=reduce(state,{type:'tick'});return state;}
 test('five seconds of intro precede a separate five-second search',()=>{
@@ -53,4 +54,42 @@ test('history progress keeps the completed pickup when the passenger trip starts
   assert.equal(legProgress('trip', 0).pickup, 1);
   assert.equal(legProgress('trip', 14).trip, 0.5);
   assert.equal(legProgress('done', 0).trip, 1);
+});
+test('the car follows the road to the passenger and follows the driving route in each direction', () => {
+  const { demoCircuit, roadScenario, simulationDriver, roadPoint } = box.exports;
+  const first = roadScenario(demoCircuit, 'start', 0);
+  const next = roadScenario(demoCircuit, first.arrival, 1);
+  const third = roadScenario(demoCircuit, next.arrival, 2);
+  assert.equal(first.route.pickup, roads.routes[0].pickup);
+  assert.equal(first.route.trip, roads.routes[0].trip);
+  assert.equal(next.route.trip, roads.socorroReturn);
+  assert.equal(third.route.trip, first.route.trip);
+  for (const [ride, following] of [[first, next], [next, third]]) {
+    assert.deepEqual(roadPoint(ride.route.trip, true), roadPoint(following.route.trip));
+    assert.equal(following.route.pickup.distance, 0);
+    const coords = ride.route.trip.geometry.coordinates;
+    assert.ok(coords.length > 2);
+    const halfway = simulationDriver('trip', 14, ride.offer, ride.route);
+    assert.deepEqual(halfway, pointAlong(coords, 0.5));
+    assert.notDeepEqual(halfway, pointAlong([coords[0], coords.at(-1)], 0.5));
+  }
+  assert.notDeepEqual(roads.socorroReturn.geometry.coordinates, [...first.route.trip.geometry.coordinates].reverse());
+});
+test('nearby offers use the three connected driving directions returned by the provider', async () => {
+  const {localCircuit, roadPoint} = box.exports;
+  const legs = [roads.routes[0].pickup, roads.routes[0].trip, roads.socorroReturn];
+  const requests = [];
+  const driver = roadPoint(legs[0]);
+  const circuit = await localCircuit(driver, async (from, to) => {
+    requests.push({from, to});
+    return legs[requests.length - 1];
+  });
+  assert.equal(requests.length, 3);
+  assert.equal(requests[0].from, driver);
+  assert.equal(requests[1].from, circuit.station);
+  assert.equal(requests[2].from, circuit.street);
+  assert.equal(requests[2].to, circuit.station);
+  assert.equal(circuit.inbound, legs[2]);
+  await assert.rejects(localCircuit(driver, async () => legs[0]), /conexão viária/);
+  await assert.rejects(localCircuit(driver, async () => { throw new Error('offline'); }), /offline/);
 });

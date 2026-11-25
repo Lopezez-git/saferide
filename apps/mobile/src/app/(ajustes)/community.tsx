@@ -2,17 +2,16 @@ import { useState } from "react";
 import { Text, View } from "react-native";
 import {
   Page,
-  styles,
+  useAppStyles,
   Button,
   Field,
   Chip,
   Feedback,
   ResourceState,
-  SignInNotice,
-} from "../components/ui";
-import { api, Post, Comment, message, when } from "../lib/client";
-import { useSession } from "../lib/session";
-import { useResource } from "../lib/useResource";
+} from "../../components/ui";
+import { api, Post, Comment, message, when } from "../../lib/client";
+import { useSession } from "../../lib/session";
+import { useResource } from "../../lib/useResource";
 const categories = {
   DICA: "Dicas",
   DUVIDA: "Dúvidas",
@@ -20,6 +19,7 @@ const categories = {
   EXPERIENCIA: "Experiências",
 };
 function Comments({ post, onChange }: { post: Post; onChange: () => void }) {
+  const styles = useAppStyles();
   const { token, user } = useSession();
   const q = useResource<Comment[]>("/posts/" + post.id + "/comments");
   const [body, setBody] = useState("");
@@ -47,7 +47,7 @@ function Comments({ post, onChange }: { post: Post; onChange: () => void }) {
     <View style={{ gap: 12 }}>
       <ResourceState {...q} />
       {q.data?.map((c) => (
-        <View key={c.id} style={[styles.card, { backgroundColor: "#F3F6F0" }]}>
+        <View key={c.id} style={[styles.card, { backgroundColor: styles.page.backgroundColor }]}>
           <Text style={styles.label}>{c.author}</Text>
           <Text style={styles.body}>{c.body}</Text>
           {user?.id === c.authorId ? (
@@ -84,14 +84,13 @@ function Comments({ post, onChange }: { post: Post; onChange: () => void }) {
             disabled={busy || !body.trim()}
           />
         </>
-      ) : (
-        <SignInNotice />
-      )}
+      ) : null}
       <Feedback error={error} />
     </View>
   );
 }
 export default function Community() {
+  const styles = useAppStyles();
   const { token, user } = useSession();
   const q = useResource<Post[]>("/posts");
   const [filter, setFilter] = useState("TODOS");
@@ -165,9 +164,7 @@ export default function Community() {
             disabled={busy || !body.trim()}
           />
         </View>
-      ) : (
-        <SignInNotice />
-      )}
+      ) : null}
       <Feedback error={error} success={success} />
       <View style={styles.row}>
         <Chip

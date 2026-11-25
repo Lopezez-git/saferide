@@ -1,97 +1,20 @@
+import { Redirect } from "expo-router";
 import { useState } from "react";
 import { Text, View } from "react-native";
 import {
   Page,
-  styles,
+  useAppStyles,
   Field,
   Button,
   Chip,
   Feedback,
   ResourceState,
-} from "../components/ui";
-import { useSession } from "../lib/session";
-import { api, User, message, Report } from "../lib/client";
-import { useResource } from "../lib/useResource";
-function Access() {
-  const session = useSession();
-  const [register, setRegister] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  async function submit() {
-    setBusy(true);
-    setError("");
-    try {
-      const result = await api<{ token: string; user: User }>(
-        register ? "/auth/register" : "/auth/login",
-        {
-          method: "POST",
-          body: { email, password, ...(register ? { name } : {}) },
-        },
-      );
-      await session.accept(result);
-      setPassword("");
-    } catch (e) {
-      setError(message(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <View style={styles.card}>
-      <Text style={styles.heading}>
-        {register ? "Faça parte da comunidade" : "Bom ter você por aqui."}
-      </Text>
-      {register ? (
-        <Field
-          label="Nome público"
-          value={name}
-          onChangeText={setName}
-          maxLength={80}
-        />
-      ) : null}
-      <Field
-        label="E-mail"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        autoComplete="email"
-        maxLength={200}
-      />
-      <Field
-        label="Senha"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        autoCapitalize="none"
-        maxLength={72}
-      />
-      {register ? (
-        <Text style={styles.subtitle}>
-          Use uma senha de teste com pelo menos 8 caracteres.
-        </Text>
-      ) : null}
-      <Feedback error={error} />
-      <Button
-        title={busy ? "Aguarde…" : register ? "Criar minha conta" : "Entrar"}
-        onPress={submit}
-        disabled={busy || !email || !password || (register && !name.trim())}
-      />
-      <Button
-        title={register ? "Já tenho conta" : "Quero criar uma conta"}
-        secondary
-        onPress={() => {
-          setRegister(!register);
-          setError("");
-        }}
-      />
-    </View>
-  );
-}
+} from "../../components/ui";
+import { useSession } from "../../lib/session";
+import { api, User, message, Report } from "../../lib/client";
+import { useResource } from "../../lib/useResource";
 function Account({ user }: { user: User }) {
+  const styles = useAppStyles();
   const session = useSession();
   const [name, setName] = useState(user.name);
   const [activity, setActivity] = useState(user.activity);
@@ -101,6 +24,7 @@ function Account({ user }: { user: User }) {
   const [success, setSuccess] = useState("");
   const [busy, setBusy] = useState(false);
   const reports = useResource<Report[]>("/reports/mine", session.token);
+  const reputation = useResource<{points: number; publishedReports: number; confirmationsReceived: number}>("/me/reputation", session.token);
   async function save() {
     setBusy(true);
     setError("");
@@ -125,6 +49,16 @@ function Account({ user }: { user: User }) {
       <View style={styles.card}>
         <Text style={styles.heading}>{user.name}</Text>
         <Text style={styles.subtitle}>{user.email}</Text>
+      </View>
+      <View style={styles.card}>
+        <Text style={styles.heading}>Minha reputação</Text>
+        {reputation.data ? <Text style={styles.body}>{reputation.data.points} ponto(s) · {reputation.data.publishedReports} relato(s) publicado(s) · {reputation.data.confirmationsReceived} confirmação(ões) recebida(s)</Text> : null}
+        <Text style={styles.subtitle}>Cada relato aprovado vale um ponto. Cada outra pessoa que confirma esse relato acrescenta um ponto. Relatos retirados pela moderação deixam de pontuar.</Text>
+        <ResourceState {...reputation} />
+        <Button secondary title="Atualizar reputação" onPress={reputation.refresh} />
+      </View>
+      <View style={styles.card}>
+        <Text style={styles.heading}>Editar perfil</Text>
         <Field
           label="Nome público"
           value={name}
@@ -207,6 +141,7 @@ function Account({ user }: { user: User }) {
   );
 }
 function Moderation() {
+  const styles = useAppStyles();
   const { token } = useSession();
   const q = useResource<Report[]>("/moderation/reports", token);
   const [reason, setReason] = useState(
@@ -267,7 +202,9 @@ function Moderation() {
   );
 }
 export default function Profile() {
+  const styles = useAppStyles();
   const { user, ready } = useSession();
+  if (ready && !user) return <Redirect href="/settings" />;
   return (
     <Page
       title="Seu espaço."
@@ -277,9 +214,7 @@ export default function Profile() {
         <Text style={styles.body}>Restaurando sua sessão…</Text>
       ) : user ? (
         <Account key={user.id} user={user} />
-      ) : (
-        <Access />
-      )}
+      ) : null}
       <View style={styles.card}>
         <Text style={styles.heading}>Sobre a caixinha</Text>
         <Text style={styles.subtitle}>
