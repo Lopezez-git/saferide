@@ -1,5 +1,5 @@
-export type Police = { status: string; currentTimeWindow?: string; windows?: Record<string, Record<string, number>>; periodStart?: string; periodEnd?: string; sourceUrl?: string };
-export type Pavement = { status: string; statuses?: Record<string, number>; sourceUpdatedAt?: string; sourceUrl?: string };
+export type Police = { stale?: boolean; total?: number; unknownTimeTotal?: number; categories?: Record<string,number>; status: string; currentTimeWindow?: string; windows?: Record<string, Record<string, number>>; periodStart?: string; periodEnd?: string; sourceUrl?: string };
+export type Pavement = { stale?: boolean; totalRequests?: number; status: string; statuses?: Record<string, number>; sourceUpdatedAt?: string; sourceUrl?: string };
 export type Traffic = { status: string; condition?: string; delaySeconds?: number; checkedAt?: string };
 
 export function policeSummary(police?: Police | null) {

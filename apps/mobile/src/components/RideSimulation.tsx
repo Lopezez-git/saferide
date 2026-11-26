@@ -341,7 +341,7 @@ function OfferPanel({model}: PanelProps) {
         <TripDetails model={model}/>
         {audioError?<Text style={{color:c.orange,fontSize:12,marginTop:6}}>{audioError}</Text>:null}
       </ScrollView>
-      {importantNotice && <Text style={[s.footnote,{color:c.orange}]}>{importantNotice}</Text>}
+      {importantNotice ? <Text style={[s.footnote,{color:c.orange}]}>{importantNotice}</Text> : null}
       {model.completionError && <Pressable accessibilityRole="button" onPress={()=>{model.setCompletionError(false);model.retryCompletion();}} style={s.accept}><Text style={s.acceptText}>Salvar e continuar</Text></Pressable>}
     </SimulationMotion>;
 }

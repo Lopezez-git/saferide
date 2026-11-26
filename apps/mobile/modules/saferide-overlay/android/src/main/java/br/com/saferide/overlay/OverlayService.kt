@@ -11,10 +11,10 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.graphics.Typeface
-import android.text.SpannableStringBuilder
-import android.text.Spanned
-import android.text.style.StyleSpan
+
+
+
+
 
 /** Keeps the user-started simulation active; offers are ordinary Android notifications. */
 class OverlayService : Service() {
@@ -76,31 +76,16 @@ class OverlayService : Service() {
  }
  private fun showAlert(){
   val lines=latestSummary.lines().filter{it.isNotBlank()}
-  val safety=lines.firstOrNull{it.startsWith("Segurança:")}
-  val pavement=lines.firstOrNull{it.startsWith("Pavimento:")}
-  val safetyValue=safety?.substringAfter("Segurança:")?.substringBefore(" · ")?.trim()
-  val pavementValue=pavement?.substringAfter("Pavimento:")?.substringBefore(" · ")?.trim()
-  val reportValue=lines.firstOrNull{it.startsWith("Trajeto") }?.substringAfter(":")?.trim()
-  fun summaryLine(prefix: String) = lines.firstOrNull { it.startsWith(prefix) }?.substringAfter(":")?.trim()
-  val rates = summaryLine("Valor bruto:")
-  val pickup = summaryLine("Embarque:")
-  val compact = rates ?: listOfNotNull(safetyValue?.let{"🛡 $it (hist.)"},pavementValue?.replace("solicitações","pedidos")?.let{"🚧 $it"}).joinToString("  •  ").ifBlank{"Consultando contexto da viagem."}
-  val body=SpannableStringBuilder()
-  fun addLine(icon:String,label:String,value:String?) {
-   if(value==null)return
-   if(body.isNotEmpty())body.append("\n")
-   body.append(icon).append("  ")
-   val start=body.length;body.append(label);body.setSpan(StyleSpan(Typeface.BOLD),start,body.length,Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-   body.append("  ·  ").append(value)
-  }
-  addLine("⏱","Embarque",pickup)
-  addLine("💰","Receita bruta",rates)
-  addLine("🛡","Segurança",safetyValue?.let{"$it (histórico)"})
-  addLine("🚧","Pavimento",pavementValue?.let{"$it (arquivo)"})
-  addLine("🚗","Trânsito",summaryLine("Trânsito:"))
-  addLine("💬","Relatos",reportValue)
-  val details=Notification.BigTextStyle().setBigContentTitle("Contexto da viagem · Simulação").bigText(if(body.isEmpty())compact else body)
-  val notification=builder(alertChannel).setSmallIcon(R.drawable.ic_saferide_notification).setColor(0xff087f71.toInt()).setContentTitle("Resumo da viagem · simulação").setContentText(compact).setStyle(details).setContentIntent(openApp()).setAutoCancel(false).setOnlyAlertOnce(true).build()
+  fun field(prefix:String) = lines.firstOrNull { it.startsWith(prefix) }?.substringAfter(":")?.trim()
+  val safety = field("Segurança:") ?: "⚪ Segurança · consultando"
+  val pavement = field("Pavimento:") ?: "⚪ Pavimento · consultando"
+  val hour = field("Horário:")
+  val traffic = field("Trânsito:")?.let { "Trânsito · $it" }
+  val body = listOfNotNull(safety, hour, pavement, traffic).joinToString("\n")
+  val details = Notification.BigTextStyle().setBigContentTitle("SafeRide · oferta simulada").bigText(body)
+  val notification = builder(alertChannel).setSmallIcon(R.drawable.ic_saferide_notification)
+   .setContentTitle(safety).setContentText(traffic ?: pavement).setSubText("Oferta simulada")
+   .setStyle(details).setContentIntent(openApp()).setOnlyAlertOnce(true).build()
   notifications.notify(alertId,notification)
  }
  private fun showFeedback(){

@@ -1,3 +1,6 @@
+import { offerContext, offerNotification, levelStyle, trafficLevel } from "../lib/localCardLevel";
+import { inPilot, trafficByHour, trafficHoursDetail } from "../lib/trafficHours";
+import { useCurrentMinute } from "../lib/useCurrentMinute";
 import { memo, useEffect, useState } from 'react';
 import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
@@ -8,11 +11,11 @@ import { overlay } from '../lib/overlay';
 import { feedbackOptions, loadSimulatedCommunityFeedback, SimulatedCommunityFeedback } from '../lib/rideHistory';
 import { Offer, routeBody } from '../lib/simulation';
 
-import { type Police, type Pavement, type Traffic, policeSummary, pavementSummary, trafficSummary, grossRatesLabel } from '../lib/simulationContext';
+import { type Police, type Pavement, type Traffic, trafficSummary, grossRatesLabel } from '../lib/simulationContext';
 
 const date = (value?: string) => value ? value.split('-').reverse().join('/') : '—';
 function SimulationContext({ offer, meters, seconds, pickupSeconds, top, active, remainingMinutes, visible = true, reducedMotion = false }: Readonly<{ offer: Offer; meters: number; seconds: number; pickupSeconds: number; top?: number; remainingMinutes?: number; active: boolean; visible?: boolean; reducedMotion?: boolean | null }>) {
-  const { palette: c } = useSimulationTheme();
+  const { palette: c, theme } = useSimulationTheme();
   const [collapsed, setCollapsed] = useState(false);
   const [detail, setDetail] = useState(false);
   const [data, setData] = useState<{ key: Offer; police?: Police | null; pavement?: Pavement | null; traffic?: Traffic | null } | null>(null);
@@ -33,20 +36,27 @@ function SimulationContext({ offer, meters, seconds, pickupSeconds, top, active,
   }, [offer, active]);
   const rateLabel = grossRatesLabel(offer.fare, meters, seconds);
   const pickupMinutes = Math.ceil(pickupSeconds / 60);
+  const tripMinutes = Math.ceil((seconds - pickupSeconds) / 60);
   const current = data?.key === offer ? data : null;
   const police = current?.police, pavement = current?.pavement, traffic = current?.traffic;
   const reports=community?.key===offer?community.items:undefined;
+  const checkedAt = useCurrentMinute();
+  const typical = traffic?.status !== "AVAILABLE" && inPilot(offer.pickup) && inPilot(offer.destination) ? trafficByHour(checkedAt) : null;
+  const trafficValue = typical?.label ?? trafficSummary(traffic);
+  const trafficCaption = typical ? "Estimativa por horário" : traffic?.status === "AVAILABLE" ? "Ao vivo · TomTom" : "Sem trânsito ao vivo";
+  const trafficTone = typical?.level ?? trafficLevel(traffic?.status === "AVAILABLE" ? traffic.condition : undefined);
+  const trafficText = typical ? `${trafficValue} · estimativa` : traffic?.status === "AVAILABLE" ? `${trafficValue} · ao vivo` : trafficValue;
+  const notification = offerNotification(police, pavement, trafficText, trafficTone);
   useEffect(()=>{
     if(!active)return;
     if(!visible){overlay.update('Aguardando oferta simulada no SafeRide.');return;}
-    const safety=policeSummary(police);
-    const reportsText=reports===undefined?'Consultando relatos':reports===null?'Relatos indisponíveis':reports.length?reports.map(r=>feedbackOptions.find(o=>o.value===r.category)?.label).filter(Boolean).join(', '):'Nenhum relato encontrado';
-    overlay.update(`SafeRide · contexto da oferta simulada (${offer.platform}) · ${offer.passenger} · ${offer.fare.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}\nEmbarque: ${pickupMinutes} min\nValor bruto: ${rateLabel}\nDestino: ${offer.destination.name}\nSegurança: ${safety.value} · SSP histórico até ${date(police?.periodEnd)}\nPavimento: ${pavementSummary(pavement)} · SP156 ${date(pavement?.sourceUpdatedAt)}\nTrânsito: ${trafficSummary(traffic)}\nTrajeto simulado: ${reportsText}`);
-  },[active,visible,offer,police,pavement,traffic,reports,rateLabel,pickupMinutes]);
+    overlay.update(notification);
+  },[active,visible,notification,offer]);
+  const context = offerContext(police, pavement);
   const cards = [
-    { label: 'Segurança', color: c.blue, path: 'M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3z', ...policeSummary(police) },
-    { label: 'Pavimento', color: c.orange, path: 'M7 3L3 21M17 3l4 18M12 3v4m0 4v3m0 4v3', value: pavementSummary(pavement), caption: 'Abertos na publicação' },
-    { label: 'Trânsito', color: traffic?.condition === 'LEVE' ? c.accent : c.violet, path: 'M4 7h13l-3-3m3 3l-3 3M20 17H7l3-3m-3 3l3 3', value: trafficSummary(traffic), caption: traffic?.status === 'AVAILABLE' ? 'Ao vivo · TomTom' : 'Sem avaliação ao vivo' },
+    { label: 'Segurança', color: levelStyle(context.safety,theme==="dark").ink, path: 'M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3z', value:context.history, caption:context.hourLabel },
+    { label: 'Pavimento', color: levelStyle(context.road,theme==="dark").ink, path: 'M7 3L3 21M17 3l4 18M12 3v4m0 4v3m0 4v3', value: context.surface, caption: 'Tapa-buraco' },
+    { label: 'Trânsito', color: levelStyle(trafficTone,theme==="dark").ink, path: 'M4 7h13l-3-3m3 3l-3 3M20 17H7l3-3m-3 3l3 3', value: trafficValue, caption: trafficCaption },
   ];
   return <SimulationMotion visible={visible} reducedMotion={reducedMotion} fromY={-36} duration={520} delay={0} testID="simulation-notification" style={[styles.floating, {top}, { backgroundColor:c.surface,borderColor:c.border }]}>
     <View style={styles.header}>
@@ -59,13 +69,14 @@ function SimulationContext({ offer, meters, seconds, pickupSeconds, top, active,
     {!collapsed ? <Pressable accessibilityRole="button" accessibilityLabel="Ver detalhes de segurança, pavimento e trânsito" onPress={() => setDetail(true)}>
 
       <View style={{paddingHorizontal:14,paddingBottom:8}}>
-        <Text style={[styles.value,{color:c.text}]}>{offer.fare.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})} · {(meters/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})} km · {Math.ceil(seconds/60)} min</Text>
-        <Text style={[styles.label,{color:c.muted}]}>{remainingMinutes ? `Desembarque em ${remainingMinutes} min · próximo embarque ${pickupMinutes} min depois` : `Embarque em ${pickupMinutes} min`}</Text>
+        <Text style={[styles.value,{color:c.text}]}>{offer.fare.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})} · {(meters/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})} km</Text>
+        <Text style={[styles.label,{color:c.muted}]}>{remainingMinutes ? `Desembarque em ${remainingMinutes} min · ` : ""}{pickupMinutes} min até o embarque · {tripMinutes} min de corrida</Text>
         <Text style={[styles.value,{color:c.text}]}>{rateLabel}</Text>
       </View>
       <View style={styles.grid}>{cards.map(card => <View key={card.label} style={styles.cell}>
         <View style={{ flexDirection:'row',alignItems:'center',gap:4 }}><Svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke={card.color} strokeWidth={1.8}><Path d={card.path}/></Svg><Text style={[styles.label,{color:c.muted}]}>{card.label}</Text></View>
-        <Text style={[styles.value,{color:card.color}]} numberOfLines={1} adjustsFontSizeToFit>{card.value}</Text>
+        <Text style={[styles.value,{color:card.color}]} >{card.value}</Text>
+        {card.caption ? <Text style={[styles.caption,{color:c.muted}]}>{card.caption}</Text> : null}
       </View>)}</View><Text style={[styles.location,{color:c.muted}]}>{reports===undefined?'Consultando relatos do trajeto…':reports===null?'Relatos do trajeto indisponíveis':reports.length?`${reports.length} relato(s) em trajeto semelhante · simulação`:'Sem relatos para este trajeto · simulação'} · toque para detalhes</Text>
 
     </Pressable> : null}
@@ -76,7 +87,7 @@ function SimulationContext({ offer, meters, seconds, pickupSeconds, top, active,
         {police?.sourceUrl ? <Pressable onPress={() => Linking.openURL(police.sourceUrl!).catch(() => {})}><Text style={[styles.link,{color:c.accent}]}>Abrir publicação SSP ↗</Text></Pressable> : null}
         <Text style={[styles.section,{color:c.text}]}>Pavimento · SP156</Text><Text style={[styles.body,{color:c.muted}]}>Solicitações abertas ou em andamento na publicação de {date(pavement?.sourceUpdatedAt)}. Pedidos de tapa-buraco não são contagem de buracos atuais nem confirmação de pavimento ruim.</Text>
         {pavement?.sourceUrl ? <Pressable onPress={() => Linking.openURL(pavement.sourceUrl!).catch(() => {})}><Text style={[styles.link,{color:c.accent}]}>Abrir publicação SP156 ↗</Text></Pressable> : null}
-        <Text style={[styles.section,{color:c.text}]}>Trânsito · TomTom</Text><Text style={[styles.body,{color:c.muted}]}>{traffic?.status === 'AVAILABLE' ? `Estimativa consultada em ${new Date(traffic.checkedAt!).toLocaleTimeString('pt-BR')}. Atraso estimado de ${Math.ceil((traffic.delaySeconds ?? 0)/60)} min. A rota do provedor pode diferir da linha do mapa.` : 'Sem dados ao vivo nesta consulta. O tempo da oferta é uma estimativa de rota sem trânsito; não é usado para inventar uma classificação.'}</Text>
+        <Text style={[styles.section,{color:c.text}]}>Trânsito da corrida</Text><Text style={[styles.body,{color:c.muted}]}>{traffic?.status === 'AVAILABLE' ? `TomTom · estimativa consultada em ${new Date(traffic.checkedAt!).toLocaleTimeString('pt-BR')}. Atraso estimado de ${Math.ceil((traffic.delaySeconds ?? 0)/60)} min. A rota do provedor pode diferir da linha do mapa.` : typical ? trafficHoursDetail : 'Sem dados de trânsito para esta rota.'}</Text>
         <Text style={[styles.section,{color:c.text}]}>Relatos da comunidade · simulação</Text><Text style={[styles.body,{color:c.muted}]}>Comparamos embarque e destino em até 1 km. Isso não identifica o ponto exato do problema nem comprova que ele continua no local.</Text>{reports?.map((report,index)=><Text key={`${report.createdAt}-${index}`} style={[styles.body,{color:c.muted}]}>{feedbackOptions.find(option=>option.value===report.category)?.label} · {new Date(report.createdAt).toLocaleString('pt-BR')}</Text>)}
         <Text style={[styles.body,{color:c.muted}]}>Oferta, valor, avaliação e movimento do motorista são simulados. Os dados de contexto vêm do backend real do SafeRide.</Text>
       </ScrollView>
@@ -87,6 +98,6 @@ export default memo(SimulationContext);
 const styles = StyleSheet.create({
   floating: { position:'absolute', left:14, right:14, backgroundColor:'#172b32f5', borderColor:'#57858b', borderWidth:1, borderRadius:18, boxShadow:'0 5px 20px #0005', overflow:'hidden' },
   header:{ flexDirection:'row', alignItems:'center', paddingHorizontal:12 }, brand:{ color:'#d6fff3',fontWeight:'800',fontSize:15 }, subtitle:{ fontSize:10,color:'#abc6c8',fontWeight:'500' }, toggle:{ width:40,height:40,alignItems:'center',justifyContent:'center' },
-  location:{fontSize:10,paddingHorizontal:14,marginBottom:7},footer:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:14,paddingVertical:5,borderTopWidth:1},grid:{ flexDirection:'row',paddingBottom:12,paddingHorizontal:8 },cell:{flex:1,paddingHorizontal:6,borderRightWidth:0},label:{fontSize:10,fontWeight:'600'},value:{color:'#fff',fontWeight:'700',fontSize:13,marginTop:5},caption:{fontSize:8,color:'#bccbd0',marginTop:3},
+  location:{fontSize:10,paddingHorizontal:14,marginBottom:7},footer:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:14,paddingVertical:5,borderTopWidth:1},grid:{ flexDirection:'row',paddingBottom:12,paddingHorizontal:8 },cell:{flex:1,paddingHorizontal:6,borderRightWidth:0},label:{fontSize:10,fontWeight:'600'},value:{color:'#fff',fontWeight:'700',fontSize:13,marginTop:5},caption:{fontSize:11,color:'#bccbd0',marginTop:3},
   scrim:{flex:1,backgroundColor:'#000a',justifyContent:'center',alignItems:'center',padding:20},detail:{backgroundColor:'#20252c',padding:12,borderRadius:20,maxWidth:460,width:'100%',maxHeight:'85%'},body:{color:'#c9d0d7',fontSize:14,lineHeight:21,marginVertical:8},section:{color:'white',fontWeight:'700',fontSize:16,marginTop:14},link:{color:'#8be6cb',paddingVertical:8},
 });

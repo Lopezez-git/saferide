@@ -1,3 +1,4 @@
+import { pendingRepairs, pavementReadingLevel, policeReadingLevel, volumeLevel, trafficLevel, levelStyle } from "../lib/localCardLevel";
 import { newsLink } from "../lib/newsLink";
 import { useSimulationTheme } from "../lib/simulationTheme";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -23,7 +24,18 @@ import RouteOptions, { type RouteComparison } from "../components/RouteOptions";
 import ReportConfirmation from "../components/ReportConfirmation";
 import { locate, DevicePosition } from "../lib/location";
 
-const inPilot = (p: MapPoint) => p.latitude >= -24.1 && p.latitude <= -23.3 && p.longitude >= -46.9 && p.longitude <= -46.3;
+import { inPilot, trafficByHour, trafficHoursDetail } from "../lib/trafficHours";
+import { useCurrentMinute } from "../lib/useCurrentMinute";
+function vehicleReportSummary(total: number, counts?: Record<string, number>) {
+  const entries = Object.entries(counts ?? {}).filter(([, count]) => count > 0);
+  const labels: Record<string, string> = { Roubo: "roubo", Furto: "furto", "Roubo e furto": "roubo e furto" };
+  const prefix = total === 1 ? "1 BO" : `${total} BOs`;
+  if (!entries.length || entries.some(([kind]) => !labels[kind]) || entries.reduce((sum, [, count]) => sum + count, 0) !== total) {
+    return prefix + " de roubo ou furto de veículos";
+  }
+  if (entries.length === 1) return prefix + " de " + labels[entries[0][0]] + (total === 1 ? " de veículo" : " de veículos");
+  return prefix + " · " + entries.map(([kind, count]) => `${count} de ${labels[kind]}`).join(", ") + " de veículos";
+}
 const shortDate = (iso?: string | null) => iso && /^\d{4}-\d{2}-\d{2}$/.test(iso) ? `${iso.slice(8,10)}/${iso.slice(5,7)}/${iso.slice(0,4)}` : "—";
 const distanceMeters = (a: MapPoint, b: MapPoint) => Math.hypot((a.latitude-b.latitude)*111320,(a.longitude-b.longitude)*111320*Math.cos(a.latitude*Math.PI/180));
 
@@ -43,30 +55,55 @@ export default function MapScreen() {
   const [planning,setPlanning] = useState(false);
   const [simulating, setSimulating] = useState(false);
   const [simulationData, setSimulationData] = useState<MapData | null>(null);
-  const [topic, setTopic] = useState<"safety" | "pavement" | "access" | "community">("access");
+  const [topic, setTopic] = useState<"safety" | "pavement" | "access" | "community" | null>(null);
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const manualOrigin = useRef(false);
+  const [manualOrigin, setManualOrigin] = useState<MapPoint | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mapHeight, setMapHeight] = useState(height - 64);
   const q = useResource<Report[]>("/reports", token);
   const [mode, setMode] = useState<"origin" | "destination" | "report">(
     "origin",
   );
-  const [origin, setOrigin] = useState<MapPoint | null>(null);
+  const [initialGpsOrigin, setInitialGpsOrigin] = useState<MapPoint | null>(null);
+  const origin = manualOrigin ?? initialGpsOrigin;
   const [destination, setDestination] = useState<MapPoint | null>(null);
   const [point, setPoint] = useState<MapPoint | null>(null);
   const [comparison, setComparison] = useState<RouteComparison | null>(null);
   const [selectedRoute, setSelectedRoute] = useState(0);
   const [comparing, setComparing] = useState(false);
   const route = comparison?.routes[selectedRoute] ?? null;
-  const [routeRevision, setRouteRevision] = useState(0);
+
   const request = useRef(0);
   const [routing, setRouting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [inspected, setInspected] = useState<MapPoint | null>(null);
   const [localName, setLocalName] = useState("");
+  const streetKey = sheetOpen && inspected && !localName ? `${inspected.longitude},${inspected.latitude}` : "";
+  const [streetResult, setStreetResult] = useState({ key: "", street: "" });
+  useEffect(() => {
+    if (!streetKey) return;
+    const controller = new AbortController();
+    let current = true;
+    const delay = setTimeout(async () => {
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      try {
+        const response = await fetch("https://router.project-osrm.org/nearest/v1/driving/" + streetKey + "?number=1", { signal: controller.signal });
+        if (!response.ok) throw new Error("Rua indisponível");
+        const result = await response.json();
+        const road = result.waypoints?.[0];
+        const street = result.code === "Ok" && typeof road?.name === "string" && Number.isFinite(road.distance) && road.distance <= 100 ? road.name.trim() : "";
+        if (current) setStreetResult({ key: streetKey, street });
+      } catch {
+        if (current) setStreetResult({ key: streetKey, street: "" });
+      } finally {
+        clearTimeout(timeout);
+      }
+    }, 250);
+    return () => { current = false; clearTimeout(delay); controller.abort(); };
+  }, [streetKey]);
+  const panelTitle = localName || (streetKey && streetResult.key !== streetKey ? "Buscando nome da rua…" : (streetKey && streetResult.key === streetKey && streetResult.street) || "Rua não identificada");
   const [reportOpen, setReportOpen] = useState(false);
   const [newsVersion, setNewsVersion] = useState(0);
   const [newsArea, setNewsArea] = useState({street:"",district:""});
@@ -91,7 +128,7 @@ export default function MapScreen() {
   const [searchError, setSearchError] = useState("");
   const [searched, setSearched] = useState(false);
   const searchRequest = useRef(0);
-  const [placeFocus, setPlaceFocus] = useState<(MapPoint & { key: number }) | null>(null);
+  const [placeFocus, setPlaceFocus] = useState<MapData["placeFocus"]>(null);
   const [originName, setOriginName] = useState("");
   const [destinationName, setDestinationName] = useState("");
   const [originAccuracy, setOriginAccuracy] = useState("");
@@ -126,11 +163,11 @@ export default function MapScreen() {
   const [category, setCategory] = useState("PAVIMENTO");
   const [busy, setBusy] = useState(false);
   const [position, setPosition] = useState<DevicePosition | null>(null);
-  const [, setLocating] = useState(false);
+  const [locating, setLocating] = useState(false);
   const [, setLocationError] = useState("");
   const [locationFocus, setLocationFocus] = useState(0);
   const locationRequest = useRef(0);
-  const findMe = useCallback(async () => {
+  const findMe = useCallback(async (centerMap = true) => {
     const id = ++locationRequest.current;
     setLocating(true);
     setLocationError("");
@@ -143,13 +180,13 @@ export default function MapScreen() {
         throw new Error("O dispositivo retornou uma posição inválida. Tente novamente.");
       }
       setPosition(p);
-      setLocationFocus((value) => value + 1);
-      if (inPilot(p) && !manualOrigin.current) {
-        setOrigin((current) => current ?? { latitude: p.latitude, longitude: p.longitude });
+      if (centerMap) setLocationFocus((value) => value + 1);
+      if (inPilot(p)) {
+        setInitialGpsOrigin((current) => current ?? { latitude: p.latitude, longitude: p.longitude });
         setMode((current) => current === "origin" ? "destination" : current);
       }
     } catch (e) {
-      if (id === locationRequest.current) setLocationError(message(e));
+      if (id === locationRequest.current) { setPosition(null); setLocationError(message(e)); }
     } finally {
       if (id === locationRequest.current) setLocating(false);
     }
@@ -158,6 +195,14 @@ export default function MapScreen() {
     void findMe();
     return () => { locationRequest.current++; };
   }, [findMe]));
+  function openPlacePanel() {
+    setTopic(null);
+    setSheetOpen(true);
+    if (!locating && (!position || Date.now() - position.timestamp > 60000)) {
+      setPosition(null);
+      void findMe(false);
+    }
+  }
   function pick(p: MapPoint) {
     if (
       p.latitude < -24.1 ||
@@ -176,7 +221,7 @@ export default function MapScreen() {
       request.current++;
       setRouting(false);
       setComparison(null); setComparing(false);
-        if (mode === "origin") { manualOrigin.current = true; setOrigin(p); setOriginName(""); setOriginAccuracy(""); setMode("destination"); }
+        if (mode === "origin") { setManualOrigin(p); setOriginName(""); setOriginAccuracy(""); setMode("destination"); }
       else { setDestination(p); setDestinationName(""); setDestinationAccuracy(""); }
     }
   }
@@ -217,7 +262,7 @@ export default function MapScreen() {
       });
       if (id === request.current) {
         setComparison(r); setSelectedRoute(0); setComparing(true);
-        setRouteRevision(value => value + 1); setSheetOpen(false); Keyboard.dismiss();
+        setSheetOpen(false); Keyboard.dismiss();
       }
     } catch (e) {
       if (id === request.current) setError(message(e));
@@ -254,8 +299,7 @@ export default function MapScreen() {
       setBusy(false);
     }
   }
-  const [checkedAt, setCheckedAt] = useState(() => Date.now());
-  useEffect(() => { const timer = setInterval(() => setCheckedAt(Date.now()), 60000); return () => clearInterval(timer); }, []);
+  const checkedAt = useCurrentMinute();
   const reports = q.data ?? [];
   const shown = reports.filter(r => !r.validUntil || new Date(r.validUntil).getTime() > checkedAt);
   const focus = inspected ?? destination ?? origin ?? position;
@@ -286,7 +330,7 @@ export default function MapScreen() {
   },[policeKey]);
   const pavementData=pavementResult.key===policeKey?pavementResult.data:null;
   const pavementError=pavementResult.key===policeKey?pavementResult.error:"";
-  const pavementOpen=(pavementData?.statuses?.Aberto ?? 0)+(pavementData?.statuses?.["Em andamento"] ?? 0);
+  const pavementOpen = pendingRepairs(pavementData?.statuses, pavementData?.totalRequests);
   type AccessRequest = {openedAt:string;finishedAt?:string|null;street:string;number:string;service:string;category:string;status:string;distanceMeters:number;sameDetailsCount?:number};
   type AccessData = {status:string;totalRequests?:number;statuses?:Record<string,number>;categories?:Record<string,number>;items?:AccessRequest[];sourceUrl?:string;sourceUpdatedAt?:string;periodStart?:string;periodEnd?:string;stale?:boolean;meaning?:string};
   const [accessResult,setAccessResult]=useState<{key:string;data:AccessData|null;error:string}>({key:"",data:null,error:""});
@@ -302,23 +346,38 @@ export default function MapScreen() {
   const accessError=accessResult.key===policeKey?accessResult.error:"";
   const accessOpen=(accessData?.statuses?.Aberto ?? 0)+(accessData?.statuses?.["Em Andamento"] ?? 0)+(accessData?.statuses?.["Em andamento"] ?? 0);
   type TrafficData = {status:string;condition:string;travelTimeSeconds:number;delaySeconds:number;checkedAt:string;source:string;message:string};
-  const trafficKey=route&&origin&&destination?`${origin.latitude},${origin.longitude}:${destination.latitude},${destination.longitude}:${routeRevision}`:"";
-  const [trafficResult,setTrafficResult]=useState<{key:string;data:TrafficData|null;error:string}>({key:"",data:null,error:""});
+  const target = inspected ?? destination;
+  const gpsOrigin = position && inPilot(position) ? position : null;
+  const manualStart = manualOrigin;
+  const start = gpsOrigin ?? manualStart;
+  const choosingDestination = !gpsOrigin && !!manualStart && !destination && target === manualStart;
+  const targetLat = target?.latitude, targetLon = target?.longitude;
+  const canEstimate = !!start && !!target && !choosingDestination && inPilot(target);
+  const estimateKey = sheetOpen && canEstimate ? [start?.latitude,start?.longitude,targetLat,targetLon].join(",") : "";
+  type RoadEstimate = {duration:number;distance:number};
+  const [estimate,setEstimate] = useState<{key:string;road?:RoadEstimate|null;live?:TrafficData|null}>({key:""});
   useEffect(() => {
-    if(!trafficKey||!origin||!destination)return;
-    const controller=new AbortController();
-    api<TrafficData>("/traffic/route",{method:"POST",body:{fromLat:origin.latitude,fromLon:origin.longitude,toLat:destination.latitude,toLon:destination.longitude},signal:controller.signal})
-      .then(data=>{if(!controller.signal.aborted)setTrafficResult({key:trafficKey,data,error:""});})
-      .catch(e=>{if(!controller.signal.aborted)setTrafficResult({key:trafficKey,data:null,error:message(e)});});
-    return ()=>controller.abort();
-  },[trafficKey,route,origin,destination]);
-  const traffic=trafficKey&&trafficResult.key===trafficKey?trafficResult.data:null;
-  const trafficError=trafficKey&&trafficResult.key===trafficKey?trafficResult.error:"";
+    if (!estimateKey) return;
+    const controller = new AbortController();
+    const [fromLat,fromLon,toLat,toLon] = estimateKey.split(",").map(Number);
+    const options = {method:"POST",body:{fromLat,fromLon,toLat,toLon},signal:controller.signal};
+    function store(part: {road?:RoadEstimate|null;live?:TrafficData|null}) {
+      if (!controller.signal.aborted) setEstimate(old => ({...(old.key === estimateKey ? old : {key:estimateKey}),...part}));
+    }
+    const timer = setTimeout(() => {
+      api<RoadEstimate>("/route",options).then(road=>store({road})).catch(()=>store({road:null}));
+      api<TrafficData>("/traffic/route",options).then(live=>store({live})).catch(()=>store({live:null}));
+    }, 450);
+    return () => {clearTimeout(timer);controller.abort();};
+  },[estimateKey]);
+  const currentEstimate = estimateKey && estimate.key === estimateKey ? estimate : undefined;
+  const traffic = currentEstimate?.live;
+  const road = currentEstimate?.road;
   const activeTime = police?.currentTimeWindow;
   const timeCategories = activeTime ? police?.windows?.[activeTime] : undefined;
   const timeTotal = Object.values(timeCategories ?? {}).reduce((sum,count)=>sum+count,0);
   const timeLabel = activeTime ? `${activeTime}h–${String((Number(activeTime)+1)%24).padStart(2,"0")}h` : "—";
-  const hasTimeData = !!police?.windows && !!activeTime;
+  const hasTimeData = timeCategories != null && !(police?.total && police.unknownTimeTotal === police.total);
   const nearby = focus ? shown.map(r => ({...r,distance:Math.hypot((r.latitude-focus.latitude)*111320,(r.longitude-focus.longitude)*111320*Math.cos(focus.latitude*Math.PI/180))})).filter(r => r.distance <= 1000).sort((a,b)=>a.distance-b.distance) : [];
   const actualNearby = nearby.filter(r => !/demonstração|fictício|ficticia|fictício/i.test(r.title+" "+r.body));
   const safety = actualNearby.filter(r => r.category === "SEGURANCA");
@@ -330,14 +389,20 @@ export default function MapScreen() {
   const topicNews = topic === "safety" ? safetyNews : topic === "pavement" ? pavementNews : topic === "access" ? accessNews : [];
   const topicReports = topic === "community" ? [...actualNearby].sort((a, b) => (b.confirmations ?? 0) - (a.confirmations ?? 0) || (b.authorPoints ?? 0) - (a.authorPoints ?? 0) || a.distance - b.distance) : topic === "safety" ? safety : topic === "pavement" ? pavement : accessReports;
   const trafficCondition=traffic?.condition==="LEVE"?"Trânsito tranquilo na viagem":traffic?.condition==="MODERADO"?"Trânsito moderado na viagem":traffic?.condition==="CONGESTIONADO"?"Viagem congestionada":"";
-  const accessSummary = !route ? "Trace uma viagem para avaliar o trânsito"
-    : trafficError||traffic?.status==="UNAVAILABLE" ? "Trânsito ao vivo indisponível"
-    : !traffic ? "Avaliando trânsito da viagem…"
-    : trafficCondition;
-  const accessCaption=traffic?.status==="AVAILABLE"
-    ? `${Math.ceil(traffic.travelTimeSeconds/60)} min estimados · ${traffic.delaySeconds>=60?`+${Math.ceil(traffic.delaySeconds/60)} min de atraso`:"sem atraso relevante"}`
-    : route?"Estimativa para origem e destino":"Solicitações locais nos detalhes";
-
+  const liveTravel = traffic?.status === "AVAILABLE";
+  const typical = !liveTravel && target && inPilot(target) ? trafficByHour(checkedAt) : null;
+  const etaSeconds = liveTravel ? traffic.travelTimeSeconds : road?.duration;
+  const accessSummary = !target ? "Toque em um destino" : choosingDestination ? "Selecione o destino" : !start ? (locating ? "Localizando pelo GPS…" : "Marque a partida no mapa")
+    : !canEstimate ? "Fora da área piloto" : etaSeconds != null
+    ? `${Math.ceil(etaSeconds/60)} min até o destino${road ? ` · ${(road.distance/1000).toLocaleString("pt-BR",{maximumFractionDigits:1})} km` : ""}`
+    : road === null && traffic !== undefined ? "Estimativa indisponível" : "Calculando percurso…";
+  const accessCaption = liveTravel ? `${trafficCondition} · +${Math.ceil(traffic.delaySeconds/60)} min`
+    : typical ? `${typical.label} · estimativa por horário` : "";
+  const recentAccess = accessReports.filter(r => {
+    const age = checkedAt - Date.parse(r.observedAt);
+    return age >= 0 && age <= 3600000;
+  }).sort((a,b)=>Date.parse(b.observedAt)-Date.parse(a.observedAt))[0];
+  const accessAlert = recentAccess ? `${categories[recentAccess.category as keyof typeof categories]} · relato há ${Math.max(1,Math.floor((checkedAt-Date.parse(recentAccess.observedAt))/60000))} min` : "";
   const showRouteAction = !!origin && !!destination && !route && !search;
   const showRouteFooter = showRouteAction || (!!route && !search);
   const routeEnd = route?.geometry.coordinates[route.geometry.coordinates.length - 1];
@@ -347,8 +412,8 @@ export default function MapScreen() {
       <MapCanvas
         height={mapHeight}
         data={{dark: theme === "dark", ...(simulating && simulationData ? simulationData : { routeMinutes: route ? Math.round(route.duration / 60) : undefined, reports: shown, placeFocus, position, locationFocus, origin, destination, selected: point, route: route?.geometry.coordinates ?? null })}}
-        onPick={(point) => { if (simulating) return; if (search) { Keyboard.dismiss(); setSearch(""); setPlaces([]); setSearched(false); setSearching(false); searchRequest.current++; return; } if (!route || mode === "report") pick(point); else { setInspected(point); setLocalName(""); setNewsPlace(""); } setSheetOpen(true); }}
-        onReport={(id) => { const report = reports.find(r => r.id === id); if (report) { setInspected(report); setLocalName(report.title); setNewsPlace(""); } setSheetOpen(true); }}
+        onPick={(point) => { if (simulating) return; if (search) { Keyboard.dismiss(); setSearch(""); setPlaces([]); setSearched(false); setSearching(false); searchRequest.current++; } setPlaceFocus({...point, key:Date.now(), fromTap:true}); if (!route || mode === "report") pick(point); else { setInspected(point); setLocalName(""); setNewsPlace(""); } openPlacePanel(); }}
+        onReport={(id) => { const report = reports.find(r => r.id === id); if (report) { setPlaceFocus({...report, key:Date.now(), fromTap:true}); setInspected(report); setLocalName(""); setNewsPlace(""); } openPlacePanel(); }}
       />
       {!simulating ? <>
 
@@ -375,10 +440,10 @@ export default function MapScreen() {
       <Feedback error={searchError} />
       {places.length > 0 ? <Text style={[styles.subtitle,{paddingTop:10}]}>Sugestões em São Paulo e região</Text> : null}
       {places.map((place) => <Pressable key={place.id} accessibilityRole="button" accessibilityLabel={`${place.name}, ${place.address}`} onPress={() => {
-          Keyboard.dismiss(); setSheetOpen(true); pick(place); setNewsPlace(place.city ? place.name : ""); setNewsCity(place.city || ""); setNewsArea({street:place.street||"",district:place.district||""}); setLocalName([place.name,place.address].filter(Boolean).join(" · "));
+          Keyboard.dismiss(); openPlacePanel(); pick(place); setNewsPlace(place.city ? place.name : ""); setNewsCity(place.city || ""); setNewsArea({street:place.street||"",district:place.district||""}); setLocalName(place.street?.trim() || "");
           if (mode === "origin") { setOriginName([place.name,place.address].filter(Boolean).join(" · ")); setOriginAccuracy(place.accuracy||""); setMode("destination"); }
           else if (mode === "destination") { setDestinationName([place.name,place.address].filter(Boolean).join(" · ")); setDestinationAccuracy(place.accuracy||""); }
-          setPlaceFocus({ latitude: place.latitude, longitude: place.longitude, key: Date.now() });
+          setPlaceFocus({ latitude: place.latitude, longitude: place.longitude, key: Date.now(), fromTap:true });
           searchRequest.current++; setSearching(false); setSearch(""); setPlaces([]); setSearched(false);
         }} style={({pressed}) => ({flexDirection:"row",alignItems:"center",gap:12,paddingVertical:13,paddingHorizontal:8,borderBottomWidth:1,borderBottomColor:p.border,backgroundColor:pressed?p.accentSurface:p.surface,borderRadius:8})}>
         <Text style={{fontSize:22,color:p.accent}}>⌖</Text>
@@ -397,7 +462,7 @@ export default function MapScreen() {
         <Pressable accessibilityRole="button" accessibilityLabel={sheetOpen ? "Recolher painel do mapa" : "Abrir planejamento e relatos"} accessibilityState={{expanded:sheetOpen}} onPress={() => { Keyboard.dismiss(); setSheetOpen(!sheetOpen); }} style={{padding:16,gap:8,minHeight:80}}>
           <View style={{width:38,height:4,borderRadius:4,backgroundColor:p.border,alignSelf:"center"}} />
           <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:8}}>
-            <Text style={{fontSize:21,fontWeight:"700",color:p.text,flexShrink:1}}>{localName || "Informações do local"}</Text>
+            <Text style={{fontSize:21,fontWeight:"700",color:p.text,flexShrink:1}}>{panelTitle}</Text>
             <Text style={{fontSize:20,color:p.text}}>{sheetOpen ? "⌄" : "⌃"}</Text>
           </View>
           <Text numberOfLines={1} style={{fontSize:12,color:p.muted}}>{focus ? "Relatos em até 1 km do ponto selecionado" : "Selecione um lugar para consultar"}</Text>
@@ -407,27 +472,31 @@ export default function MapScreen() {
           <ResourceState {...q} />
           <View style={{flexDirection:"row",flexWrap:"wrap",gap:10}}>
             {([
-              {id:"safety",title:"Segurança",color:p.accent,bg:p.inset,text:police?.status==="AVAILABLE"?(hasTimeData?`Histórico ${timeLabel} · ${timeTotal} ${timeTotal===1?"BO":"BOs"}`:"Recorte horário indisponível"):policeError||police?.status==="UNAVAILABLE"?"Base policial indisponível":policeKey?"Consultando SSP…":"Selecione um local",caption:police?.status==="AVAILABLE"?"Hora atual · SSP-SP · veículos · 1 km":"SSP · veículos roubados/furtados"},
-              {id:"pavement",title:"Pavimento",color:p.orange,bg:p.inset,text:pavementData?.status==="AVAILABLE"?(pavementOpen?`${pavementOpen} pedidos abertos no arquivo`:pavementData.totalRequests?`${pavementData.totalRequests} pedidos SP156`:"Sem pedidos nesta base"):pavementError||pavementData?.status==="UNAVAILABLE"?"Base SP156 indisponível":policeKey?"Consultando SP156…":"Selecione um local",caption:pavementData?.status==="AVAILABLE"?`SP156 · 1 km · status em ${shortDate(pavementData.sourceUpdatedAt)}`:"Pedidos de tapa-buraco · sem vistoria"},
-              {id:"access",title:"Trânsito e acesso",color:p.blue,bg:p.inset,text:accessSummary,caption:accessCaption},
-              {id:"community",title:"Comunidade",color:p.violet,bg:p.inset,text:q.loading?"Consultando…":q.error?"Dados indisponíveis":actualNearby.length?`${actualNearby.length} relato(s) do local`:"Sem relatos reais aqui",caption:"Experiências de motoristas"},
-            ] as const).map(card => <Pressable key={card.id} accessibilityRole="button" accessibilityState={{selected:topic===card.id}} accessibilityLabel={`${card.title}: ${card.text}`} onPress={() => setTopic(card.id)} style={({pressed}) => ({width:"48%",flexGrow:1,minHeight:142,padding:13,gap:6,borderRadius:18,backgroundColor:card.bg,borderWidth:2,borderColor:topic===card.id?card.color:"transparent",opacity:pressed?0.8:1})}>
-              <Svg width={27} height={27} viewBox="0 0 24 24" fill="none" stroke={card.color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" accessible={false}>
+              {id:"safety",title:"Segurança",level:policeReadingLevel(police),text:police?.status==="AVAILABLE"?(hasTimeData?(timeTotal === 0 ? `${timeLabel} · Nenhum BO com horário confirmado nessa faixa` : `${timeLabel} · ${vehicleReportSummary(timeTotal, timeCategories)}`):"Recorte horário indisponível"):policeError||police?.status==="UNAVAILABLE"?"Base policial indisponível":policeKey?"Consultando SSP…":"Selecione um local",caption:police?.stale ? "Base desatualizada" : ""},
+              {id:"pavement",title:"Pavimento",level:pavementReadingLevel(pavementData),text:pavementData?.status==="AVAILABLE"?(pavementOpen===null?"Situação dos pedidos indisponível":pavementOpen?`${pavementOpen} ${pavementOpen===1?"solicitação pendente":"solicitações pendentes"} de tapa-buraco`:"Tapa-buraco · 0 pendentes na publicação"):pavementError||pavementData?.status==="UNAVAILABLE"?"Base SP156 indisponível":policeKey?"Consultando SP156…":"Selecione um local",caption:pavementData?.status==="AVAILABLE"?`SP156 · 1 km · status em ${shortDate(pavementData.sourceUpdatedAt)}${pavementData.stale?" · base desatualizada":""}`:"Pedidos de tapa-buraco · sem vistoria"},
+              {id:"access",title:"Trânsito e acesso",level:typical?.level ?? trafficLevel(liveTravel ? traffic.condition : undefined),text:[estimateKey && !gpsOrigin ? "Da partida marcada" : "", accessCaption].filter(Boolean).join(" · "),caption:accessAlert},
+              {id:"community",title:"Comunidade",level:volumeLevel(focus && !q.loading && !q.error ? actualNearby.length : null),text:q.loading?"Consultando…":q.error?"Dados indisponíveis":!focus?"Selecione um local":actualNearby.length?`${actualNearby.length} ${actualNearby.length===1?"relato ativo":"relatos ativos"} em até 1 km`:"Nenhum relato ativo em até 1 km",caption:"Experiências de motoristas"},
+            ] as const).map(card => {
+              const tone = levelStyle(card.level, theme === "dark");
+              const headline = card.id === "access" ? accessSummary : card.id === "safety" && police?.status === "AVAILABLE" && police.total != null ? vehicleReportSummary(police.total, police.categories) : tone.label;
+              return <Pressable key={card.id} accessibilityRole="button" accessibilityState={{expanded:topic===card.id}} accessibilityLabel={`${card.title}. ${headline}. ${card.text}`} onPress={() => setTopic(current => current === card.id ? null : card.id)} style={({pressed}) => ({width:"48%",flexGrow:1,minHeight:142,padding:13,gap:6,borderRadius:18,backgroundColor:tone.background,borderWidth:2,borderColor:topic===card.id?tone.ink:"transparent",opacity:pressed?0.8:1})}>
+              <Svg width={27} height={27} viewBox="0 0 24 24" fill="none" stroke={tone.ink} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden={true}>
                 {card.id==="safety" ? <Path d="M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3zm0 5v5m0 3h.01" /> : null}
                 {card.id==="pavement" ? <Path d="M7 3L3 21M17 3l4 18M12 3v4m0 4v3m0 4v3" /> : null}
                 {card.id==="access" ? <Path d="M7 3L3 21m14-18 4 18M12 3v5m0 4v4m0 4v1M5 18h14" /> : null}
                 {card.id==="community" ? <><Circle cx="9" cy="8" r="3"/><Path d="M3 21v-2a6 6 0 0112 0v2M16 5a3 3 0 010 6m2 3a5 5 0 013 5v2"/></> : null}
               </Svg>
               <Text style={{fontSize:16,fontWeight:"700",color:p.text}}>{card.title}</Text>
-              <Text style={{fontSize:13,fontWeight:"600",color:card.color}}>{card.text}</Text>
-              <Text style={{fontSize:11,color:p.muted}}>{card.caption}</Text>
-            </Pressable>)}
+              <Text style={{fontSize:card.id==="safety"?14:12,fontWeight:"700",color:tone.ink}}>{headline}</Text>
+              <Text style={{fontSize:13,fontWeight:"600",color:tone.ink}}>{card.text}</Text>
+              {card.caption ? <Text style={{fontSize:11,color:p.muted}}>{card.caption}</Text> : null}
+            </Pressable>;
+            })}
           </View>
-          <Text style={styles.subtitle}>Toque em um card para ver os detalhes. As cores identificam assuntos, não níveis de risco.</Text>
           {topic === "safety" ? <>
             <Text style={styles.heading}>Histórico de veículos · raio de 1 km</Text>
             {police?.status === "AVAILABLE" ? <View style={[styles.card,{backgroundColor:p.inset}]}>
-              {!hasTimeData ? <Text style={styles.body}>A API em execução ainda não disponibiliza horários; reinicie o backend atualizado para consultar esse recorte.</Text> : null}
+              {!hasTimeData ? <Text style={styles.body}>Sem dados de horário suficientes para avaliar este recorte.</Text> : null}
               {hasTimeData ? <>
               <Text style={styles.body}>Horário atual em São Paulo · consulta automática</Text>
               <Text style={styles.heading}>{timeTotal} {timeTotal===1?"BO":"BOs"} no histórico de {timeLabel}</Text>
@@ -437,6 +506,7 @@ export default function MapScreen() {
               <Text style={styles.heading}>{police.categories?.Roubo ?? 0} roubos e {police.categories?.Furto ?? 0} furtos de veículos</Text>
               <Text style={styles.subtitle}>{police.total} BOs no período completo; {police.unknownTimeTotal ?? 0} sem hora confiável, incluídos apenas no total.</Text>
               <Text style={styles.body}>Período dos fatos na base: {police.periodStart} a {police.periodEnd} · São Paulo</Text>
+              <Text style={styles.subtitle}>Escala do protótipo: verde quando o total é zero. Com registros, começa em amarelo. Fica laranja a partir de 3 BOs por mês em média ou de 3 na faixa horária. Fica vermelho com média de 10 BOs por mês, com 10 na faixa horária ou quando ambos os critérios de laranja são atingidos. Sem recorte válido ou com base desatualizada, fica cinza.</Text>
               <Text style={styles.body}>Este histórico não mede a segurança geral do local. Os números absolutos dependem também da circulação de veículos e não permitem comparar regiões sem outros dados.</Text>
               <Text style={styles.subtitle}>{police.coverage}</Text>
               <Text style={styles.subtitle}>{police.methodology}</Text>
@@ -450,7 +520,7 @@ export default function MapScreen() {
           {topic === "pavement" ? <>
             <Text style={styles.heading}>Solicitações de tapa-buraco · raio de 1 km</Text>
             {pavementData?.status==="AVAILABLE" ? <View style={[styles.card,{backgroundColor:p.inset}]}>
-              <Text style={styles.heading}>{pavementData.totalRequests} pedidos no SP156 · {pavementOpen} abertos ou em andamento na publicação</Text>
+              <Text style={styles.heading}>{pavementData.totalRequests} pedidos no SP156 · {pavementOpen===null?"pendências não informadas":`${pavementOpen} abertos ou em andamento na publicação`}</Text>
               <Text style={styles.body}>Pedidos abertos entre {shortDate(pavementData.periodStart)} e {shortDate(pavementData.periodEnd)}. Status da publicação de {shortDate(pavementData.sourceUpdatedAt)}{pavementData.stale?" · atualização pendente":""}.</Text>
               <Text style={styles.subtitle}>{pavementData.meaning}</Text>
               <Text style={styles.subtitle}>Sem pedido registrado não significa que o pavimento esteja bom. A localização é aproximada e vários pedidos podem se referir ao mesmo problema.</Text>
@@ -468,13 +538,9 @@ export default function MapScreen() {
           {topic === "community" ? <><Text style={styles.heading}>Quem passa por aqui</Text><Text style={styles.body}>{actualNearby.length?"Relatos de motoristas próximos do ponto selecionado.":"Ainda não há relatos de motoristas para este local."}</Text><Button title="Abrir comunidade" secondary onPress={() => router.push("/community")} /></> : null}
           {topic === "access" ? <>
             <Text style={styles.heading}>Trânsito da viagem</Text>
-            {!route ? <Text style={styles.body}>Defina origem e destino e trace a viagem para consultar o trânsito entre os dois pontos.</Text>
-              : traffic?.status==="AVAILABLE" ? <View style={[styles.card,{backgroundColor:p.inset}]}>
-                <Text style={styles.heading}>{trafficCondition}</Text>
-                <Text style={styles.body}>{Math.ceil(traffic.travelTimeSeconds/60)} min estimados para a viagem · {traffic.delaySeconds>=60?`aproximadamente ${Math.ceil(traffic.delaySeconds/60)} min de atraso pelo trânsito`:"sem atraso relevante estimado"}.</Text>
-                <Text style={styles.subtitle}>{traffic.source} · consultado em {when(traffic.checkedAt)}. A avaliação considera somente o trânsito, não a segurança da região.</Text>
-                <Text style={styles.subtitle}>{traffic.message}</Text>
-              </View> : <Text style={styles.body}>{trafficError||traffic?.status==="UNAVAILABLE"?`Trânsito ao vivo indisponível. A rota do mapa estima ${Math.ceil(route.duration/60)} min sem essa avaliação.`:"Consultando o trânsito desta viagem…"}</Text>}
+            {typical ? <Text style={styles.body}>{trafficHoursDetail}</Text> : null}
+            <Text style={styles.body}>{accessSummary}</Text>
+            <Text style={styles.subtitle}>{[accessCaption, liveTravel ? traffic.source : road ? "Percurso por vias · OSRM" : ""].filter(Boolean).join(" · ")}</Text>
             <Text style={styles.heading}>Histórico de vias e acesso · até 1 km</Text>
             <Text style={styles.body}>Solicitações públicas sobre circulação, acesso, alagamentos, árvores e reparos estruturais, além de relatos revisados e notícias locais.</Text>
             {accessData?.status==="AVAILABLE" ? <View style={[styles.card,{backgroundColor:p.inset}]}>
@@ -498,7 +564,7 @@ export default function MapScreen() {
             {!q.loading && !q.error && !news.loading && !news.error && news.data?.status !== "UNAVAILABLE" && accessData?.status === "AVAILABLE" && !accessData.totalRequests && accessReports.length === 0 && accessNews.length === 0 ? <Text style={styles.body}>Sem informações disponíveis para este local nas fontes consultadas. Isso não significa que o trajeto esteja livre de problemas.</Text> : null}
           </> : null}
           {topic === "access" && accessReports.length > 0 ? <Text style={styles.heading}>Relatos revisados · até 1 km</Text> : null}
-          {topicReports.map(r => <View key={r.id} style={styles.card}>
+          {topic && topicReports.map(r => <View key={r.id} style={styles.card}>
             <Text style={styles.label}>{categories[r.category as keyof typeof categories] ?? r.category} · {Math.round(r.distance)} m do ponto</Text>
             <Text style={styles.heading}>{r.title}</Text>
             <Text style={styles.body}>{r.body}</Text>
@@ -560,7 +626,7 @@ export default function MapScreen() {
         </View>
       ) : null}
 
-          {origin && destination ? <View style={styles.card}>
+          {topic === "access" && origin && destination ? <View style={styles.card}>
             <Text style={styles.heading}>Trajeto selecionado</Text>
             <Text style={styles.subtitle}>De: {originName || "Ponto marcado no mapa"}</Text>
             {originAccuracy.startsWith("Trecho") ? <Text style={styles.subtitle}>A origem é um trecho aproximado da avenida. Escolha um ponto no mapa ou informe o número para calcular desde o local exato.</Text> : null}
@@ -569,7 +635,6 @@ export default function MapScreen() {
             {route ? <Text style={styles.body}>{(route.distance/1000).toFixed(1)} km · cerca de {Math.round(route.duration/60)} min pelo OSRM, sem trânsito ao vivo · {route.activeReports} relato(s) próximo(s) ao percurso</Text> : null}
             {destinationRoadGap >= 30 ? <Text style={styles.subtitle}>A linha termina na via acessível a carros, a cerca de {destinationRoadGap} m do ponto cadastrado do destino. Confirme o acesso no local.</Text> : null}
           </View> : null}
-          <Text style={styles.subtitle}>Protótipo acadêmico · fontes e detalhes nos relatos.</Text>
         </ScrollView> : null}
       </View> : null}
       {comparison && comparing ? <RouteOptions comparison={comparison} selected={selectedRoute}
