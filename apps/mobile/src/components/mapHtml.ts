@@ -11,7 +11,7 @@ export type MapData = {
   approachRoute?: number[][];
   bottomInset?: number;
   topInset?: number;
-  placeFocus?: (MapPoint & { key: number }) | null;
+  placeFocus?: (MapPoint & { key: number; fromTap?: boolean }) | null;
   position?: (MapPoint & { accuracy: number | null }) | null;
   locationFocus?: number;
   reports: { id: string; latitude: number; longitude: number; title: string }[];
@@ -28,7 +28,7 @@ export type MapProps = {
   onPick: (point: MapPoint) => void;
   onReport: (id: string) => void;
 };
-export const mapHtml = `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="strict-origin-when-cross-origin"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><style>html,body,#map{height:100%;margin:0}.leaflet-bottom{bottom:0}.leaflet-top .leaflet-control-zoom{margin-top:140px}.leaflet-container{background:#dfe4e5}.leaflet-tile-pane svg path[stroke-width="1.5"]{stroke-width:calc(1.5px / var(--tile-scale,1))}.leaflet-tile-pane svg path[stroke-width="3"]{stroke-width:calc(3px / var(--tile-scale,1))}.location-marker{box-sizing:border-box;border:3px solid white;border-radius:50%;background:#087f71;box-shadow:0 0 0 6px #087f7126,0 2px 5px #0003}.driver-arrow{width:34px;height:34px;filter:drop-shadow(0 2px 3px #0005)}.driver-arrow svg{width:34px;height:34px}.location-marker.manual{background:#fff;border:4px solid #243536;box-shadow:0 0 0 5px #2435361a}.endpoint{background:#111;border:2px solid white}.endpoint-label{border:0;box-shadow:0 1px 5px #0002;font:11px Arial;padding:5px 7px;color:#111}body{background:#dfe4e5;font:14px sans-serif}#hint{position:absolute;z-index:999;bottom:30px;left:10px;background:white;padding:8px;border-radius:8px;max-width:75%}.dark #map,.dark body{background:#19252c}.dark .leaflet-tile-pane path[stroke="#fff"]{stroke:#465760}.dark .leaflet-tile-pane path[fill="#c7d1d5"]{fill:#203d4a}.dark .leaflet-tile-pane path[fill="#d5dddd"]{fill:#253a32}.dark #hint,.dark .leaflet-control-attribution,.dark .leaflet-control-zoom a,.dark .leaflet-tooltip{background:#182128;color:#dce6ed}.dark .leaflet-control-attribution a{color:#98cbfd}</style></head><body><div id="map"></div><div id="hint">Carregando mapa…</div><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="https://unpkg.com/leaflet-rotate@0.5.3/dist/leaflet-rotate.js"></script><script src="https://unpkg.com/leaflet.vectorgrid@1.3.0/dist/Leaflet.VectorGrid.bundled.js"></script><script>
+export const mapHtml = `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="strict-origin-when-cross-origin"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><style>html,body,#map{height:100%;margin:0}.leaflet-bottom{bottom:0}.leaflet-top .leaflet-control-zoom{margin-top:140px}.leaflet-container{background:#dfe4e5}.leaflet-tile-pane .leaflet-tile-container,.leaflet-tile-pane svg.leaflet-tile{will-change:transform}.leaflet-tile-pane svg path[stroke-width="1.5"]{stroke-width:calc(1.5px / var(--tile-scale,1))}.leaflet-tile-pane svg path[stroke-width="3"]{stroke-width:calc(3px / var(--tile-scale,1))}.location-marker{box-sizing:border-box;border:3px solid white;border-radius:50%;background:#087f71;box-shadow:0 0 0 6px #087f7126,0 2px 5px #0003}.driver-arrow{width:34px;height:34px;filter:drop-shadow(0 2px 3px #0005)}.driver-arrow svg{width:34px;height:34px}.location-marker.manual{background:#fff;border:4px solid #243536;box-shadow:0 0 0 5px #2435361a}.endpoint{background:#111;border:2px solid white}.endpoint-label{border:0;box-shadow:0 1px 5px #0002;font:11px Arial;padding:5px 7px;color:#111}body{background:#dfe4e5;font:14px sans-serif}#hint{position:absolute;z-index:999;bottom:30px;left:10px;background:white;padding:8px;border-radius:8px;max-width:75%}.dark #map,.dark body{background:#19252c}.dark .leaflet-tile-pane path[stroke="#fff"]{stroke:#465760}.dark .leaflet-tile-pane path[fill="#c7d1d5"]{fill:#203d4a}.dark .leaflet-tile-pane path[fill="#d5dddd"]{fill:#253a32}.dark #hint,.dark .leaflet-control-attribution,.dark .leaflet-control-zoom a,.dark .leaflet-tooltip{background:#182128;color:#dce6ed}.dark .leaflet-control-attribution a{color:#98cbfd}</style></head><body><div id="map"></div><div id="hint">Carregando mapa…</div><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="https://unpkg.com/leaflet-rotate@0.5.3/dist/leaflet-rotate.js"></script><script src="https://unpkg.com/leaflet.vectorgrid@1.3.0/dist/Leaflet.VectorGrid.bundled.js"></script><script>
 function send(data){var message=JSON.stringify({saferide:true,...data});if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage(message);else parent.postMessage(message,'*');}
 if(typeof L==='undefined'){document.getElementById('hint').textContent='Mapa indisponível. Use os pontos de referência e a lista abaixo.';}else{
 var simLayer=null,simDriver=null,simKey='',simFocusKey='',simRouteKey='',savedView=null;
@@ -97,7 +97,35 @@ function simulationFrame(points,d){
  var center=map.unproject(map.project(bounds.getSouthWest(),zoom).add(map.project(bounds.getNorthEast(),zoom)).divideBy(2).add(after.subtract(before).divideBy(2)),zoom);
  return {center:center,zoom:zoom};
 }
-function updateTileScale(){map.getPane('tilePane').style.setProperty('--tile-scale',String(Math.pow(2,Math.max(0,map.getZoom()-(navigationActive?16:14)))));}map.on('zoom',updateTileScale);updateTileScale();
+var pendingFocusArrival=null;
+var focusLandingZoom=null;
+function releaseFocusFlight(){
+ if(pendingFocusArrival)map.off('moveend',pendingFocusArrival);
+ pendingFocusArrival=null;
+ focusLandingZoom=null;
+}
+function focusLocation(target){
+ var startZoom=map.getZoom();
+ var zoom=focusLandingZoom===null?Math.min(map.getMaxZoom(),19,Math.max(16,Math.round(startZoom))):focusLandingZoom;
+ releaseFocusFlight();
+ map.stop();
+ var center=map.unproject(map.project(target,zoom).add([0,map.getSize().y*0.31]),zoom);
+ if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+  map.setView(center,zoom,{animate:false});return;
+ }
+ function arrive(){map.flyTo(center,zoom,{duration:0.45});}
+ if(startZoom<16){arrive();return;}
+ focusLandingZoom=zoom;
+ pendingFocusArrival=function(){
+  releaseFocusFlight();
+  arrive();
+ };
+ map.once('moveend',pendingFocusArrival);
+ map.flyTo(map.getCenter(),Math.max(map.getMinZoom(),zoom-2),{duration:0.32});
+}
+map.getContainer().addEventListener('pointerdown',releaseFocusFlight);
+map.getContainer().addEventListener('wheel',releaseFocusFlight,{passive:true});
+function updateTileScale(){if(pendingFocusArrival)return;map.getPane('tilePane').style.setProperty('--tile-scale',String(Math.pow(2,Math.max(0,map.getZoom()-(navigationActive?16:14)))));}map.on('zoomend',updateTileScale);updateTileScale();
 fetch('https://tiles.openfreemap.org/planet').then(r=>{if(!r.ok)throw Error();return r.json();}).then(info=>{
 var styles={};(info.vector_layers||[]).forEach(l=>styles[l.id]=[]);
 styles.water={fill:true,fillColor:'#c7d1d5',fillOpacity:1,stroke:false};styles.park={fill:true,fillColor:'#d5dddd',fillOpacity:1,stroke:false};
@@ -114,7 +142,7 @@ map.on('click',e=>send({type:'pick',latitude:e.latlng.lat,longitude:e.latlng.lng
 window.updateMap=function(d){
 if(d.dark !== undefined)document.documentElement.classList.toggle("dark",d.dark);
 if(d.simulation){
- if(!simLayer){map.stop();savedView={center:map.getCenter(),zoom:map.getZoom(),zoomSnap:map.options.zoomSnap};map.options.zoomSnap=0;simLayer=L.layerGroup().addTo(map);layer.clearLayers();if(routeLayer){map.removeLayer(routeLayer);routeLayer=null;}}
+ if(!simLayer){releaseFocusFlight();map.stop();savedView={center:map.getCenter(),zoom:map.getZoom(),zoomSnap:map.options.zoomSnap};map.options.zoomSnap=0;simLayer=L.layerGroup().addTo(map);layer.clearLayers();if(routeLayer){map.removeLayer(routeLayer);routeLayer=null;}}
  setNavigation(d);
  if(!d.route){
   if(simRouteKey){map.stop();simRouteKey='';simFocusKey='';}
@@ -150,14 +178,19 @@ if(d.simulation){
  return;
 }
 if(simLayer){setNavigation({navigation:false});stopDriver();driverMotionKey='';map.stop();map.removeLayer(simLayer);simLayer=null;simDriver=null;simKey='';simFocusKey='';simRouteKey='';lastRoute='';if(savedView){map.options.zoomSnap=savedView.zoomSnap;map.setView(savedView.center,savedView.zoom,{animate:false});}}
-layer.clearLayers();d.reports.forEach(r=>{var marker=L.circleMarker([r.latitude,r.longitude],{radius:10,color:'#fff',weight:2,fillColor:'#bd6c20',fillOpacity:1}).addTo(layer);var label=document.createElement('span');label.textContent=r.title;marker.bindTooltip(label);marker.on('click',()=>send({type:'report',id:r.id}));});
-function point(p,label){if(p)L.marker([p.latitude,p.longitude],{icon:L.divIcon({className:'endpoint',iconSize:[8,8],iconAnchor:[4,4]})}).addTo(layer).bindTooltip(label,{permanent:true,direction:'right',className:'endpoint-label'});}
+layer.clearLayers();d.reports.forEach(r=>{var marker=L.circleMarker([r.latitude,r.longitude],{bubblingMouseEvents:false,radius:10,color:'#fff',weight:2,fillColor:'#bd6c20',fillOpacity:1}).addTo(layer);var label=document.createElement('span');label.textContent=r.title;marker.bindTooltip(label);marker.on('click',()=>send({type:'report',id:r.id}));});
+function point(p,label){if(p)L.marker([p.latitude,p.longitude],{bubblingMouseEvents:true,icon:L.divIcon({className:'endpoint',iconSize:[8,8],iconAnchor:[4,4]})}).addTo(layer).bindTooltip(label,{permanent:true,direction:'right',className:'endpoint-label'});}
 point(d.origin,'Partida');point(d.destination,d.routeMinutes?'Chegada · ~'+d.routeMinutes+' min':'Destino');point(d.selected,'Relato');
-var markerPosition=d.position||d.origin;if(markerPosition)L.marker([markerPosition.latitude,markerPosition.longitude],{icon:L.divIcon({className:'location-marker'+(d.position?'':' manual'),iconSize:[20,20],iconAnchor:[10,10]})}).addTo(layer).bindTooltip(d.position?'Sua posição (última consulta)':'Origem selecionada — não é GPS');
-if(routeLayer){map.removeLayer(routeLayer);routeLayer=null;}if(d.route&&d.route.length){routeLayer=L.polyline(d.route.map(p=>[p[1],p[0]]),{color:'#111111',weight:3.5}).addTo(map);var key=JSON.stringify(d.route);if(lastRoute!==key){map.fitBounds(routeLayer.getBounds(),{paddingTopLeft:[40,110],paddingBottomRight:[110,50]});lastRoute=key;}}
+var markerPosition=d.position||d.origin;if(markerPosition)L.marker([markerPosition.latitude,markerPosition.longitude],{bubblingMouseEvents:true,icon:L.divIcon({className:'location-marker'+(d.position?'':' manual'),iconSize:[20,20],iconAnchor:[10,10]})}).addTo(layer).bindTooltip(d.position?'Sua posição (última consulta)':'Origem selecionada — não é GPS');
+if(routeLayer){map.removeLayer(routeLayer);routeLayer=null;}if(d.route&&d.route.length){routeLayer=L.polyline(d.route.map(p=>[p[1],p[0]]),{color:'#111111',weight:3.5}).addTo(map);var key=JSON.stringify(d.route);if(lastRoute!==key){releaseFocusFlight();map.fitBounds(routeLayer.getBounds(),{paddingTopLeft:[40,110],paddingBottomRight:[110,50]});lastRoute=key;}}
 if(!d.route)lastRoute='';
 if(d.position){var p=d.position;var xy=[p.latitude,p.longitude];if(Number.isFinite(p.accuracy)&&p.accuracy>0)L.circle(xy,{radius:p.accuracy,color:'#737e80',weight:1,dashArray:'4 4',fillOpacity:0,interactive:false}).addTo(layer);if(!d.route&&d.locationFocus&&d.locationFocus!==lastFocus){map.setView(xy,Math.max(11,Math.min(16,Math.floor(Math.log2(40075016/(Math.max(p.accuracy||30,30)*4))))));lastFocus=d.locationFocus;}}
-if(!d.route&&d.placeFocus&&d.placeFocus.key!==lastPlace){map.setView([d.placeFocus.latitude,d.placeFocus.longitude],16);lastPlace=d.placeFocus.key;}
+var focus=d.placeFocus;
+if(focus&&focus.key!==lastPlace&&(!d.route||focus.fromTap)){
+ lastPlace=focus.key;
+ var target=[focus.latitude,focus.longitude];
+ if(focus.fromTap){focusLocation(target);}else{releaseFocusFlight();map.setView(target,16);}
+}
 };window.addEventListener('message',e=>{if(e.source!==parent)return;try{var d=typeof e.data==='string'?JSON.parse(e.data):e.data;if(d.type==='update')window.updateMap(d.data);}catch{}});send({type:'ready'});
 }
 </script></body></html>`;

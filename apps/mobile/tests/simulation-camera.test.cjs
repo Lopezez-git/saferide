@@ -9,9 +9,16 @@ function camera(fitZoom=14.25) {
   vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/components/mapHtml.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,module);
   const calls=[];
   let time=0, sequence=0;const frames=new Map(),positions=[];
-  const point=(x,y)=>({x,y,add(p){return point(x+p.x,y+p.y);},subtract(p){return point(x-p.x,y-p.y);},divideBy(n){return point(x/n,y/n);}});
+  const container = new EventTarget();
+  const events = new EventTarget();
+  const point=(x,y)=>({x,y,add(p){return point(x+(p.x??p[0]),y+(p.y??p[1]));},subtract(p){return point(x-p.x,y-p.y);},divideBy(n){return point(x/n,y/n);}});
   const map={options:{zoomSnap:1},getBoundsZoom:()=>fitZoom,project:(p)=>point(p[1],p[0]),unproject:p=>[p.y,p.x],setView:(position,zoom,options)=>{calls.push(['set',position,zoom,options]);return map;},getCenter:()=>[-23.55,-46.63],getZoom:()=>13,
-    on:()=>map,getPane:()=>({style:{setProperty(){}}}),getSize:()=>({x:390,y:650}),stop:()=>calls.push(['stop']),
+    getContainer:()=>container, getMinZoom:()=>0, getMaxZoom:()=>19,
+    on:(event,fn)=>events.addEventListener(event,fn),
+    once:(event,fn)=>events.addEventListener(event,fn,{once:true}),
+    off:(event,fn)=>events.removeEventListener(event,fn),
+    fire:event=>events.dispatchEvent(new Event(event)),
+    getPane:()=>({style:{setProperty(){}}}),getSize:()=>({x:390,y:650}),stop:()=>calls.push(['stop']),
     latLngToContainerPoint:()=>point(195,325),panBy:(offset,options)=>calls.push(['pan',offset,options]),
     getBearing:()=>map.bearing||0,setBearing:value=>{map.bearing=value;calls.push(['bearing',value]);},setPitch:value=>calls.push(['pitch',value]),
     removeLayer(){},flyTo:(center,zoom,options)=>calls.push(['fly',center,zoom,options]),fitBounds:(_bounds,options)=>calls.push(['fit',options])};
@@ -26,6 +33,22 @@ function camera(fitZoom=14.25) {
 const origin={latitude:-23.66,longitude:-46.71},destination={latitude:-23.68,longitude:-46.7};
 const waiting={simulation:true,reports:[],origin:null,destination:null,route:null,selected:null};
 const offer={...waiting,origin,destination,route:[[-46.71,-23.66],[-46.7,-23.68]],driver:origin,bottomInset:330,topInset:180};
+
+test('a second map selection zooms out before landing, and a gesture cancels the pending landing',()=>{
+  const {map, calls, update} = camera();
+  map.getZoom = () => 17;
+  const select = key => update({...waiting,simulation:false,placeFocus:{...destination,key,fromTap:true}});
+  select(1);
+  assert.deepEqual(calls.filter(([kind])=>kind==='fly').map(call=>call[2]),[15]);
+  map.fire('moveend');
+  assert.deepEqual(calls.filter(([kind])=>kind==='fly').map(call=>call[2]),[15,17]);
+  for (const [index, gesture] of ['pointerdown','wheel'].entries()) {
+    select(index+2);
+    map.getContainer().dispatchEvent(new Event(gesture));
+    map.fire('moveend');
+    assert.equal(calls.at(-1)[2],15);
+  }
+});
 
 test('prepares a close view then flies once; movement updates do not restart camera',()=>{
   const {update,calls}=camera();
