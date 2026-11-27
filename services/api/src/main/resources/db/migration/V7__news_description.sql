@@ -1,0 +1,1 @@
+ALTER TABLE sr_news ADD COLUMN description VARCHAR(360);

@@ -245,7 +245,7 @@ export default function RideSimulation(props: SimulationProps) {
     const delay = nextRequestAt.current - Date.now();
     if (delay > 0) await new Promise(resolve => setTimeout(resolve, delay));
     if (signal.aborted) throw new Error('Consulta encerrada.');
-    const leg = await api<Route>('/route', { method: 'POST', body: routeBody(from, to), signal });
+    const leg = await api<Route>('/route?newsContext=true', { method: 'POST', body: routeBody(from, to), signal });
     nextRequestAt.current = Date.now() + 1150;
     if (!(leg.distance > 0 && leg.duration > 0 && leg.geometry.coordinates.length >= 2)) {
       throw new Error('Trajeto indisponível.');
@@ -309,7 +309,7 @@ function RoadSimulation(props: RoadProps) {
     </View>
     {model.currentScenario && (waiting || phase === 'offer') && <SimulationContext
       key={index} offer={offer} meters={model.distance}
-      routeCoordinates={model.current.trip.geometry.coordinates}
+      route={model.current}
       seconds={model.current.pickup.duration + model.current.trip.duration}
       pickupSeconds={model.current.pickup.duration} top={top+52}
       active={active} visible={phase === 'offer'} reducedMotion={reducedMotion} onLayout={model.onContextLayout}
@@ -317,7 +317,7 @@ function RoadSimulation(props: RoadProps) {
     {showNext && next && <SimulationContext
       offer={next.offer} meters={next.route.pickup.distance + next.route.trip.distance}
       seconds={next.route.pickup.duration + next.route.trip.duration}
-      routeCoordinates={next.route.trip.geometry.coordinates}
+      route={next.route}
       pickupSeconds={next.route.pickup.duration} top={top+52} active={active}
       remainingMinutes={Math.max(1,Math.ceil(model.remainingSeconds/60))} reducedMotion={reducedMotion}
     />}

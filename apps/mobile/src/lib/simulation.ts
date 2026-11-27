@@ -1,7 +1,7 @@
 import roads from './simulation-routes.json';
 import type { MapPoint } from '../components/mapHtml';
 
-export type Route = { distance: number; duration: number; geometry: { coordinates: number[][] } };
+export type Route = { distance: number; duration: number; geometry: { coordinates: number[][] }; streetSteps?: { name: string; duration: number }[] };
 export type Offer = { platform: 'Uber' | '99'; passenger: string; pickup: MapPoint & { name: string }; destination: MapPoint & { name: string }; driver: MapPoint; fare: number; rating: string; reviews: number; category: string };
 export const offers: Offer[] = [
   { platform:'Uber', passenger: 'Mariana Costa', pickup: { latitude: -23.6628226, longitude: -46.7111852, name: 'Estação Socorro, Santo Amaro' }, destination: { latitude: -23.6821152, longitude: -46.7017165, name: 'Rua Professor Oswaldo Quirino Simões, Socorro' }, driver: { latitude: -23.6702, longitude: -46.7064 }, fare: 11.03, rating: '4,89', reviews: 952, category: 'Bag' },
