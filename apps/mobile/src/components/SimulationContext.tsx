@@ -9,13 +9,15 @@ import SimulationMotion from './SimulationMotion';
 import { api, type Report } from '../lib/client';
 import { overlay } from '../lib/overlay';
 import { feedbackOptions, loadSimulatedCommunityFeedback, SimulatedCommunityFeedback } from '../lib/rideHistory';
-import { Offer, routeBody } from '../lib/simulation';
+import { Offer, type PlannedOffer, routeBody } from '../lib/simulation';
+import { newsOnRoute, type NewsFeed, type RoadNews } from '../lib/routeNews';
+import { newsLink } from '../lib/newsLink';
 
 import { type Police, type Pavement, type Traffic, trafficSummary, grossRatesLabel } from '../lib/simulationContext';
 
 const date = (value?: string) => value ? value.split('-').reverse().join('/') : '—';
-type OfferData = { police?: Police | null; pavement?: Pavement | null; traffic?: Traffic | null; roadReports?: Report[] | null };
-function SimulationContext({ offer, routeCoordinates, meters, seconds, pickupSeconds, top, active, remainingMinutes, visible = true, reducedMotion = false, onLayout }: Readonly<{ offer: Offer; routeCoordinates: number[][]; meters: number; seconds: number; pickupSeconds: number; top?: number; remainingMinutes?: number; active: boolean; visible?: boolean; reducedMotion?: boolean | null; onLayout?: (event: LayoutChangeEvent) => void }>) {
+type OfferData = { police?: Police | null; pavement?: Pavement | null; traffic?: Traffic | null; roadReports?: Report[] | null; news?: RoadNews[] };
+function SimulationContext({ offer, route, meters, seconds, pickupSeconds, top, active, remainingMinutes, visible = true, reducedMotion = false, onLayout }: Readonly<{ offer: Offer; route: PlannedOffer['route']; meters: number; seconds: number; pickupSeconds: number; top?: number; remainingMinutes?: number; active: boolean; visible?: boolean; reducedMotion?: boolean | null; onLayout?: (event: LayoutChangeEvent) => void }>) {
   const { palette: c, theme } = useSimulationTheme();
   const [collapsed, setCollapsed] = useState(false);
   const [detail, setDetail] = useState(false);
@@ -29,6 +31,7 @@ function SimulationContext({ offer, routeCoordinates, meters, seconds, pickupSec
       if (!controller.signal.aborted) setData(old => ({ ...(old?.key === offer ? old : { key: offer }), [field]: value }));
     };
     api<Police>('/safety/police' + query, { signal: controller.signal }).then(value => store('police', value)).catch(() => store('police', null));
+    api<NewsFeed>('/news', { signal: controller.signal }).then(feed => store('news', feed.items)).catch(() => store('news', []));
     api<Pavement>('/pavement/requests' + query, { signal: controller.signal }).then(value => store('pavement', value)).catch(() => store('pavement', null));
     api<Report[]>('/reports', { signal: controller.signal }).then(value => store('roadReports', Array.isArray(value) ? value : null)).catch(() => store('roadReports', null));
     api<Traffic>('/traffic/route', { method: 'POST', body: routeBody(offer.pickup, offer.destination), signal: controller.signal }).then(value => store('traffic', value)).catch(() => store('traffic', null));
@@ -48,8 +51,10 @@ function SimulationContext({ offer, routeCoordinates, meters, seconds, pickupSec
   const trafficTone = typical?.level ?? trafficLevel(traffic?.status === "AVAILABLE" ? traffic.condition : undefined);
   const trafficCaption = typical ? "Estimativa" : trafficTone !== "unknown" ? "Ao vivo" : undefined;
   const trafficText = trafficCaption ? `${trafficValue} · ${trafficCaption.toLowerCase()}` : trafficValue;
-  const roadSignal = offerPavement(pavement, current?.roadReports, routeCoordinates, checkedAt);
-  const notification = offerNotification(police, pavement, trafficText, trafficTone, roadSignal);
+  const roadSignal = offerPavement(pavement, current?.roadReports, route.trip.geometry.coordinates, checkedAt);
+  const routeNews = newsOnRoute(current?.news ?? [], [route.pickup, route.trip], checkedAt + (remainingMinutes ?? 0) * 60000);
+  const summary = offerNotification(police, pavement, trafficText, trafficTone, roadSignal);
+  const notification = routeNews.length ? summary + '\nNotícia: ' + routeNews[0].title : summary;
   useEffect(()=>{
     if(!active)return;
     if(!visible){overlay.update('Aguardando oferta simulada no SafeRide.');return;}
@@ -83,12 +88,14 @@ function SimulationContext({ offer, routeCoordinates, meters, seconds, pickupSec
         {card.caption ? <Text style={[styles.caption,{color:c.muted}]}>{card.caption}</Text> : null}
       </View>)}</View><Text style={[styles.location,{color:c.muted}]}>{reports===undefined?'Consultando relatos do trajeto…':reports===null?'Relatos do trajeto indisponíveis':reports.length?`${reports.length} relato(s) em trajeto semelhante · simulação`:'Sem relatos para este trajeto · simulação'} · toque para detalhes</Text>
 
+      {routeNews[0] ? <Text numberOfLines={2} style={[styles.location,{color:c.text,fontWeight:'700'}]}>No trajeto · {routeNews[0].title}</Text> : null}
     </Pressable> : null}
     <Modal visible={detail} transparent animationType="fade" onRequestClose={() => setDetail(false)}><View style={styles.scrim}><View style={[styles.detail,{backgroundColor:c.surface}]}>
       <View style={styles.header}><Text style={[styles.brand,{flex:1,color:c.text}]}>Fontes do SafeRide</Text><Pressable accessibilityRole="button" accessibilityLabel="Fechar fontes" onPress={() => setDetail(false)} style={styles.toggle}><Text style={{color:c.text,fontSize:25}}>×</Text></Pressable></View>
       <ScrollView><Text style={[styles.body,{color:c.text}]}>Receita bruta da oferta dividida pela distância e pelo tempo estimados, incluindo a ida ao embarque. Despesas do veículo ficam fora do cálculo.</Text><Text style={[styles.body,{color:c.muted}]}>{offer.destination.name}</Text><Text style={[styles.body,{color:c.muted}]}>Histórico SSP-SP e pedidos SP156: raio de 1 km do destino. Trânsito e relatos de via: percurso do embarque ao destino.</Text>
         <Text style={[styles.section,{color:c.text}]}>Segurança · SSP-SP</Text><Text style={[styles.body,{color:c.muted}]}>Roubo e furto de veículos de {police?.periodStart ?? '—'} a {police?.periodEnd ?? '—'}, filtrados pela hora atual de São Paulo. Histórico, não ocorrências ao vivo. Zero BOs não garante segurança.</Text>
         {police?.sourceUrl ? <Pressable onPress={() => Linking.openURL(police.sourceUrl!).catch(() => {})}><Text style={[styles.link,{color:c.accent}]}>Abrir publicação SSP ↗</Text></Pressable> : null}
+        {routeNews.map(item => <View key={item.id}><Text style={[styles.section,{color:c.text}]}>{item.title}</Text><Pressable accessibilityRole="link" onPress={() => Linking.openURL(newsLink(item).url).catch(() => {})}><Text style={[styles.link,{color:c.accent}]}>{item.source} ↗</Text></Pressable></View>)}
         <Text style={[styles.section,{color:c.text}]}>Pavimento</Text>
         <Text style={[styles.body,{color:roadTone.ink}]}>{roadSignal.label}{roadSignal.reason ? ` · ${roadSignal.reason}` : ''}</Text>
         <Text style={[styles.body,{color:c.muted}]}>Vermelho indica relato revisado de alagamento ou via sem asfalto até 300 m do percurso. Amarelo indica relato de pavimento ou pedidos de reparo. Verde indica ausência de alertas nas fontes consultadas. Cinza indica dados insuficientes.</Text>

@@ -36,7 +36,7 @@ class ReportParticipationTest {
 
     @Test void newsDatesKeepTheirPublicFieldNames() throws Exception {
         var now = Instant.now();
-        db.update("INSERT INTO sr_news VALUES(?,?,?,?,?,?)",UUID.randomUUID().toString(),
+        db.update("INSERT INTO sr_news(id,title,url,source,published_at,collected_at) VALUES(?,?,?,?,?,?)",UUID.randomUUID().toString(),
                 "Alagamento em São Paulo","https://example.org/noticia","Fonte de teste",now.toString(),Timestamp.from(now));
         http.perform(get(API+"/news")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[0].publishedAt").value(now.toString()))

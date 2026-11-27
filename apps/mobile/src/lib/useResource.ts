@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api, message } from "./client";
 export function useResource<T>(path: string, token?: string | null) {
   const [data, setData] = useState<T | null>(null);
@@ -19,14 +19,15 @@ export function useResource<T>(path: string, token?: string | null) {
       });
     return () => c.abort();
   }, [path, token, version]);
+  const refresh = useCallback(() => {
+    setError("");
+    setLoading(true);
+    setVersion(v => v + 1);
+  }, []);
   return {
     data,
     error,
     loading,
-    refresh: () => {
-      setError("");
-      setLoading(true);
-      setVersion((v) => v + 1);
-    },
+    refresh,
   };
 }

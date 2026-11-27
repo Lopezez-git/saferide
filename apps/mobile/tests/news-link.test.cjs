@@ -25,3 +25,8 @@ test('direct publisher links remain intact', () => {
   const url = 'https://agenciabrasil.ebc.com.br/geral/noticia/artigo';
   assert.equal(resolve({...news, url}).url, url);
 });
+test('unarchived stories use the publisher description and keep legitimate title punctuation', () => {
+  const copy=box.exports.newsCopy({...news,title:"Avenida Paulista - novas interdições - G1",description:"Haverá desvios temporários para quem segue até a Consolação."});
+  assert.equal(copy.headline,"Avenida Paulista - novas interdições");
+  assert.equal(copy.description,"Haverá desvios temporários para quem segue até a Consolação.");
+});

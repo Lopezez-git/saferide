@@ -81,7 +81,8 @@ class OverlayService : Service() {
   val pavement = field("Pavimento:") ?: "⚪ Pavimento · consultando"
   val hour = field("Horário:")
   val traffic = field("Trânsito:")?.let { "Trânsito · $it" }
-  val body = listOfNotNull(safety, hour, pavement, traffic).joinToString("\n")
+  val roadNews = field("Notícia:")?.let { "No trajeto · $it" }
+  val body = listOfNotNull(safety, hour, pavement, traffic, roadNews).joinToString("\n")
   val details = Notification.BigTextStyle().setBigContentTitle("SafeRide · oferta simulada").bigText(body)
   val notification = builder(alertChannel).setSmallIcon(R.drawable.ic_saferide_notification)
    .setContentTitle(safety).setContentText(traffic ?: pavement).setSubText("Oferta simulada")
