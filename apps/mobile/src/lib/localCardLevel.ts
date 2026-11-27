@@ -1,3 +1,6 @@
+import type { Report } from "./client";
+import { nearRoute } from "./spatial";
+
 type Level = keyof typeof levels;
 
 export function volumeLevel(count: number | null): Level {
@@ -126,9 +129,32 @@ export function offerContext(police?: PoliceReading | null, pavement?: PavementR
   return { safety, road, history, surface, hourLabel };
 }
 
-export function offerNotification(police?: PoliceReading | null, pavement?: PavementReading | null, trafficText?: string, trafficTone: Level = "unknown") {
+type RoadSignal = { level: Level; label: string; reason: string };
+
+export function offerPavement(pavement: PavementReading | null | undefined, reports: Report[] | null | undefined,
+  route: number[][], now: number): RoadSignal {
+  const pending = pavement?.status === "AVAILABLE" && pavement.stale === false
+    ? pendingRepairs(pavement.statuses, pavement.totalRequests) : null;
+  const nearby = reports?.filter(report =>
+    (report.category === "PAVIMENTO" || report.category === "ALAGAMENTO") &&
+    Date.parse(report.reviewedAt ?? "") <= now && Date.parse(report.validUntil ?? "") > now &&
+    nearRoute(report, route));
+  const flood = nearby?.some(report => report.category === "ALAGAMENTO");
+  const unpaved = nearby?.some(report => /^(?:via|rua|estrada) (?:sem asfalto|de terra)\b/i.test(report.title.trim()));
+  if (flood || unpaved) return { level: "high", label: flood ? "Alagamento" : "Via sem asfalto", reason: "Relato a até 300 m da rota" };
+  if (nearby?.length) return { level: "low", label: "Via irregular", reason: "Relato a até 300 m da rota" };
+  if (pending !== null && pending > 0) return {
+    level: "low", label: pending === 1 ? "1 pedido pendente" : pending + " pedidos pendentes", reason: "Tapa-buraco · SP156"
+  };
+  if (pending === 0 && nearby && route.length >= 2) return { level: "noPendingRepairs", label: "Sem alertas", reason: "Nas fontes consultadas" };
+  const loading = pavement === undefined || reports === undefined;
+  return { level: "unknown", label: loading ? "Consultando…" : "Sem avaliação", reason: loading ? "" : "Dados insuficientes" };
+}
+
+export function offerNotification(police?: PoliceReading | null, pavement?: PavementReading | null, trafficText?: string, trafficTone: Level = "unknown", roadSignal?: RoadSignal) {
   const {safety,road,history,surface,hourLabel} = offerContext(police,pavement);
-  const lines = [`Segurança: ${dot(safety)} Veículos · ${history}`, `Pavimento: ${dot(road)} Tapa-buraco · ${surface}`];
+  const roadText = roadSignal ? `${dot(roadSignal.level)} Pavimento · ${roadSignal.label}` : `${dot(road)} Tapa-buraco · ${surface}`;
+  const lines = [`Segurança: ${dot(safety)} Veículos · ${history}`, `Pavimento: ${roadText}`];
   if (hourLabel) lines.push("Horário: " + hourLabel);
   if (trafficText) lines.push(`Trânsito: ${dot(trafficTone)} ${trafficText}`);
   return lines.join("\n");

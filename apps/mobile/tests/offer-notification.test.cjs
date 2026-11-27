@@ -3,7 +3,11 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const ts = require('typescript');
 const vm = require('node:vm');
-const box = { exports: {} };
+const spatial = { exports: {} };
+vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/lib/spatial.ts', 'utf8'), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS },
+}).outputText, spatial);
+const box = { exports: {}, require(id){assert.equal(id,'./spatial');return spatial.exports;} };
 vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/lib/localCardLevel.ts', 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS },
 }).outputText, box);
@@ -11,6 +15,20 @@ const { offerNotification } = box.exports;
 const police = { status:'AVAILABLE', stale:false, total:90, categories:{Furto:82,Roubo:8},
   periodStart:'2026-01', periodEnd:'2026-09', unknownTimeTotal:33, currentTimeWindow:'03', windows:{'03':{Roubo:1}} };
 const pavement = {status:'AVAILABLE', stale:false, totalRequests:5, statuses:{Finalizada:5}};
+test('offer and Android use the same active road signal within 300 m of a segment',()=>{
+  const route=[[-46.65,-23.56],[-46.64,-23.56]], now=Date.parse('2026-11-27T08:00:00Z');
+  const report={category:'ALAGAMENTO',title:'Alagamento',latitude:-23.561,longitude:-46.645,reviewedAt:'2026-11-27T07:00:00Z',validUntil:'2026-11-27T10:00:00Z'};
+  function signal(reports,source=pavement){return box.exports.offerPavement(source,reports,route,now);}
+  const flood=signal([report]);
+  assert.equal(flood.level,'high');
+  assert.match(offerNotification(police,pavement,undefined,'unknown',flood),/🔴 Pavimento · Alagamento/);
+  assert.equal(signal([{...report,latitude:-23.57},{...report,validUntil:'2026-11-27T08:00:00Z'}]).level,'noPendingRepairs');
+  assert.equal(signal([{...report,category:'PAVIMENTO',title:'Via sem asfalto'}]).level,'high');
+  assert.equal(signal([{...report,category:'PAVIMENTO',title:'Buracos'}]).level,'low');
+  assert.equal(signal(null).level,'unknown');
+  assert.equal(signal([],null).level,'unknown');
+  assert.equal(signal(null,{...pavement,statuses:{Aberto:5}}).label,'5 pedidos pendentes');
+});
 test('notification uses São Paulo hours at both rush-hour boundaries and on weekends', () => {
   const hours = { exports: {} };
   vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/lib/trafficHours.ts','utf8'), {

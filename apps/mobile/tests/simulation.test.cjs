@@ -26,7 +26,7 @@ test('unanswered offers loop every ten seconds with a fresh five-second search',
   let state={phase:'offer',elapsed:0,offerIndex:0};
   for(let cycle=0;cycle<7;cycle++){
     state=advance(state,39);assert.equal(state.phase,'offer');
-    state=advance(state,1);assert.equal(state.phase,'searching');assert.equal(state.offerIndex,(cycle+1)%3);
+    state=advance(state,1);assert.equal(state.phase,'searching');assert.equal(state.offerIndex,cycle+1);
     state=advance(state,19);assert.equal(state.phase,'searching');
     state=advance(state,1);assert.equal(state.phase,'offer');
   }
@@ -38,7 +38,20 @@ test('accepting just before expiry freezes the offer until its record is saved',
   state=reduce(state,{type:'phase',phase:'pickup'});state=advance(state,56+12+112);
   assert.equal(state.phase,'done');assert.equal(state.offerIndex,2);
   state=advance(state,100);assert.equal(state.phase,'done');
-  state=reduce(state,{type:'next'});assert.equal(state.phase,'searching');assert.equal(state.offerIndex,0);
+  state=reduce(state,{type:'next'});assert.equal(state.phase,'searching');assert.equal(state.offerIndex,3);
+});
+test('a new plan starts at the driver, connects at pickup and can skip a declined future offer',async()=>{
+  const {planOffer,roadPoint}=box.exports;
+  const index=reduce({phase:'done',elapsed:0,offerIndex:2},{type:'next',skipDeclined:true}).offerIndex;
+  assert.equal(index,4);
+  const legs=[roads.routes[0].pickup,roads.routes[0].trip],fromPoints=[];
+  const driver=roadPoint(legs[0]);
+  const plan=await planOffer(driver,index,async from=>{fromPoints.push(from);return legs[fromPoints.length-1];});
+  assert.equal(fromPoints[0],driver);
+  assert.equal(fromPoints[1],plan.offer.pickup);
+  assert.equal(plan.offer.passenger,box.exports.offers[1].passenger);
+  assert.equal(plan.offer.destination.latitude,roadPoint(legs[1],true).latitude);
+  await assert.rejects(planOffer(driver,0,async()=>legs[0]),/embarque/);
 });
 test('accepted trip reaches pickup then destination',()=>{let state=reduce({phase:'offer',elapsed:20},{type:'phase',phase:'pickup'});assert.equal(state.elapsed,0);state=advance(state,56);assert.equal(state.phase,'boarding');state=advance(state,11);assert.equal(state.phase,'boarding');state=advance(state,1);assert.equal(state.phase,'trip');assert.equal(advance(state,112).phase,'done');});
 test('cancelled and idle simulations do not move',()=>{for(const phase of ['idle','declined','expired','done'])assert.equal(advance({phase,elapsed:0},100).elapsed,0);});
