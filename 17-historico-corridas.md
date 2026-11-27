@@ -26,7 +26,7 @@ Migração Flyway `V4__simulated_rides.sql`, tabela MySQL `sr_simulated_ride`. E
 
 - `POST /api/v1/rides/key`: gera UUID aleatório para identificação anônima do dispositivo ou de uma corrida.
 - `PUT /api/v1/rides/{id}`: grava/atualiza uma fotografia validada da corrida; requer a chave do dispositivo como Bearer.
-- `GET /api/v1/rides`: lista até 100 corridas mais recentes da chave apresentada.
+- `GET /api/v1/rides` retorna até 100 corridas da chave apresentada por página. Para continuar, envie `beforeCreatedAt` e `beforeId` do último registro. O app percorre as páginas para carregar também corridas antigas antes de calcular o resumo mensal. A ordenação usa data de criação e ID, inclusive para corridas com a mesma data.
 
 A chave persistente fica em SecureStore no aplicativo e localStorage no navegador. Não usa o token de login anterior. Cada instalação/navegador tem seu próprio histórico; não há sincronização entre dispositivos sem implementar contas posteriormente. Limpar o armazenamento local perde a chave de acesso, mesmo que os registros continuem no banco.
 
@@ -35,6 +35,12 @@ As gravações usam ID único: reenviar não duplica a corrida. Finalizações n
 Cada fotografia é salva localmente antes do envio. Sem conexão, fica marcada como pendente; novas gravações e a atualização da aba Histórico tentam sincronizar. Um novo aceite precisa de conexão para gerar os identificadores. O histórico tem estados de carregamento, vazio, offline e erro; não diz que está salvo no banco quando só existe localmente.
 
 ## Validação
+
+O resumo mensal e a lista usam a data de encerramento no fuso `America/Sao_Paulo`. Em corridas em andamento ou registros antigos sem encerramento, usam a data de criação. O total e os quilômetros somam apenas corridas concluídas naquele mês. As datas de aceite e encerramento ficam nos detalhes. O filtro por status e feedback se aplica ao período selecionado.
+
+O seletor oferece rolagem horizontal, encaixe por mês e botões de navegação. Começa no mês atual e permite voltar a períodos anteriores. Meses sem corridas mostram total zero e estado vazio. A atualização da tela tenta sincronizar os registros locais e lê novamente o histórico. Sem conexão, os totais consideram a cópia disponível no dispositivo.
+
+Os testes do mobile cobrem viradas de mês e ano em São Paulo, datas antigas, exclusão de canceladas e corridas em andamento do total, precisão em centavos, paginação de 101 registros e sincronização offline. O teste do backend cobre páginas com datas iguais, isolamento entre dispositivos e cursor inválido.
 
 `RideHistoryTest` valida migração/persistência, isolamento entre chaves, idempotência, proteção do estado final e entrada inválida. A simulação foi testada com gravação no MySQL e consulta pela aba Histórico.
 

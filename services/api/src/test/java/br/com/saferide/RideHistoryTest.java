@@ -18,6 +18,25 @@ class RideHistoryTest {
  static class Config {}
 
  @Autowired MockMvc http;@Autowired ObjectMapper json;
+ @Autowired org.springframework.jdbc.core.JdbcTemplate db;
+ @Test void pagesPastOneHundredWithStableTiesAndDeviceIsolation() throws Exception {
+  String key=UUID.randomUUID().toString(), token="Bearer "+key;
+  for(int i=0;i<101;i++){
+   http.perform(put("/api/v1/rides/"+UUID.randomUUID()).header("Authorization",token).contentType("application/json").content(json.writeValueAsString(data("COMPLETED",1000)))).andExpect(status().isOk());
+  }
+  db.update("UPDATE sr_simulated_ride SET created_at=? WHERE owner_key=?",java.sql.Timestamp.from(java.time.Instant.parse("2026-11-01T12:00:00Z")),key);
+  var first=json.readTree(http.perform(get("/api/v1/rides").header("Authorization",token)).andReturn().getResponse().getContentAsString());
+  org.junit.jupiter.api.Assertions.assertEquals(100,first.size());
+  var cursor=first.get(99);
+  var next=get("/api/v1/rides").header("Authorization",token).param("beforeCreatedAt",cursor.get("createdAt").asText()).param("beforeId",cursor.get("id").asText());
+  var last=json.readTree(http.perform(next).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+  org.junit.jupiter.api.Assertions.assertEquals(1,last.size());
+  var ids=new HashSet<String>();first.forEach(row->ids.add(row.get("id").asText()));last.forEach(row->ids.add(row.get("id").asText()));
+  org.junit.jupiter.api.Assertions.assertEquals(101,ids.size());
+  http.perform(get("/api/v1/rides").header("Authorization","Bearer "+UUID.randomUUID()).param("beforeCreatedAt",cursor.get("createdAt").asText()).param("beforeId",cursor.get("id").asText())).andExpect(jsonPath("$.length()").value(0));
+  http.perform(get("/api/v1/rides").header("Authorization",token).param("beforeCreatedAt","invalid").param("beforeId",cursor.get("id").asText())).andExpect(status().isBadRequest());
+  http.perform(get("/api/v1/rides").header("Authorization",token).param("beforeId",cursor.get("id").asText())).andExpect(status().isBadRequest());
+ }
  Map<String,Object> data(String status,int distance){var data=new HashMap<String,Object>();data.put("passenger","Passageiro fictício");data.put("origin","Embarque");data.put("destination","Destino");data.put("originLat",-23.6);data.put("originLon",-46.7);data.put("destinationLat",-23.7);data.put("destinationLon",-46.6);data.put("fare",11.03);data.put("distanceMeters",distance);data.put("plannedDistanceMeters",1000);data.put("simulatedSeconds",120);data.put("activeSeconds",10);data.put("status",status);return data;}
  @Test void persistsIsolatesAndDoesNotDuplicateOrReopenTerminalRides() throws Exception {
   String token="Bearer "+UUID.randomUUID(),other="Bearer "+UUID.randomUUID(),id=UUID.randomUUID().toString();

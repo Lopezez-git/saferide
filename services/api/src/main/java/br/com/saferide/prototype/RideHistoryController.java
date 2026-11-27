@@ -46,7 +46,20 @@ public class RideHistoryController {
    return out;
   }catch(Exception e){throw new IllegalStateException("Registro de corrida inválido",e);}
  }
- @GetMapping public List<Map<String,Object>> list(@RequestHeader(value="Authorization",required=false)String header){return db.queryForList("SELECT * FROM sr_simulated_ride WHERE owner_key=? ORDER BY created_at DESC,id DESC LIMIT 100",owner(header)).stream().map(this::result).toList();}
+ @GetMapping public List<Map<String,Object>> list(
+   @RequestHeader(value="Authorization",required=false) String header,
+   @RequestParam(required=false) String beforeCreatedAt,
+   @RequestParam(required=false) String beforeId) {
+  String key=owner(header);
+  if(beforeCreatedAt==null && beforeId==null)
+   return db.queryForList("SELECT * FROM sr_simulated_ride WHERE owner_key=? ORDER BY created_at DESC,id DESC LIMIT 100",key).stream().map(this::result).toList();
+  Timestamp cursor;
+  try {
+   cursor=Timestamp.from(Instant.parse(beforeCreatedAt));
+   if(beforeId==null || !UUID.fromString(beforeId).toString().equals(beforeId))throw new IllegalArgumentException();
+  } catch(Exception error) {throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Cursor de histórico inválido.");}
+  return db.queryForList("SELECT * FROM sr_simulated_ride WHERE owner_key=? AND (created_at < ? OR (created_at = ? AND id < ?)) ORDER BY created_at DESC,id DESC LIMIT 100",key,cursor,cursor,beforeId).stream().map(this::result).toList();
+ }
  public record Feedback(@NotEmpty @Size(max=6) List<@NotBlank @Pattern(regexp="POTHOLE|BAD_ROAD|FLOOD|ROBBERY|INSECURE|ACCESS|NONE") String> categories) {}
  @PutMapping("/{id}/feedback") @Transactional public Map<String,Object> feedback(@RequestHeader(value="Authorization",required=false) String header,@PathVariable String id,@Valid @RequestBody Feedback feedback) {
   String key=owner(header); uuid(id);

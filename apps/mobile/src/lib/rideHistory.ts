@@ -56,7 +56,18 @@ export async function submitRideFeedback(rideId:string,categories:FeedbackCatego
 export async function loadSimulatedCommunityFeedback(query=''){return api<SimulatedCommunityFeedback[]>('/rides/community-feedback'+query);}
 export async function loadRides():Promise<{items:Ride[];offline:boolean}> {
  try {
-  await flush();const remote=await api<Ride[]>('/rides',{token:await owner()});
+  await flush();
+  const token=await owner(), remote:Ride[]=[];
+  let query='';
+  while(true) {
+   const page=await api<Ride[]>('/rides'+query,{token});
+   remote.push(...page);
+   if(page.length<100)break;
+   const last=page[page.length-1];
+   const next='?beforeCreatedAt='+encodeURIComponent(last.createdAt)+'&beforeId='+encodeURIComponent(last.id);
+   if(next===query)throw new Error('A consulta do histórico não avançou.');
+   query=next;
+  }
   const pending=(await local()).filter(r=>r.pending);
   for(const ride of remote)if(!pending.some(p=>p.id===ride.id))await write({...ride,pending:false});
   const remoteIds = new Set(remote.map(ride => ride.id));
