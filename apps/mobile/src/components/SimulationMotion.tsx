@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { AccessibilityInfo, Animated, Easing, Platform, type StyleProp, type ViewStyle } from 'react-native';
+import { AccessibilityInfo, Animated, Easing, Platform, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
 
 export function useReducedMotion() {
   const [reduced,setReduced]=useState<boolean | null>(null);
@@ -13,9 +13,9 @@ export function useReducedMotion() {
 }
 
 /** Retains the outgoing panel until its exit finishes. Only opacity/transform animate. */
-export default function SimulationMotion({visible,reducedMotion,fromY=0,duration=480,delay=0,style,children,testID}: Readonly<{
+export default function SimulationMotion({visible,reducedMotion,fromY=0,duration=480,delay=0,style,children,testID,onLayout}: Readonly<{
   visible:boolean; reducedMotion:boolean | null; fromY?:number; duration?:number; delay?:number;
-  style?:StyleProp<ViewStyle>; children?:ReactNode; testID?:string;
+  style?:StyleProp<ViewStyle>; children?:ReactNode; testID?:string; onLayout?:(event:LayoutChangeEvent)=>void;
 }>) {
   const [progress]=useState(()=>new Animated.Value(0));
   const [retained,setRetained]=useState(visible);
@@ -33,7 +33,7 @@ export default function SimulationMotion({visible,reducedMotion,fromY=0,duration
     return()=>animation.stop();
   },[visible,reducedMotion,progress,duration,delay]);
   if(!visible&&!retained)return null;
-  return <Animated.View testID={testID} pointerEvents={visible?'box-none':'none'} accessibilityElementsHidden={!visible} importantForAccessibility={visible?'auto':'no-hide-descendants'} style={[style,{
+  return <Animated.View testID={testID} onLayout={onLayout} pointerEvents={visible?'box-none':'none'} accessibilityElementsHidden={!visible} importantForAccessibility={visible?'auto':'no-hide-descendants'} style={[style,{
     opacity:progress,transform:[{translateY:progress.interpolate({inputRange:[0,1],outputRange:[reducedMotion?0:fromY,0]})}],
   }]}>{children}</Animated.View>;
 }
