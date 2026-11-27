@@ -14,3 +14,17 @@ test('offline record survives app reload and synchronizes without duplication',a
  server.clear();result=await app.loadRides();assert.equal(result.offline,false);assert.equal(result.items[0].cachedOnly,true);
  assert.equal(result.items[0].distanceMeters,350);
 });
+test('loads older pages before calculating history and monthly totals',async()=>{
+ const storage=new Map([['sr-ride-owner','device-key']]);
+ const rides=Array.from({length:101},(_,index)=>({id:'ride-'+index,createdAt:'2026-11-01T12:00:00Z',status:'COMPLETED',fare:11.03,distanceMeters:1000}));
+ const requests=[];
+ const api=async(path)=>{requests.push(path);return path==='/rides'?rides.slice(0,100):rides.slice(100);};
+ const box={exports:{},require:id=>id==='./client'?{api}:{rideStorage:{get:async key=>storage.get(key)??null,set:async(key,value)=>storage.set(key,value)}},Date,Promise};
+ vm.runInNewContext(source,box);
+ const result=await box.exports.loadRides();
+ assert.equal(result.offline,false);
+ assert.equal(result.items.length,101);
+ assert.equal(new Set(result.items.map(ride=>ride.id)).size,101);
+ assert.equal(requests.length,2);
+ assert.match(requests[1],/beforeId=ride-99/);
+});
