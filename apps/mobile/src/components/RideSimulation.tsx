@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { AppState, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppState, Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,8 +13,10 @@ import SimulationContext from '../components/SimulationContext';
 import SimulationProgress from './SimulationProgress';
 import RideFeedback from './RideFeedback';
 import { overlay } from '../lib/overlay';
-import { demoCircuit, localCircuit, roadScenario, routeBody, type DriverStop, type RoadCircuit, type Route, offers, legProgress, simulationDriver, simulationReducer, type SimulationPhase, OFFER_SECONDS } from '../lib/simulation';
-import { api } from '../lib/client';
+import { planOffer, routeBody, type Offer, type PlannedOffer, type Route, legProgress, simulationDriver, simulationReducer, type SimulationPhase, OFFER_SECONDS } from '../lib/simulation';
+import { api, message } from '../lib/client';
+import { locate } from '../lib/location';
+import { inPilot } from '../lib/trafficHours';
 
 
 
@@ -22,9 +24,12 @@ const money = (value: number) => value.toLocaleString('pt-BR', { style:'currency
 const km = (value: number) => (value/1000).toLocaleString('pt-BR',{maximumFractionDigits:1});
 function Person({ color = 'white' }: Readonly<{color?: string}>) { return <Svg width={19} height={19} viewBox="0 0 24 24" fill={color}><Circle cx={12} cy={7} r={4}/><Path d="M4 21v-3a8 8 0 0116 0v3z"/></Svg>; }
 
-type SimulationProps = Readonly<{ onExit: () => void; onMapData: (data: MapData) => void; height: number; initialPosition: MapPoint|null; }>;
-type RoadProps = SimulationProps & { circuit: RoadCircuit; routeNotice: string };
-function useSimulationController({ onExit, onMapData, height, circuit, routeNotice }: RoadProps) {
+type SimulationProps = Readonly<{ onExit: () => void; onMapData: (data: MapData) => void; height: number; }>;
+type FetchOffer = (start: MapPoint, index: number, signal: AbortSignal) => Promise<PlannedOffer>;
+type RoadProps = SimulationProps & { start: MapPoint; firstOffer: PlannedOffer; fetchOffer: FetchOffer };
+type OfferResult = { scenario: PlannedOffer } | { error: string };
+
+function useSimulationController({ onExit, onMapData, height, start, firstOffer, fetchOffer }: RoadProps) {
   const inset = useSafeAreaInsets();
   const { palette: c } = useSimulationTheme();
   const reducedMotion = useReducedMotion();
@@ -47,20 +52,51 @@ function useSimulationController({ onExit, onMapData, height, circuit, routeNoti
   const player = useAudioPlayer(require('../../assets/ride-chime.wav'));
   const audioStatus = useAudioPlayerStatus(player);
   const announced = useRef(false);
-  const [origin,setOrigin] = useState<DriverStop>('start');
-  const {offer,route:current,arrival} = useMemo(()=>roadScenario(circuit,origin,index),[circuit,origin,index]);
+  const [origin,setOrigin] = useState(start);
+  const [plans,setPlans] = useState<Partial<Record<number, OfferResult>>>({0:{scenario:firstOffer}});
   const [nextDecision,setNextDecision] = useState<'open'|'reserved'|'declined'>('open');
-  const nextIndex = (index + 1) % offers.length;
-  const {offer:nextOffer,route:nextRoute} = useMemo(()=>roadScenario(circuit,arrival,nextIndex),[circuit,arrival,nextIndex]);
-  const remainingSeconds = current.trip.duration * (1 - legProgress(phase,elapsed).trip);
-  const nearDropoff = phase === 'trip' && remainingSeconds <= 300;
+  const plan = plans[index];
+  const currentScenario = plan && 'scenario' in plan ? plan.scenario : null;
+  const planError = plan && 'error' in plan ? plan.error : '';
+  const {offer,route:current} = currentScenario ?? firstOffer;
+  const nextPlan = plans[index+1];
+  const next = nextPlan && 'scenario' in nextPlan ? nextPlan.scenario : null;
   const active = focused && (foreground || overlayActive);
   const moving = phase === 'pickup' || phase === 'boarding' || phase === 'trip';
+  const planningAfterArrival = moving || phase === 'done';
+  const plannedIndex = planningAfterArrival ? index + 1 : index;
+  const plannedOrigin = planningAfterArrival ? offer.destination : origin;
+  const canPlan = active && !plans[plannedIndex] && (!planningAfterArrival || nextDecision !== 'declined');
+  const remainingSeconds = current.trip.duration * (1 - legProgress(phase,elapsed).trip);
+  const nearDropoff = phase === 'trip' && !!next && remainingSeconds <= 300;
   const passengerOnboard = phase === 'boarding' || phase === 'trip';
   const introVisible = phase === 'intro' || phase === 'idle';
   const waiting = phase === 'searching' || introVisible;
   const offering = phase === 'offer' || phase === 'accepting';
   const cardHeight = offering || (nearDropoff && nextDecision==='open') ? Math.min(220,height*0.38) : Math.min(135,height*0.28);
+  const [contextLayout,setContextLayout] = useState<{index:number;height:number}>();
+  const [requestLayout,setRequestLayout] = useState<{index:number;height:number}>();
+  const onContextLayout = useCallback(({nativeEvent}:LayoutChangeEvent) => {
+    setContextLayout({index,height:Math.ceil(nativeEvent.layout.height)});
+  }, [index]);
+  const onRequestLayout = useCallback(({nativeEvent}:LayoutChangeEvent) => {
+    setRequestLayout({index,height:Math.ceil(nativeEvent.layout.height)});
+  }, [index]);
+  useEffect(() => {
+    if (!canPlan) return;
+    const controller = new AbortController();
+    function storePlan(result: OfferResult) {
+      if (controller.signal.aborted) return;
+      setPlans(existing => ({ [plannedIndex - 1]: existing[plannedIndex - 1], [plannedIndex]: result }));
+    }
+    void fetchOffer(plannedOrigin, plannedIndex, controller.signal)
+      .then(scenario => storePlan({ scenario }))
+      .catch(() => storePlan({ error: 'Não foi possível calcular a próxima corrida.' }));
+    return () => controller.abort();
+  }, [canPlan, fetchOffer, plannedIndex, plannedOrigin]);
+  function retryPlan() {
+    setPlans(existing => ({ ...existing, [index]: undefined }));
+  }
   useEffect(() => {
     if (phase !== 'offer' && !(nearDropoff && nextDecision === 'open')) { announced.current = false; return; }
     if (!active || !sound || !audioStatus.isLoaded || announced.current) return;
@@ -71,10 +107,10 @@ function useSimulationController({ onExit, onMapData, height, circuit, routeNoti
   useEffect(() => { const listener=AppState.addEventListener('change',value=>{setForeground(value==='active');setOverlayActive(overlay.running());});return ()=>listener.remove(); },[]);
   useEffect(() => { if(!active || !sound || (phase!=='offer' && !nearDropoff))player.pause(); },[active,sound,phase,nearDropoff,player]);
   useEffect(() => {
-    if(!active || paused || saving || !(phase==='intro'||phase==='searching'||phase==='offer'||moving))return;
+    if(!active || paused || saving || !currentScenario || !(phase==='intro'||phase==='searching'||phase==='offer'||moving))return;
     const timer=setInterval(()=>dispatch({type:'tick'}),250);
     return ()=>clearInterval(timer);
-  },[active,paused,saving,phase,moving]);
+  },[active,paused,saving,phase,moving,currentScenario]);
   function snapshot(id:string,status:Ride['status']):Ride {
     const { pickup: pickupFraction, trip: tripFraction } = legProgress(phase, elapsed);
     return {id,passenger:offer.passenger,origin:offer.pickup.name,destination:offer.destination.name,
@@ -105,12 +141,12 @@ function useSimulationController({ onExit, onMapData, height, circuit, routeNoti
       if(!current||rideId.current!==id)return;
       rideId.current=null;checkpoint.current='';
       setSaveNotice(saved?'Viagem concluída e salva no histórico':'Viagem salva no dispositivo · envio pendente');
-      setOrigin(arrival);
+      setOrigin(offer.destination);
       if(nextDecision!=='reserved') setNextDecision('open');
-      setCompletionError(false);setAudioError('');setFeedbackRideId(id);setPaused(true);dispatch({type:'next'});
+      setCompletionError(false);setAudioError('');setFeedbackRideId(id);setPaused(true);dispatch({type:'next',skipDeclined:nextDecision==='declined'});
     }).catch(()=>{if(current){setCompletionError(true);setSaveNotice('Não foi possível salvar a conclusão. Tente novamente para continuar.');}});
     return()=>{current=false;};
-  },[phase,completionAttempt,nextDecision,arrival]);
+  },[phase,completionAttempt,nextDecision,offer.destination]);
   function finishFeedback() {
     setFeedbackRideId(null);
     setPaused(false);
@@ -120,7 +156,7 @@ function useSimulationController({ onExit, onMapData, height, circuit, routeNoti
     }
   }
   async function accept(reserved = false) {
-    if(saving||accepting.current||(reserved ? phase!=='searching' : phase!=='offer'))return;
+    if(!currentScenario||saving||accepting.current||(reserved ? phase!=='searching' : phase!=='offer'))return;
     accepting.current=true;dispatch({type:'phase',phase:'accepting'});
     setSaving(true);setSaveNotice('Salvando corrida…');
     try {
@@ -171,66 +207,96 @@ function useSimulationController({ onExit, onMapData, height, circuit, routeNoti
   useEffect(()=>()=>{overlay.phase('idle');overlay.update('Inicie uma corrida simulada no SafeRide para consultar o contexto.');},[]);
 
   const route = useMemo(()=>[...current.pickup.geometry.coordinates,...current.trip.geometry.coordinates],[current]);
-  const driver = useMemo(() => simulationDriver(phase, elapsed, offer, current), [phase,elapsed,offer,current]);
+  const driver = useMemo(() => waiting ? origin : simulationDriver(phase,elapsed,offer,current), [waiting,origin,phase,elapsed,offer,current]);
   const minutes = Math.ceil((current.pickup.duration+current.trip.duration)/60);
   const distance = current.pickup.distance+current.trip.distance;
   const top = Math.max(inset.top,10);
-  const prepareCamera = (phase === 'intro' && elapsed >= 3) || phase === 'searching';
-  const offerHeight = Math.min(340,height*0.48);
+  const contextHeight = contextLayout?.index === index ? contextLayout.height : 0;
+  const requestHeight = requestLayout?.index === index ? requestLayout.height : 0;
+  const showRoute = moving || (offering && contextHeight > 0 && requestHeight > 0);
+  const topInset = top + 52 + (phase === 'offer' ? contextHeight + 28 : 0);
+  const bottomInset = offering ? requestHeight + 48 : cardHeight + 26;
   const driverMotion = useMemo(() => {
     if (phase !== 'pickup' && phase !== 'trip') return null;
     const leg = current[phase];
     return { key: `${index}:${phase}`, coordinates: leg.geometry.coordinates, elapsed, duration: phase === 'pickup' ? 14 : 28, running: active && !paused && !saving };
   }, [phase,current,index,elapsed,active,paused,saving]);
   const visibleRoute = passengerOnboard ? current.trip.geometry.coordinates : route;
-  const mapData = useMemo(()=>({ simulation:true,navigation:moving,driverMotion,passengerOnboard,simulationPreview:prepareCamera?route:null,reduceMotion:reducedMotion!==false,reports:[],origin:waiting?null:offer.pickup,destination:waiting?null:offer.destination,selected:null,route:waiting?null:visibleRoute,approachRoute:waiting||passengerOnboard?undefined:current.pickup.geometry.coordinates,driver,bottomInset:(waiting?offerHeight:cardHeight)+26,topInset:top+(moving ? 52 : 148) }),[offer,current,route,visibleRoute,driver,moving,driverMotion,passengerOnboard,waiting,prepareCamera,reducedMotion,cardHeight,offerHeight,top]);
+  const mapData = useMemo<MapData>(()=>({
+    simulation:true,navigation:moving,driverMotion,passengerOnboard,reduceMotion:reducedMotion!==false,reports:[],
+    origin:showRoute?offer.pickup:null,destination:showRoute?offer.destination:null,selected:null,route:showRoute?visibleRoute:null,
+    approachRoute:showRoute&&!passengerOnboard?current.pickup.geometry.coordinates:undefined,driver,bottomInset,topInset,
+  }),[offer,current,visibleRoute,driver,moving,driverMotion,passengerOnboard,showRoute,reducedMotion,bottomInset,topInset]);
   useEffect(() => { onMapData(mapData); }, [mapData,onMapData]);
   const compact = height < 720;
-  return { routeNotice,nextRoute,nextOffer,nearDropoff,nextDecision,setNextDecision,remainingSeconds,c, reducedMotion, phase, elapsed, index, paused, setPaused, sound, setSound, saving, saveNotice, completionError, setCompletionError, retryCompletion, audioError, offer, current, active, moving, introVisible, waiting, offering, cardHeight, accept, declineOffer, exitSimulation, minutes, distance, top, compact, feedbackRideId, finishFeedback };
+  return { next,nearDropoff,nextDecision,setNextDecision,remainingSeconds,c, reducedMotion, phase, elapsed, index, paused, setPaused, sound, setSound, saving, saveNotice, completionError, setCompletionError, retryCompletion, audioError, offer, current, active, moving, introVisible, waiting, offering, cardHeight, onContextLayout, onRequestLayout, accept, declineOffer, exitSimulation, minutes, distance, top, compact, feedbackRideId, finishFeedback, currentScenario, planError, retryPlan };
 }
 type SimulationModel = ReturnType<typeof useSimulationController>;
 type PanelProps = Readonly<{ model: SimulationModel }>;
 
+type Preparation = { status: 'locating' | 'routing' } | { status: 'failed'; error: string } | { status: 'ready'; start: MapPoint; firstOffer: PlannedOffer };
+
 export default function RideSimulation(props: SimulationProps) {
-  const [start] = useState(props.initialPosition);
-  const [circuit, setCircuit] = useState<RoadCircuit | null>(start ? null : demoCircuit);
+  const [preparation, setPreparation] = useState<Preparation>({ status: 'locating' });
+  const [attempt, setAttempt] = useState(0);
   const { palette: c } = useSimulationTheme();
-  useEffect(() => {
-    if (!start) return;
-    const controller = new AbortController();
-    async function fetchLeg(from: MapPoint, to: MapPoint) {
-      if (controller.signal.aborted) throw new Error('Consulta encerrada.');
-      const leg = await api<Route>('/route', { method: 'POST', body: routeBody(from, to), signal: controller.signal });
-      if (!(leg.distance > 0 && leg.duration > 0 && leg.geometry.coordinates.length >= 2))
-        throw new Error('Trajeto indisponível.');
-      return leg;
+  const nextRequestAt = useRef(0);
+  const fetchOffer = useCallback<FetchOffer>((start, index, signal) => planOffer(start, index, async (from, to) => {
+    const delay = nextRequestAt.current - Date.now();
+    if (delay > 0) await new Promise(resolve => setTimeout(resolve, delay));
+    if (signal.aborted) throw new Error('Consulta encerrada.');
+    nextRequestAt.current = Date.now() + 1150;
+    const leg = await api<Route>('/route', { method: 'POST', body: routeBody(from, to), signal });
+    if (!(leg.distance > 0 && leg.duration > 0 && leg.geometry.coordinates.length >= 2)) {
+      throw new Error('Trajeto indisponível.');
     }
-    let first = true;
-    localCircuit(start, async (from, to) => {
-      // The route API limits how often it can call the driving directions provider.
-      if (!first) await new Promise(resolve => setTimeout(resolve, 1150));
-      first = false;
-      return fetchLeg(from, to);
-    }).then(result => { if (!controller.signal.aborted) setCircuit(result); })
-      .catch(() => { if (!controller.signal.aborted) setCircuit(demoCircuit); });
+    return leg;
+  }), []);
+  useEffect(() => {
+    const controller = new AbortController();
+    const update = (result: Preparation) => {
+      if (!controller.signal.aborted) setPreparation(result);
+    };
+    async function prepare() {
+      let start: MapPoint;
+      try { start = await locate({ fresh: true }); }
+      catch (error) { update({ status: 'failed', error: message(error) }); return; }
+      if (controller.signal.aborted) return;
+      if (!inPilot(start)) {
+        update({ status: 'failed', error: 'Sua localização está fora da região piloto de São Paulo.' });
+        return;
+      }
+      update({ status: 'routing' });
+      try {
+        const firstOffer = await fetchOffer(start, 0, controller.signal);
+        update({ status: 'ready', start, firstOffer });
+      } catch {
+        update({ status: 'failed', error: 'Não foi possível traçar um percurso perto de você. Tente novamente.' });
+      }
+    }
+    void prepare();
     return () => controller.abort();
-  }, [start]);
-  if (!circuit) return <View style={[StyleSheet.absoluteFill,{alignItems:'center',justifyContent:'center',gap:18,backgroundColor:c.surface}]}>
-    <Text style={{color:c.text}}>Calculando o trajeto pelas ruas…</Text>
-    <Pressable accessibilityRole="button" onPress={props.onExit}><Text style={{color:c.accent}}>Voltar ao mapa</Text></Pressable>
+  }, [attempt, fetchOffer]);
+
+  if (preparation.status === 'ready') return <RoadSimulation {...props} start={preparation.start} firstOffer={preparation.firstOffer} fetchOffer={fetchOffer} />;
+  const statusText = preparation.status === 'failed' ? preparation.error : preparation.status === 'routing'
+    ? 'Calculando um trajeto perto de você…' : 'Obtendo sua localização atual…';
+  return <View style={[StyleSheet.absoluteFill,s.preparation,{backgroundColor:c.surface}]}>
+    <Text accessibilityLiveRegion="polite" style={[s.preparationStatus,{color:c.text}]}>{statusText}</Text>
+    {preparation.status === 'failed' && <Pressable accessibilityRole="button" style={s.accept} onPress={() => {
+      setPreparation({ status: 'locating' });
+      setAttempt(value => value + 1);
+    }}><Text style={s.acceptText}>Tentar novamente</Text></Pressable>}
+    <Pressable accessibilityRole="button" onPress={props.onExit} style={[s.secondary,{borderColor:c.border}]}><Text style={{color:c.accent}}>Voltar ao mapa</Text></Pressable>
   </View>;
-  const routeNotice = circuit !== demoCircuit ? 'Percurso pelas vias próximas à sua posição.' :
-    start ? 'Rota local indisponível. Usando o trajeto viário de demonstração em Socorro.' :
-    'Percurso de demonstração pelas ruas de Socorro.';
-  return <RoadSimulation {...props} circuit={circuit} routeNotice={routeNotice} />;
 }
 
 function RoadSimulation(props: RoadProps) {
   const model = useSimulationController(props);
   const { c, reducedMotion, introVisible, top, sound, setSound, saving, exitSimulation, index, offer, active, waiting, phase } = model;
-  const next = model.nextRoute;
-  const nextMeters = next.pickup.distance + next.trip.distance;
-  const nextSeconds = next.pickup.duration + next.trip.duration;
+  const {next} = model;
+  const showNext = model.nearDropoff && model.nextDecision === 'open';
+  const request = model.offering ? offer : showNext ? next?.offer : undefined;
   return <View pointerEvents="box-none" style={[StyleSheet.absoluteFill,{alignItems:'center'}]}>
     <SimulationMotion visible={introVisible} reducedMotion={reducedMotion} duration={380} style={StyleSheet.absoluteFill}><View style={[StyleSheet.absoluteFill,{backgroundColor:c.surface+'f2'}]}/></SimulationMotion>
     <View pointerEvents="box-none" style={{flex:1,width:'100%',maxWidth:520}}>
@@ -241,21 +307,23 @@ function RoadSimulation(props: RoadProps) {
         <Pressable accessibilityRole="button" accessibilityLabel="Encerrar simulação" disabled={saving} onPress={exitSimulation} style={[s.tool,{backgroundColor:c.surface}]}><Text style={{color:c.text,fontSize:22}}>×</Text></Pressable>
       </View>
     </View>
-    {(waiting || phase === 'offer') && <SimulationContext
+    {model.currentScenario && (waiting || phase === 'offer') && <SimulationContext
       key={index} offer={offer} meters={model.distance}
+      routeCoordinates={model.current.trip.geometry.coordinates}
       seconds={model.current.pickup.duration + model.current.trip.duration}
       pickupSeconds={model.current.pickup.duration} top={top+52}
-      active={active} visible={phase === 'offer'} reducedMotion={reducedMotion}
+      active={active} visible={phase === 'offer'} reducedMotion={reducedMotion} onLayout={model.onContextLayout}
     />}
-    {model.nearDropoff && model.nextDecision==='open' && <SimulationContext
-      offer={model.nextOffer} meters={nextMeters} seconds={nextSeconds}
-      pickupSeconds={next.pickup.duration} top={top+52} active={active}
+    {showNext && next && <SimulationContext
+      offer={next.offer} meters={next.route.pickup.distance + next.route.trip.distance}
+      seconds={next.route.pickup.duration + next.route.trip.duration}
+      routeCoordinates={next.route.trip.geometry.coordinates}
+      pickupSeconds={next.route.pickup.duration} top={top+52} active={active}
       remainingMinutes={Math.max(1,Math.ceil(model.remainingSeconds/60))} reducedMotion={reducedMotion}
     />}
     <IntroPanel model={model}/>
     <SearchPanel model={model}/>
-    {model.offering || (model.nearDropoff && model.nextDecision==='open') ?
-      <RequestPanel model={model}/> : !waiting && <OfferPanel model={model}/>}
+    {request ? <RequestPanel model={model} request={request}/> : !waiting && <OfferPanel model={model}/>}
     <RideFeedback rideId={model.feedbackRideId} onClose={model.finishFeedback} />
   </View></View>;
 }
@@ -300,7 +368,7 @@ function IntroPanel({model}: PanelProps) {
       ].map(topic=><View key={topic.label} style={s.introTopic}><Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={topic.color} strokeWidth={1.6}><Path d={topic.path}/></Svg><Text style={{fontSize:11,color:c.muted}}>{topic.label}</Text></View>)}</View>
       <View style={[s.searchStatus,{borderColor:c.border,backgroundColor:c.surface}]}>
         <View style={[s.row,{justifyContent:'center'}]}><View style={s.dot}/><Text style={[s.searchTitle,{color:c.text}]}>Preparando sua experiência</Text></View>
-        <Text style={[s.searchCaption,{color:c.muted}]}>{model.routeNotice}</Text>
+        <Text style={[s.searchCaption,{color:c.muted}]}>Percurso pelas vias próximas à sua localização.</Text>
         <View accessibilityRole="progressbar" accessibilityLabel="Apresentação do SafeRide" accessibilityValue={{min:0,max:5,now:phase==='intro'?elapsed:5}} style={[s.progress,{backgroundColor:c.inset}]}><View style={[s.progressFill,{backgroundColor:c.accent,width:`${phase==='intro'?elapsed/5*100:100}%`}]}/></View>
       </View>
       <Text style={[s.footnote,{color:c.muted,marginTop:18}]}>MODO SIMULAÇÃO{'\n'}A plataforma envia a oferta. O SafeRide mostra os ganhos e o contexto do destino.</Text>
@@ -308,17 +376,17 @@ function IntroPanel({model}: PanelProps) {
 }
 
 function SearchPanel({model}: PanelProps) {
-  const { c, phase, elapsed, reducedMotion } = model;
+  const { c, phase, elapsed, reducedMotion, planError, retryPlan } = model;
   return <SimulationMotion visible={phase==='searching'} reducedMotion={reducedMotion} fromY={50} duration={480} testID="simulation-search" style={[s.searchingPanel,{backgroundColor:c.surface,borderColor:c.border}]}>
-      <Text accessibilityLiveRegion="polite" style={[s.stageTitle,{color:c.text}]}>Localizando corrida…</Text>
-      <SimulationProgress value={elapsed/5} color={c.accent} background={c.inset} reducedMotion={reducedMotion}/>
+      <Text accessibilityLiveRegion="polite" style={[s.stageTitle,{color:c.text}]}>{planError || 'Localizando corrida…'}</Text>
+      {planError ? <Pressable accessibilityRole="button" style={s.accept} onPress={retryPlan}><Text style={s.acceptText}>Tentar novamente</Text></Pressable>
+        : <SimulationProgress value={elapsed/5} color={c.accent} background={c.inset} reducedMotion={reducedMotion}/>}
     </SimulationMotion>;
 }
 
-function RequestPanel({model}: PanelProps) {
+function RequestPanel({model, request}: PanelProps & { request: Offer }) {
   const {c, saving, offering, elapsed, reducedMotion} = model;
-  const request = offering ? model.offer : model.nextOffer;
-  return <View style={[s.searchingPanel,{backgroundColor:c.surface,borderColor:c.border,gap:8,padding:16}]}>
+  return <View onLayout={offering ? model.onRequestLayout : undefined} style={[s.searchingPanel,{backgroundColor:c.surface,borderColor:c.border,gap:8,padding:16}]}>
     <Text style={[s.eyebrow,{color:c.accent}]}>{offering ? 'Nova corrida' : 'Próxima corrida após o desembarque'} · {request.platform}</Text>
     <Text style={{color:c.text}}>Embarque · {request.pickup.name}</Text>
     <Text style={{color:c.text}}>Destino · {request.destination.name}</Text>
@@ -366,6 +434,8 @@ function TripDetails({model}: PanelProps) {
 }
 
 const s=StyleSheet.create({
+  preparation:{alignItems:'center',justifyContent:'center',gap:18,padding:24},
+  preparationStatus:{textAlign:'center',maxWidth:420},
   tripAvatar:{width:46,height:46,borderRadius:23,alignItems:'center',justifyContent:'center'},
   searchingPanel:{position:'absolute',left:16,right:16,bottom:20,padding:24,borderRadius:24,borderWidth:1,boxShadow:'0 8px 26px #0003'},
   toolbar:{position:'absolute',left:14,right:14,flexDirection:'row',justifyContent:'space-between',alignItems:'center'},
