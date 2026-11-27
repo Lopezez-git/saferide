@@ -20,6 +20,7 @@ function camera(fitZoom=14.25) {
     fire:event=>events.dispatchEvent(new Event(event)),
     getPane:()=>({style:{setProperty(){}}}),getSize:()=>({x:390,y:650}),stop:()=>calls.push(['stop']),
     latLngToContainerPoint:()=>point(195,325),panBy:(offset,options)=>calls.push(['pan',offset,options]),
+    panTo:(center,options)=>{calls.push(['center',center,options]);return map;},
     getBearing:()=>map.bearing||0,setBearing:value=>{map.bearing=value;calls.push(['bearing',value]);},setPitch:value=>calls.push(['pitch',value]),
     removeLayer(){},flyTo:(center,zoom,options)=>calls.push(['fly',center,zoom,options]),fitBounds:(_bounds,options)=>calls.push(['fit',options])};
   const layer=()=>({addTo(){return this;},clearLayers(){},bindTooltip(){return this;},setLatLng(point){positions.push(point);return this;},getBounds(){return {};}});
@@ -50,44 +51,42 @@ test('a second map selection zooms out before landing, and a gesture cancels the
   }
 });
 
-test('prepares a close view then flies once; movement updates do not restart camera',()=>{
+test('centers the waiting driver and pans once when the offer is measured',()=>{
   const {update,calls}=camera();
-  update(waiting);update({...waiting,simulationPreview:offer.route,bottomInset:offer.bottomInset,topInset:offer.topInset});update({...waiting,simulationPreview:offer.route,bottomInset:offer.bottomInset,topInset:offer.topInset});
-  assert.equal(calls.filter(c=>c[0]==='set'&&Math.abs(c[2]-14.9)<0.001).length,1);
+  update({...waiting,driver:origin});update({...waiting,driver:origin});
+  assert.equal(calls.filter(c=>c[0]==='center').length,1);
+  assert.equal(calls.find(c=>c[0]==='center')[2].animate,false);
   update(offer);update({...offer,driver:destination});
-  assert.equal(calls.filter(c=>c[0]==='fly').length,1);
-  assert.equal(calls.find(c=>c[0]==='fly')[3].duration,0.9);
+  const animatedPans=()=>calls.filter(c=>c[0]==='center'&&c[2].animate);
+  assert.equal(animatedPans().length,1);
   update({...offer,bottomInset:230});
-  assert.equal(calls.filter(c=>c[0]==='fly').length,1);
-  update(waiting);update({...waiting,simulationPreview:offer.route,bottomInset:offer.bottomInset,topInset:offer.topInset});update(offer);
-  assert.equal(calls.filter(c=>c[0]==='fly').length,2);
+  assert.equal(animatedPans().length,1);
+  assert.equal(calls.at(-1)[2].animate,false);
+  update(waiting);update(offer);
+  assert.equal(animatedPans().length,2);
 });
-test('leaving during camera flight stops it and restores the previous viewport',()=>{
+test('leaving the simulation stops the camera and restores its original center',()=>{
   const {update,calls}=camera();update(waiting);update(offer);
   update({...waiting,simulation:false});
-  assert.equal(calls.at(-2)[0],'stop');assert.equal(calls.at(-1)[0],'set');assert.equal(calls.at(-1)[2],13);
+  assert.equal(calls.at(-2)[0],'stop');assert.equal(calls.at(-1)[0],'center');
+  assert.deepEqual(calls.at(-1)[1],[-23.55,-46.63]);assert.equal(calls.at(-1)[2].animate,false);
 });
 test('reduced motion frames the route without flying',()=>{
   const {update,calls}=camera();update({...offer,reduceMotion:true});
   assert.equal(calls.filter(c=>c[0]==='fly').length,0);
-  assert.equal(calls.find(c=>c[0]==='set')[3].animate,false);
+  assert.equal(calls.find(c=>c[0]==='center')[2].animate,false);
 });
 
-test('camera opening stays small and follows the route framing for short and long trips',()=>{
-  const results=[15.5,11.25].map(fitZoom=>{
-    const {update,calls}=camera(fitZoom);
-    update({...waiting,simulationPreview:offer.route,bottomInset:offer.bottomInset,topInset:offer.topInset});update(offer);
-    const start=calls.find(c=>c[0]==='set'),end=calls.find(c=>c[0]==='fly');
-    assert.ok(Math.abs(start[2]-end[2]-0.65)<0.001);
-    assert.deepEqual(start[1],end[1]);
-    assert.equal(end[2],fitZoom);
-    return end[2];
-  });
-  assert.ok(results[0]>results[1]);
+test('a route that cannot fit at the current zoom leaves the camera alone',()=>{
+  const {update,calls}=camera(11.25);
+  update(waiting);update(offer);
+  assert.equal(calls.some(c=>['set','fly','center'].includes(c[0])),false);
 });
-test('fractional framing is scoped to the simulation',()=>{
-  const {update,map}=camera();update(waiting);assert.equal(map.options.zoomSnap,0);
-  update({...waiting,simulation:false});assert.equal(map.options.zoomSnap,1);
+test('simulation respects the zoom selected by the user',()=>{
+  const {update,map,calls}=camera();update(waiting);update(offer);
+  update({...waiting,simulation:false});
+  assert.equal(map.options.zoomSnap,1);
+  assert.equal(calls.some(c=>['set','fly','fit'].includes(c[0])),false);
 });
 
 
@@ -122,12 +121,14 @@ test('driver POV rotates toward travel and boarding preserves the navigation cam
   assert.equal(scene.calls.filter(c=>c[0]==='fly').length,0);
   assert.ok(scene.calls.some(c=>c[0]==='pitch'&&c[1]===38));
   assert.ok(scene.calls.some(c=>c[0]==='bearing'&&c[1]===-90));
-  assert.ok(scene.calls.some(c=>c[0]==='set'&&c[2]===16.8));
+  assert.equal(scene.calls.some(c=>c[0]==='set'),false);
   assert.ok(scene.calls.some(c=>c[0]==='pan'));
   const sets=scene.calls.filter(c=>c[0]==='set').length;
   scene.update({...base,passengerOnboard:true,driverMotion:null});
   assert.equal(scene.calls.filter(c=>c[0]==='set').length,sets);
   scene.update(waiting);
+  assert.equal(scene.map.getBearing(),-90);
+  scene.update({...waiting,simulation:false});
   assert.ok(scene.calls.some(c=>c[0]==='pitch'&&c[1]===0));
   assert.equal(scene.map.getBearing(),0);
 });

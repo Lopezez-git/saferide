@@ -245,8 +245,8 @@ export default function RideSimulation(props: SimulationProps) {
     const delay = nextRequestAt.current - Date.now();
     if (delay > 0) await new Promise(resolve => setTimeout(resolve, delay));
     if (signal.aborted) throw new Error('Consulta encerrada.');
-    nextRequestAt.current = Date.now() + 1150;
     const leg = await api<Route>('/route', { method: 'POST', body: routeBody(from, to), signal });
+    nextRequestAt.current = Date.now() + 1150;
     if (!(leg.distance > 0 && leg.duration > 0 && leg.geometry.coordinates.length >= 2)) {
       throw new Error('Trajeto indisponível.');
     }
@@ -259,7 +259,7 @@ export default function RideSimulation(props: SimulationProps) {
     };
     async function prepare() {
       let start: MapPoint;
-      try { start = await locate({ fresh: true }); }
+      try { start = await locate(undefined, { fresh: true }); }
       catch (error) { update({ status: 'failed', error: message(error) }); return; }
       if (controller.signal.aborted) return;
       if (!inPilot(start)) {
@@ -270,8 +270,8 @@ export default function RideSimulation(props: SimulationProps) {
       try {
         const firstOffer = await fetchOffer(start, 0, controller.signal);
         update({ status: 'ready', start, firstOffer });
-      } catch {
-        update({ status: 'failed', error: 'Não foi possível traçar um percurso perto de você. Tente novamente.' });
+      } catch (error) {
+        update({ status: 'failed', error: message(error) });
       }
     }
     void prepare();

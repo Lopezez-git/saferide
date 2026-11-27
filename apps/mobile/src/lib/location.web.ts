@@ -16,11 +16,12 @@ function requestPosition(highAccuracy: boolean): Promise<DevicePosition> {
   });
 }
 
-export async function locate(onRefined?: (position: DevicePosition) => void): Promise<DevicePosition> {
+export async function locate(onRefined?: (position: DevicePosition) => void, options?: { fresh: boolean }): Promise<DevicePosition> {
   if (!navigator.geolocation) {
     throw new Error("Este navegador não oferece localização. Abra o SafeRide em localhost ou HTTPS no Chrome/Edge.");
   }
   try {
+    if (options?.fresh) return await requestPosition(true);
     // A recent network position is useful even when a precise GPS fix is unavailable.
     let initial: DevicePosition;
     try {

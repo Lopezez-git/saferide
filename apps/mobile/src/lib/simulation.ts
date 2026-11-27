@@ -42,6 +42,23 @@ export const demoCircuit: RoadCircuit = {
 };
 
 type FetchLeg = (from: MapPoint, to: MapPoint) => Promise<Route>;
+export type PlannedOffer = { offer: Offer; route: { pickup: Route; trip: Route } };
+
+export async function planOffer(driver: MapPoint, index: number, fetchLeg: FetchLeg): Promise<PlannedOffer> {
+  const template = offers[index % offers.length];
+  const bearing = (index * 137 + 65) % 360;
+  const pickupLeg = await fetchLeg(driver, offset(driver, 650, bearing));
+  const pickup = coordinateStop(roadPoint(pickupLeg, true));
+  const trip = await fetchLeg(pickup, offset(pickup, 2600, bearing + 55));
+  const tripStart = roadPoint(trip);
+  if (Math.abs(pickup.latitude - tripStart.latitude) > 0.00001 ||
+      Math.abs(pickup.longitude - tripStart.longitude) > 0.00001) {
+    throw new Error('Os trechos calculados não se encontram no embarque.');
+  }
+  const destination = coordinateStop(roadPoint(trip, true));
+  return { offer: { ...template, driver: roadPoint(pickupLeg), pickup, destination }, route: { pickup: pickupLeg, trip } };
+}
+
 export async function localCircuit(driver: MapPoint, fetchLeg: FetchLeg): Promise<RoadCircuit> {
   const approach = await fetchLeg(driver, offset(driver, 650, 65));
   const station = coordinateStop(roadPoint(approach, true));
@@ -113,8 +130,8 @@ export function simulationDriver(phase: SimulationPhase, elapsed: number, offer:
   return offer.driver;
 }
 
-export function simulationReducer(state: Playback, action: { type: 'tick' } | { type: 'next' } | { type: 'phase'; phase: SimulationPhase }): Playback {
-  if (action.type === 'next') return {phase:'searching',elapsed:0,offerIndex:((state.offerIndex??0)+1)%offers.length};
+export function simulationReducer(state: Playback, action: { type: 'tick' } | { type: 'next'; skipDeclined?: boolean } | { type: 'phase'; phase: SimulationPhase }): Playback {
+  if (action.type === 'next') return {phase:'searching',elapsed:0,offerIndex:(state.offerIndex ?? 0) + (action.skipDeclined ? 2 : 1)};
   if (action.type === 'phase') return { ...state, phase: action.phase, elapsed: 0 };
   const timing = timedPhases[state.phase];
   if (!timing) return state;
